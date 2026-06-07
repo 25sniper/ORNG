@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h3 class="text-center mb-4">Complete Registration</h3>
+                <p class="text-muted text-center">It looks like you're new! Please complete your shop details to continue.</p>
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Phone Number</label>
+                        <input type="text" class="form-control form-control-lg" value="{{ phone }}" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" name="name" class="form-control form-control-lg" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Store Name</label>
+                        <input type="text" name="store_name" class="form-control form-control-lg" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Location</label>
+                        <div class="input-group">
+                            <input type="text" name="location" id="locationField" class="form-control form-control-lg" placeholder="Address or Lat/Lng" required>
+                            <button class="btn btn-outline-secondary" type="button" id="detectLocationBtn">Detect</button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-lg w-100">Create Account & Log In</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('detectLocationBtn').addEventListener('click', function() {
+    const locField = document.getElementById('locationField');
+    locField.placeholder = "Detecting location...";
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            locField.value = position.coords.latitude + ", " + position.coords.longitude;
+        }, function(error) {
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                alert("Location detection blocked. Modern browsers require HTTPS (a secure connection) to access location APIs over a local network. Please type your address manually or access the site via HTTPS.");
+            } else {
+                alert("Error detecting location. Please type your address manually.");
+            }
+            locField.placeholder = "Address or Lat/Lng";
+        });
+    } else {
+        alert("Geolocation is not supported by this browser or requires HTTPS.");
+    }
+});
+</script>
+{% endblock %}

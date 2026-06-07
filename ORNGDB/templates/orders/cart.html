@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold" style="color: #ff6600;">Your Cart</h2>
+    <a href="{% url 'customer_menu' %}" class="btn btn-outline-secondary rounded-pill px-4">Continue Shopping</a>
+</div>
+
+{% if not cart_items %}
+    <div class="alert alert-warning border-0 shadow-sm rounded-4 text-center py-5">
+        <h4 class="mb-3 text-muted">Your cart is empty.</h4>
+        <a href="{% url 'customer_menu' %}" class="btn mt-2 px-4 py-2 text-white fw-bold" style="background-color: #ff6600; border-radius: 50px;">Browse Products</a>
+    </div>
+{% else %}
+    <div class="row">
+        <!-- Cart Items -->
+        <div class="col-lg-8 mb-4">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for item in cart_items %}
+                            <div class="list-group-item py-3 px-3 border-0 border-bottom">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <!-- Left: Veg Icon + Product Name -->
+                                    <div class="d-flex align-items-center flex-grow-1 me-3" style="min-width: 0;">
+                                        <!-- Veg Symbol (Green box with green dot) -->
+                                        <span class="d-inline-flex align-items-center justify-content-center me-2 flex-shrink-0" style="width: 14px; height: 14px; border: 1.5px solid #198754; padding: 2px; border-radius: 3px;">
+                                            <span style="width: 5px; height: 5px; background-color: #198754; border-radius: 50%;"></span>
+                                        </span>
+                                        <span class="fw-bold text-dark text-truncate" style="font-size: 0.95rem; font-family: 'Outfit', sans-serif; letter-spacing: -0.2px;">{{ item.product.name }}</span>
+                                    </div>
+                                    
+                                    <!-- Middle: Stepper Container -->
+                                    <div class="flex-shrink-0 me-3">
+                                        <form action="{% url 'cart_update' item.id %}" method="POST" class="m-0">
+                                            {% csrf_token %}
+                                            <div class="bg-white border rounded-3 px-2 py-0 d-flex align-items-center justify-content-between" style="width: 80px; height: 32px; border-color: #e2e8f0 !important; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                                <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5 dec-btn" style="line-height: 1;"><i class="bi bi-dash"></i></button>
+                                                <input type="number" name="quantity" value="{{ item.quantity }}" min="0" step="1" class="form-control form-control-sm text-center border-0 p-0 fw-bold bg-transparent qty-input" style="width: 24px; box-shadow: none; font-size: 0.9rem; color: #2d3748;">
+                                                <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5 inc-btn" style="line-height: 1;"><i class="bi bi-plus"></i></button>
+                                            </div>
+                                        </form>
+                                    </div>
+
+                                    <!-- Right: Price block -->
+                                    <div class="text-end flex-shrink-0" style="min-width: 50px; line-height: 1.25;">
+                                        <div class="fw-bold text-dark" style="font-size: 0.95rem; letter-spacing: -0.2px;">₹{{ item.subtotal|floatformat:0 }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4" style="background-color: #fff1e6;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <span class="fs-5 fw-bold">Total:</span>
+                        <span class="fs-3 fw-bold text-dark">₹{{ total_amount }}</span>
+                    </div>
+                    
+                    <form action="{% url 'checkout' %}" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn w-100 py-3 text-white fw-bold fs-5 shadow-sm" style="background-color: #ff6600; border-radius: 50px;">
+                            Place Order
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Intercept click events on quantity stepper buttons in cart
+    document.addEventListener('click', function(e) {
+        const decBtn = e.target.closest('.dec-btn');
+        const incBtn = e.target.closest('.inc-btn');
+        
+        if (decBtn || incBtn) {
+            e.preventDefault();
+            const form = (decBtn || incBtn).closest('form');
+            const qtyInput = form.querySelector('.qty-input');
+            if (!qtyInput) return;
+            
+            let val = parseInt(qtyInput.value) || 0;
+            if (decBtn) {
+                val = Math.max(0, val - 1);
+            } else {
+                val = val + 1;
+            }
+            qtyInput.value = val;
+            
+            form.submit();
+        }
+    });
+
+    // Handle manual change on text inputs
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.classList.contains('qty-input')) {
+            const form = e.target.closest('form');
+            if (form) {
+                form.submit();
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

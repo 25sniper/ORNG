@@ -1,0 +1,579 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+  #deliveryTabs .nav-link {
+      font-size: 0.85rem !important;
+      border: none !important;
+      background-color: transparent !important;
+      color: #6c757d !important;
+      transition: all 0.2s ease;
+  }
+
+  #deliveryTabs .nav-link.active {
+      background-color: #ff6600 !important;
+      color: #ffffff !important;
+  }
+
+  #deliveryTabs .nav-link .badge {
+      font-size: 0.75rem !important;
+      transition: all 0.2s ease;
+  }
+
+  /* Active tab badge: white background, dark text, border */
+  #deliveryTabs .nav-link.active .badge {
+      background-color: #ffffff !important;
+      color: #212529 !important;
+      border: 1px solid #dee2e6 !important;
+  }
+
+  /* Inactive tab badge: secondary background, white text */
+  #deliveryTabs .nav-link:not(.active) .badge {
+      background-color: #6c757d !important;
+      color: #ffffff !important;
+      border: none !important;
+  }
+</style>
+
+<ul class="nav nav-pills mb-4 border-0 mt-2 flex-nowrap w-100 justify-content-between" id="deliveryTabs" role="tablist" style="background-color: #f1f5f9; padding: 4px; border-radius: 50px;">
+  <li class="nav-item flex-grow-1" role="presentation">
+    <button class="nav-link active rounded-pill fw-bold py-2 px-1 w-100 text-center" id="packing-tab" data-bs-toggle="pill" data-bs-target="#packing" type="button" role="tab">
+      Packing <span class="badge rounded-pill ms-1" id="packing-count">{{ packing_orders|length }}</span>
+    </button>
+  </li>
+  <li class="nav-item flex-grow-1" role="presentation">
+    <button class="nav-link rounded-pill fw-bold py-2 px-1 w-100 text-center" id="delivery-tab" data-bs-toggle="pill" data-bs-target="#delivery" type="button" role="tab">
+      Delivery <span class="badge rounded-pill ms-1" id="delivery-count">{{ delivery_orders|length }}</span>
+    </button>
+  </li>
+  <li class="nav-item flex-grow-1" role="presentation">
+    <button class="nav-link rounded-pill fw-bold py-2 px-1 w-100 text-center" id="completed-tab" data-bs-toggle="pill" data-bs-target="#completed" type="button" role="tab">
+      Completed <span class="badge rounded-pill ms-1" id="completed-count">{{ completed_orders|length }}</span>
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content" id="deliveryTabsContent">
+
+  <!-- PACKING TAB -->
+  <div class="tab-pane fade show active" id="packing" role="tabpanel">
+      {% if not packing_orders %}
+          <div class="alert alert-light border-0 shadow-sm rounded-4 py-5 text-center text-muted mt-2" id="packing-empty">
+              <h5 class="mb-0">No orders to pack.</h5>
+          </div>
+      {% else %}
+          <div class="row row-cols-1 g-3" id="packing-list">
+              {% for order in packing_orders %}
+              <div class="col" id="packing-card-{{ order.id }}"
+                   data-order-id="{{ order.id }}"
+                   data-created="{{ order.created_at|date:'M d, Y • h:i A' }}"
+                   data-store="{{ order.customer.store_name }}"
+                   data-customer="{{ order.customer.name }}"
+                   data-phone="{{ order.customer.phone }}"
+                   data-location="{{ order.customer.location }}"
+                   data-maps="{{ order.customer.google_maps_url }}"
+                   data-total="{{ order.total_amount|floatformat:0 }}"
+                   data-deliver-url="{% url 'deliver_order' order.id %}">
+                  <div class="card border-0 shadow-sm rounded-4 border-start border-4 border-warning">
+                      <!-- Order Header -->
+                      <div class="card-header bg-white border-bottom-0 pt-3 pb-1 px-4 d-flex justify-content-between align-items-start">
+                          <div>
+                              <h6 class="fw-bold mb-0 text-dark" style="font-size: 1.05rem; font-family: 'Outfit', sans-serif;">Order #{{ order.id }}</h6>
+                              <small class="text-muted" style="font-size: 0.8rem;">{{ order.created_at|date:"M d, Y • h:i A" }}</small>
+                          </div>
+                          <div>
+                              <span class="badge rounded-pill text-bg-warning px-2.5 py-1.5 text-dark border-0" style="font-size: 0.75rem;"><i class="bi bi-box me-1"></i> To Pack</span>
+                          </div>
+                      </div>
+
+                      <!-- Order Body -->
+                      <div class="card-body px-4 pt-1 pb-3">
+                          <div class="mb-3">
+                              <h5 class="fw-bold text-dark mb-1">{{ order.customer.store_name }}</h5>
+                          </div>
+
+                          {% if order.items.count > 3 %}
+                          <div class="p-3 bg-light border rounded-3 mb-3 shadow-sm">
+                              <small class="text-muted d-block mb-2"><i class="bi bi-list-ul"></i> Items to pack:</small>
+                              <ul class="list-unstyled mb-2">
+                                  {% for item in order.items.all|slice:":3" %}
+                                  <li class="mb-1 text-dark small">
+                                      <span class="fw-bold me-1">{{ item.quantity }}x</span>{{ item.product.name }}
+                                  </li>
+                                  {% endfor %}
+                              </ul>
+                              <div class="text-center mt-2">
+                                  <span class="badge bg-secondary text-white rounded-pill px-2 py-1" style="font-size: 0.7rem;">+ {{ order.items.count|add:"-3" }} more items</span>
+                              </div>
+                          </div>
+                          <a href="{% url 'delivery_pack_order' order.id %}" class="btn w-100 fw-bold text-white rounded-pill py-2 shadow-sm" style="background-color: #ff6600;">
+                              <i class="bi bi-box-arrow-up-right me-1"></i> Pack Order
+                          </a>
+                          {% else %}
+                          <div class="p-3 bg-white border rounded-3 mb-3 shadow-sm">
+                              <small class="text-muted d-block mb-2"><i class="bi bi-check-circle"></i> Check off items to pack:</small>
+                              <ul class="list-unstyled mb-0">
+                                  {% for item in order.items.all %}
+                                  <li class="d-flex justify-content-between mb-2 align-items-center">
+                                      <div class="form-check">
+                                          <input class="form-check-input item-check-{{ order.id }}" type="checkbox" value="" id="check-{{ item.id }}" onchange="togglePackButton({{ order.id }})">
+                                          <label class="form-check-label text-dark" for="check-{{ item.id }}" id="label-{{ item.id }}">
+                                              <span class="fw-bold me-2">{{ item.quantity }}x</span>{{ item.product.name }}
+                                          </label>
+                                      </div>
+                                  </li>
+                                  {% endfor %}
+                              </ul>
+                          </div>
+                          <button type="button"
+                              id="pack-btn-{{ order.id }}"
+                              class="btn w-100 fw-bold text-white rounded-pill py-2 shadow-sm"
+                              style="background-color: #ff6600;"
+                              disabled
+                              onclick="ajaxPackOrder({{ order.id }}, '{% url 'pack_order' order.id %}', '{{ csrf_token }}')">
+                              <i class="bi bi-box-seam me-1"></i> Mark as Packed
+                          </button>
+                          {% endif %}
+                      </div>
+                  </div>
+              </div>
+              {% endfor %}
+          </div>
+      {% endif %}
+  </div>
+
+  <!-- DELIVERY TAB -->
+  <div class="tab-pane fade" id="delivery" role="tabpanel">
+      {% if not delivery_orders %}
+          <div class="alert alert-light border-0 shadow-sm rounded-4 py-5 text-center text-muted mt-2" id="delivery-empty">
+              <h5 class="mb-0">No orders to deliver.</h5>
+          </div>
+          <div class="row row-cols-1 g-3 d-none" id="delivery-list"></div>
+      {% else %}
+          <div class="alert alert-light border-0 shadow-sm rounded-4 py-5 text-center text-muted mt-2 d-none" id="delivery-empty">
+              <h5 class="mb-0">No orders to deliver.</h5>
+          </div>
+          <div class="row row-cols-1 g-3" id="delivery-list">
+              {% for order in delivery_orders %}
+              <div class="col" id="delivery-card-{{ order.id }}">
+                  <div class="card border-0 shadow-sm rounded-4 border-start border-4 {% if order.status == 'packed' %}border-primary{% else %}border-success{% endif %}">
+                      <!-- Order Header -->
+                      <div class="card-header bg-white border-bottom-0 pt-3 pb-1 px-4 d-flex justify-content-between align-items-start">
+                          <div>
+                              <h6 class="fw-bold mb-0 text-dark" style="font-size: 1.05rem; font-family: 'Outfit', sans-serif;">Order #{{ order.id }}</h6>
+                              <small class="text-muted" style="font-size: 0.8rem;">{{ order.created_at|date:"M d, Y • h:i A" }}</small>
+                          </div>
+                          <div>
+                              {% if order.status == 'packed' %}
+                                  <span class="badge rounded-pill text-bg-primary px-2.5 py-1.5 border-0" style="font-size: 0.75rem;" id="status-badge-{{ order.id }}"><i class="bi bi-truck me-1"></i> To Deliver</span>
+                              {% elif order.status == 'delivered' %}
+                                  <span class="badge rounded-pill text-bg-success px-2.5 py-1.5 border-0" style="font-size: 0.75rem;" id="status-badge-{{ order.id }}"><i class="bi bi-check-circle me-1"></i> Delivered</span>
+                              {% endif %}
+                          </div>
+                      </div>
+
+                      <!-- Order Body -->
+                      <div class="card-body px-4 pt-1 pb-3">
+                          <div class="mb-3">
+                              <div class="d-flex justify-content-between align-items-center mb-1">
+                                  <h5 class="fw-bold text-dark mb-0">{{ order.customer.store_name }}</h5>
+                                  <button type="button"
+                                      class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill d-inline-flex align-items-center"
+                                      style="font-size: 0.78rem;"
+                                      onclick="openItemsModal({{ order.id }})">
+                                      <i class="bi bi-eye me-1"></i> View Items
+                                  </button>
+                              </div>
+                              <div class="text-muted small mb-2">
+                                  <i class="bi bi-person"></i> {{ order.customer.name }} &bull;
+                                  <i class="bi bi-telephone"></i> <a href="tel:{{ order.customer.phone }}" class="text-decoration-none">{{ order.customer.phone }}</a>
+                              </div>
+                              {% if order.status != 'delivered' %}
+                              <div class="p-3 bg-light rounded-3 d-flex align-items-center mt-2">
+                                  <i class="bi bi-geo-alt-fill text-danger fs-5 me-2"></i>
+                                  <span class="text-dark small">{{ order.customer.location }}</span>
+                                  {% if order.customer.google_maps_url %}
+                                      <a href="{{ order.customer.google_maps_url }}" target="_blank" class="ms-auto btn btn-sm btn-outline-danger rounded-pill px-3 py-1" style="font-size: 0.75rem;"><i class="bi bi-map"></i> Navigate</a>
+                                  {% else %}
+                                      <a href="https://www.google.com/maps/search/?api=1&query={{ order.customer.location|urlencode }}" target="_blank" class="ms-auto btn btn-sm btn-outline-danger rounded-pill px-3 py-1" style="font-size: 0.75rem;"><i class="bi bi-map"></i> Navigate</a>
+                                  {% endif %}
+                              </div>
+                              {% endif %}
+                          </div>
+
+                          <!-- Action area -->
+                          <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-2 flex-nowrap" id="action-bar-{{ order.id }}">
+                              <span class="text-muted small text-nowrap me-2">
+                                  {% if order.status == 'packed' %}Collect Total:{% else %}Total:{% endif %}
+                                  <span class="fw-bold text-dark fs-6">₹{{ order.total_amount|floatformat:0 }}</span>
+                              </span>
+                              <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                  {% if order.status == 'packed' %}
+                                  <button type="button"
+                                      class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center"
+                                      style="background-color: #28a745; font-size: 0.8rem; border: none;"
+                                      onclick="ajaxDeliverOrder({{ order.id }}, '{% url 'deliver_order' order.id %}', '{{ csrf_token }}')">
+                                      <i class="bi bi-check2-circle me-1"></i> Mark Delivered
+                                  </button>
+                                  {% elif order.status == 'delivered' %}
+                                  <span class="badge rounded-pill px-3 fw-bold d-inline-flex align-items-center" style="font-size: 0.75rem; color: #e65c00; background-color: #fff5eb; border: 1px solid #ffd1a4; padding-top: 0.4rem; padding-bottom: 0.4rem;">
+                                      <i class="bi bi-hourglass-split me-1"></i> Waiting
+                                  </span>
+                                  {% endif %}
+                              </div>
+                          </div>
+                      </div>
+
+                  </div>
+              </div>
+              {% endfor %}
+          </div>
+      {% endif %}
+  </div>
+
+  <!-- COMPLETED TAB -->
+  <div class="tab-pane fade" id="completed" role="tabpanel">
+      {% if not completed_orders %}
+          <div class="alert alert-light border-0 shadow-sm rounded-4 py-5 text-center text-muted mt-2">
+              <h5 class="mb-0">No completed deliveries yet.</h5>
+          </div>
+      {% else %}
+          <div class="row row-cols-1 g-3">
+              {% for order in completed_orders %}
+              <div class="col">
+                  <div class="card border-0 shadow-sm rounded-4 border-start border-4 border-secondary">
+                      <div class="card-body px-4 py-3 d-flex justify-content-between align-items-center">
+                          <div>
+                              <div class="d-flex align-items-center mb-1">
+                                  <h6 class="fw-bold mb-0 text-dark me-2" style="font-family: 'Outfit', sans-serif;">#{{ order.id }}</h6>
+                                  <span class="text-dark fw-medium">{{ order.customer.store_name }}</span>
+                              </div>
+                              <small class="text-success fw-bold" style="font-size: 0.8rem;"><i class="bi bi-check-circle-fill me-1"></i> {{ order.received_at|date:"M d, Y • h:i A" }}</small>
+                          </div>
+                          <div class="text-end">
+                              <span class="fw-bold text-dark fs-5">₹{{ order.total_amount|floatformat:0 }}</span>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+              {% endfor %}
+          </div>
+      {% endif %}
+  </div>
+
+</div>
+
+<!-- Order Items Modals -->
+{% for order in delivery_orders %}
+<div class="modal fade" id="itemsModal-{{ order.id }}" tabindex="-1" aria-labelledby="itemsModalLabel-{{ order.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0" id="itemsModalLabel-{{ order.id }}" style="color: #ff6600;">Order #{{ order.id }}</h5>
+                    <small class="text-muted">{{ order.customer.store_name }}</small>
+                </div>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 pt-3 pb-2">
+                <ul class="list-group list-group-flush">
+                    {% for item in order.items.all %}
+                    <li class="list-group-item px-0 py-3 d-flex justify-content-between align-items-center border-bottom">
+                        <div>
+                            <span class="fw-bold text-dark">{{ item.quantity }}x</span>
+                            <span class="ms-2 text-dark">{{ item.product.name }}</span>
+                        </div>
+                        <span class="fw-bold text-dark">₹{{ item.price_at_time|floatformat:0 }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex justify-content-between align-items-center">
+                <span class="text-muted small">{{ order.items.count }} items</span>
+                <span class="fw-bold fs-5 text-dark">Total: ₹{{ order.total_amount|floatformat:0 }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Toast notification -->
+<div class="position-fixed bottom-0 start-50 translate-middle-x mb-4" style="z-index: 9999; min-width: 260px;" id="toastWrapper">
+    <div id="actionToast" class="toast align-items-center border-0 rounded-pill shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" style="display:none;">
+        <div class="d-flex">
+            <div class="toast-body fw-bold px-4 py-2" id="toastMsg"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Tab Persistence ───────────────────────────────────────────────────────────
+const TAB_KEY = 'deliveryActiveTab';
+
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTab = sessionStorage.getItem(TAB_KEY);
+    if (savedTab) {
+        const tabEl = document.querySelector(savedTab);
+        if (tabEl) new bootstrap.Tab(tabEl).show();
+    }
+
+    document.querySelectorAll('#deliveryTabs button[data-bs-toggle="pill"]').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', function(e) {
+            sessionStorage.setItem(TAB_KEY, '#' + e.target.id);
+        });
+    });
+});
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, isSuccess) {
+    const toast = document.getElementById('actionToast');
+    const toastMsg = document.getElementById('toastMsg');
+    toastMsg.textContent = msg;
+    toast.className = 'toast align-items-center border-0 rounded-pill shadow-lg show ' + (isSuccess ? 'text-bg-success' : 'text-bg-danger');
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 2800);
+}
+
+// ── Build a delivery card from packing card data attributes ───────────────────
+function buildDeliveryCard(d, csrf) {
+    const mapsHref = d.maps
+        ? d.maps
+        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.location)}`;
+
+    const locationBlock = d.location ? `
+        <div class="p-3 bg-light rounded-3 d-flex align-items-center mt-2">
+            <i class="bi bi-geo-alt-fill text-danger fs-5 me-2"></i>
+            <span class="text-dark small">${d.location}</span>
+            <a href="${mapsHref}" target="_blank" class="ms-auto btn btn-sm btn-outline-danger rounded-pill px-3 py-1" style="font-size:0.75rem;"><i class="bi bi-map"></i> Navigate</a>
+        </div>` : '';
+
+    return `
+    <div class="col" id="delivery-card-${d.id}" style="opacity:0;transition:opacity 0.35s;">
+        <div class="card border-0 shadow-sm rounded-4 border-start border-4 border-primary">
+            <div class="card-header bg-white border-bottom-0 pt-3 pb-1 px-4 d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="fw-bold mb-0 text-dark" style="font-size:1.05rem;font-family:'Outfit',sans-serif;">Order #${d.id}</h6>
+                    <small class="text-muted" style="font-size:0.8rem;">${d.created}</small>
+                </div>
+                <div>
+                    <span class="badge rounded-pill text-bg-primary px-2.5 py-1.5 border-0" style="font-size:0.75rem;" id="status-badge-${d.id}">
+                        <i class="bi bi-truck me-1"></i> To Deliver
+                    </span>
+                </div>
+            </div>
+            <div class="card-body px-4 pt-1 pb-3">
+                <div class="mb-3">
+                    <h5 class="fw-bold text-dark mb-1">${d.store}</h5>
+                    <div class="text-muted small mb-2">
+                        <i class="bi bi-person"></i> ${d.customer} &bull;
+                        <i class="bi bi-telephone"></i> <a href="tel:${d.phone}" class="text-decoration-none">${d.phone}</a>
+                    </div>
+                    ${locationBlock}
+                </div>
+                <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-2 flex-nowrap" id="action-bar-${d.id}">
+                    <span class="text-muted small text-nowrap me-2">Collect Total:
+                        <span class="fw-bold text-dark fs-6">₹${d.total}</span>
+                    </span>
+                    <button type="button"
+                        class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm flex-shrink-0 d-inline-flex align-items-center"
+                        style="background-color:#28a745;font-size:0.8rem;border:none;"
+                        onclick="ajaxDeliverOrder(${d.id}, '${d.deliverUrl}', '${csrf}')">
+                        <i class="bi bi-check2-circle me-1"></i> Mark Delivered
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+// ── AJAX: Mark as Packed ──────────────────────────────────────────────────────
+function ajaxPackOrder(orderId, url, csrfToken) {
+    const btn = document.getElementById('pack-btn-' + orderId);
+    if (!btn || btn.disabled) return;
+
+    // Read data attributes from the packing card
+    const packCard = document.getElementById('packing-card-' + orderId);
+    const orderData = packCard ? {
+        id:         packCard.dataset.orderId,
+        created:    packCard.dataset.created,
+        store:      packCard.dataset.store,
+        customer:   packCard.dataset.customer,
+        phone:      packCard.dataset.phone,
+        location:   packCard.dataset.location,
+        maps:       packCard.dataset.maps,
+        total:      packCard.dataset.total,
+        deliverUrl: packCard.dataset.deliverUrl,
+    } : null;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Packing...';
+
+    fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✓ Order #' + orderId + ' packed!', true);
+
+            // 1. Fade out & remove packing card
+            if (packCard) {
+                packCard.style.transition = 'opacity 0.35s';
+                packCard.style.opacity = '0';
+                setTimeout(() => {
+                    packCard.remove();
+
+                    // Update packing badge
+                    const pBadge = document.getElementById('packing-count');
+                    if (pBadge) pBadge.textContent = Math.max(0, parseInt(pBadge.textContent) - 1);
+
+                    // Show empty state if no packing cards left
+                    const packList = document.getElementById('packing-list');
+                    if (packList && packList.children.length === 0) {
+                        packList.classList.add('d-none');
+                        const emptyMsg = document.getElementById('packing-empty');
+                        if (emptyMsg) emptyMsg.classList.remove('d-none');
+                    }
+                }, 350);
+            }
+
+            // 2. Inject delivery card instantly
+            if (orderData) {
+                const deliveryList = document.getElementById('delivery-list');
+                const deliveryEmpty = document.getElementById('delivery-empty');
+
+                // Hide empty state if shown
+                if (deliveryEmpty) deliveryEmpty.classList.add('d-none');
+                if (deliveryList) deliveryList.classList.remove('d-none');
+
+                // Insert new card at top of delivery list
+                deliveryList.insertAdjacentHTML('afterbegin', buildDeliveryCard(orderData, csrfToken));
+
+                // Fade it in
+                const newCard = document.getElementById('delivery-card-' + orderId);
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (newCard) newCard.style.opacity = '1';
+                    });
+                });
+
+                // Update delivery badge
+                const dBadge = document.getElementById('delivery-count');
+                if (dBadge) dBadge.textContent = parseInt(dBadge.textContent) + 1;
+            }
+
+            // 3. Switch to Delivery tab after a brief moment
+            setTimeout(() => {
+                const deliveryTabBtn = document.getElementById('delivery-tab');
+                if (deliveryTabBtn) {
+                    new bootstrap.Tab(deliveryTabBtn).show();
+                    sessionStorage.setItem(TAB_KEY, '#delivery-tab');
+                }
+            }, 420);
+
+        } else {
+            showToast(data.error || 'Something went wrong.', false);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-box-seam me-1"></i> Mark as Packed';
+        }
+    })
+    .catch(() => {
+        showToast('Network error. Please try again.', false);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-box-seam me-1"></i> Mark as Packed';
+    });
+}
+
+// ── AJAX: Mark Delivered ──────────────────────────────────────────────────────
+function ajaxDeliverOrder(orderId, url, csrfToken) {
+    const actionBar = document.getElementById('action-bar-' + orderId);
+    const btn = actionBar ? actionBar.querySelector('button') : null;
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Updating...';
+
+    fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✓ Order #' + orderId + ' marked delivered!', true);
+
+            // Update card border
+            const card = document.querySelector('#delivery-card-' + orderId + ' .card');
+            if (card) { card.classList.remove('border-primary'); card.classList.add('border-success'); }
+
+            // Update status badge
+            const badge = document.getElementById('status-badge-' + orderId);
+            if (badge) {
+                badge.className = 'badge rounded-pill text-bg-success px-2.5 py-1.5 border-0';
+                badge.style.fontSize = '0.75rem';
+                badge.innerHTML = '<i class="bi bi-check-circle me-1"></i> Delivered';
+            }
+
+            // Update total label
+            const totalSpan = actionBar.querySelector('span.text-muted');
+            if (totalSpan) {
+                const amountSpan = totalSpan.querySelector('span');
+                totalSpan.innerHTML = 'Total: ';
+                if (amountSpan) totalSpan.appendChild(amountSpan);
+            }
+
+            // Fade & remove location block
+            const locBlock = document.querySelector('#delivery-card-' + orderId + ' .bg-light.rounded-3');
+            if (locBlock) {
+                locBlock.style.transition = 'opacity 0.3s';
+                locBlock.style.opacity = '0';
+                setTimeout(() => locBlock.remove(), 300);
+            }
+
+            // Swap button → Waiting Confirmation badge
+            btn.remove();
+            const waitBadge = document.createElement('div');
+            waitBadge.className = 'text-nowrap flex-shrink-0';
+            waitBadge.innerHTML = `<span class="badge rounded-pill px-3 fw-bold d-inline-flex align-items-center" style="font-size:0.75rem;color:#e65c00;background-color:#fff5eb;border:1px solid #ffd1a4;padding-top:0.4rem;padding-bottom:0.4rem;"><i class="bi bi-hourglass-split me-1"></i> Waiting Confirmation</span>`;
+            actionBar.appendChild(waitBadge);
+
+        } else {
+            showToast(data.error || 'Something went wrong.', false);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Mark Delivered';
+        }
+    })
+    .catch(() => {
+        showToast('Network error. Please try again.', false);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Mark Delivered';
+    });
+}
+
+// ── Checklist toggle ──────────────────────────────────────────────────────────
+function togglePackButton(orderId) {
+    const checkboxes = document.querySelectorAll('.item-check-' + orderId);
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    document.getElementById('pack-btn-' + orderId).disabled = !allChecked;
+
+    checkboxes.forEach(cb => {
+        const label = document.getElementById('label-' + cb.id.split('-')[1]);
+        if (cb.checked) {
+            label.style.textDecoration = 'line-through';
+            label.classList.add('text-muted');
+        } else {
+            label.style.textDecoration = 'none';
+            label.classList.remove('text-muted');
+        }
+    });
+}
+
+// ── Open Items Modal ─────────────────────────────────────────────────────────
+function openItemsModal(orderId) {
+    const modalEl = document.getElementById('itemsModal-' + orderId);
+    if (modalEl) new bootstrap.Modal(modalEl).show();
+}
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+{% endblock %}

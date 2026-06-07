@@ -1,0 +1,18 @@
+{% if cart_qty > 0 %}
+    <div class="bg-white border border-success rounded-3 shadow-sm px-1 py-0 qty-controls" style="width: 90px; height: 32px; display: inline-flex; align-items: center;">
+        <form action="{% url 'cart_update_qty' product.id %}" method="POST" class="m-0 d-flex align-items-center justify-content-between w-100 ajax-cart-form">
+            {% csrf_token %}
+            <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5 dec-btn" style="line-height: 1;"><i class="bi bi-dash"></i></button>
+            <input type="number" name="quantity" value="{{ cart_qty }}" min="0" step="1" class="form-control form-control-sm text-center text-success border-0 p-0 fw-bold qty-input" style="width: 32px; background: transparent; box-shadow: none; font-size: 0.85rem;">
+            <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5 inc-btn" style="line-height: 1;"><i class="bi bi-plus"></i></button>
+        </form>
+    </div>
+{% else %}
+    <form action="{% url 'cart_add' product.id %}" method="POST" class="m-0 ajax-cart-form w-100 d-flex justify-content-center">
+        {% csrf_token %}
+        <input type="hidden" name="quantity" value="1">
+        <button type="submit" class="btn btn-sm bg-white border border-success text-success fw-bold rounded-3 shadow-sm text-center add-btn" style="width: 90px; height: 32px; padding: 0; font-size: 0.85rem; line-height: 30px;">
+            ADD <i class="bi bi-plus text-success" style="vertical-align: middle;"></i>
+        </button>
+    </form>
+{% endif %}

@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block content %}
+
+{% if not products %}
+    <div class="alert alert-info border-0 shadow-sm rounded-4 text-center py-5 mt-4">
+        <h4 class="mb-3 text-muted">No products available at the moment.</h4>
+        <p class="mb-0">Please check back later.</p>
+    </div>
+{% else %}
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5 mt-2 pb-5">
+        <div class="list-group list-group-flush">
+            {% for product in products %}
+            <div class="list-group-item py-2 border-bottom product-item" data-product-id="{{ product.id }}">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <div class="rounded-3 shadow-sm bg-light overflow-hidden d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            {% if product.image %}
+                                <img src="{{ product.image.url }}" alt="{{ product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            {% else %}
+                                <span style="font-size: 1.3rem;">{{ product.icon|default:"📦" }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col ps-0">
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">{{ product.name }}</h6>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold text-success" style="font-size: 0.85rem;">₹{{ product.price }}</span>
+                            {% if product.stock_quantity %}
+                                <small class="text-muted" style="font-size: 0.7rem;"><i class="bi bi-check-circle-fill text-success"></i> In Stock</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-auto qty-container">
+                        {% if product.cart_qty > 0 %}
+                            <div class="bg-white border border-success rounded-3 shadow-sm px-1 py-0 qty-controls" style="width: 90px; height: 32px; display: inline-flex; align-items: center;">
+                                <form action="{% url 'cart_update_qty' product.id %}" method="POST" class="m-0 d-flex align-items-center justify-content-between w-100 ajax-cart-form">
+                                    {% csrf_token %}
+                                    <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5 dec-btn" style="line-height: 1;"><i class="bi bi-dash"></i></button>
+                                    <input type="number" name="quantity" value="{{ product.cart_qty }}" min="0" step="1" class="form-control form-control-sm text-center text-success border-0 p-0 fw-bold qty-input" style="width: 32px; background: transparent; box-shadow: none; font-size: 0.85rem;">
+                                    <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5 inc-btn" style="line-height: 1;"><i class="bi bi-plus"></i></button>
+                                </form>
+                            </div>
+                        {% else %}
+                            <form action="{% url 'cart_add' product.id %}" method="POST" class="m-0 ajax-cart-form w-100 d-flex justify-content-center">
+                                {% csrf_token %}
+                                <input type="hidden" name="quantity" value="1">
+                                <button type="submit" class="btn btn-sm bg-white border border-success text-success fw-bold rounded-3 shadow-sm text-center add-btn" style="width: 90px; height: 32px; padding: 0; font-size: 0.85rem; line-height: 30px;">
+                                    ADD <i class="bi bi-plus text-success" style="vertical-align: middle;"></i>
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}
+
+<!-- Floating Cart Button Container -->
+<div class="fixed-bottom d-flex justify-content-center mb-4" style="pointer-events: none;">
+    <div id="floating-cart-container" style="pointer-events: auto; transition: transform 0.3s ease, opacity 0.3s ease; {% if cart_count == 0 %}transform: translateY(100px); opacity: 0;{% endif %}">
+        <a href="{% url 'cart_view' %}" class="btn btn-lg shadow fw-bold d-flex align-items-center gap-2" style="background-color: #ff6600; color: white; border-radius: 50px; padding: 0.75rem 2rem;">
+            <i class="bi bi-cart3 fs-5"></i> View Cart 
+            <span id="cart-count-badge" class="badge bg-white text-dark rounded-pill" style="font-size: 1rem;">{{ cart_count }}</span>
+        </a>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Intercept submit events (e.g. ADD button or manual enter press)
+    document.addEventListener('submit', function(e) {
+        if (e.target && e.target.classList.contains('ajax-cart-form')) {
+            e.preventDefault();
+            submitFormAjax(e.target);
+        }
+    });
+
+    // Intercept click events on quantity stepper buttons
+    document.addEventListener('click', function(e) {
+        const decBtn = e.target.closest('.dec-btn');
+        const incBtn = e.target.closest('.inc-btn');
+        
+        if (decBtn || incBtn) {
+            e.preventDefault();
+            const form = (decBtn || incBtn).closest('form');
+            const qtyInput = form.querySelector('.qty-input');
+            if (!qtyInput) return;
+            
+            let val = parseInt(qtyInput.value) || 0;
+            if (decBtn) {
+                val = Math.max(0, val - 1);
+            } else {
+                val = val + 1;
+            }
+            qtyInput.value = val;
+            
+            submitFormAjax(form);
+        }
+    });
+
+    // Handle input change (manual type + click away)
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.classList.contains('qty-input')) {
+            const form = e.target.closest('form');
+            if (form) {
+                submitFormAjax(form);
+            }
+        }
+    });
+
+    function submitFormAjax(form) {
+        const formData = new FormData(form);
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateCartBadge(data.cart_count);
+                if (data.html) {
+                    const productItem = form.closest('.product-item');
+                    if (productItem) {
+                        const qtyContainer = productItem.querySelector('.qty-container');
+                        qtyContainer.innerHTML = data.html;
+                    }
+                }
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function updateCartBadge(count) {
+        const container = document.getElementById('floating-cart-container');
+        const badge = document.getElementById('cart-count-badge');
+        
+        badge.textContent = count;
+        
+        if (count > 0) {
+            container.style.transform = 'translateY(0)';
+            container.style.opacity = '1';
+        } else {
+            container.style.transform = 'translateY(100px)';
+            container.style.opacity = '0';
+        }
+    }
+});
+</script>
+{% endblock %}

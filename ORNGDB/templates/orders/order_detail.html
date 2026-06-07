@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'my_orders' %}" class="text-decoration-none text-muted mb-2 d-inline-block">
+        <i class="bi bi-arrow-left"></i> Back to Orders
+    </a>
+    <div class="d-flex justify-content-between align-items-center">
+        <h2 class="fw-bold mb-0" style="color: #ff6600;">Order Details</h2>
+        <div>
+            {% if order.status == 'pending' %}
+                <span class="badge rounded-pill text-bg-warning px-3 py-2 text-dark border"><i class="bi bi-clock-history me-1"></i> Pending</span>
+            {% elif order.status == 'packed' %}
+                <span class="badge rounded-pill text-bg-primary px-3 py-2"><i class="bi bi-box-seam me-1"></i> Packed</span>
+            {% elif order.status == 'delivered' %}
+                <span class="badge rounded-pill text-bg-info px-3 py-2 text-white"><i class="bi bi-truck me-1"></i> Delivered</span>
+            {% elif order.status == 'received' %}
+                <span class="badge rounded-pill text-bg-success px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i> Received</span>
+            {% elif order.status == 'cancelled' %}
+                <span class="badge rounded-pill text-bg-danger px-3 py-2"><i class="bi bi-x-circle-fill me-1"></i> Cancelled</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
+                {% if order.status == 'delivered' %}
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <h5 class="fw-bold mb-0">Check off your items</h5>
+                        <span class="badge rounded-pill text-bg-info text-white px-2 py-1" style="font-size: 0.7rem;"><i class="bi bi-truck me-1"></i> Package Arrived</span>
+                    </div>
+                    <small class="text-muted d-block mb-1">Tick each item as you receive it, then confirm below.</small>
+                {% else %}
+                    <h5 class="fw-bold mb-1">Items Ordered</h5>
+                {% endif %}
+                <small class="text-muted">Order #{{ order.id }} • {{ order.created_at|date:"F d, Y - h:i A" }}</small>
+            </div>
+
+            <div class="card-body p-4">
+                {% if order.status == 'delivered' %}
+                    <!-- Checklist integrated with items -->
+                    <form action="{% url 'mark_order_received' order.id %}" method="POST" id="receive-form-{{ order.id }}">
+                        {% csrf_token %}
+                        <ul class="list-group list-group-flush mb-0">
+                            {% for item in order.items.all %}
+                            <li class="list-group-item px-0 py-3 border-bottom" id="item-row-{{ item.id }}">
+                                <label for="citem-{{ item.id }}" class="d-flex align-items-center gap-3 w-100 mb-0" style="cursor: pointer;">
+                                    <!-- Checkbox -->
+                                    <input class="form-check-input flex-shrink-0 check-item-{{ order.id }}"
+                                           type="checkbox"
+                                           id="citem-{{ item.id }}"
+                                           onchange="toggleReceiveBtn({{ order.id }}, {{ item.id }})"
+                                           style="width: 1.3rem; height: 1.3rem; border-radius: 50%; border: 2px solid #ccc; cursor: pointer; flex-shrink: 0; margin-top: 0;">
+                                    <!-- Product image/icon -->
+                                    <div class="bg-light rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;" id="img-{{ item.id }}">
+                                        {% if item.product.image %}
+                                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">
+                                        {% else %}
+                                            <span class="fs-4">{{ item.product.icon|default:"📦" }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <!-- Name & qty -->
+                                    <div class="flex-grow-1" id="label-{{ item.id }}">
+                                        <h6 class="fw-bold mb-0 text-dark" style="transition: all 0.2s;">{{ item.product.name }}</h6>
+                                        <small class="text-muted">Qty: {{ item.quantity }}</small>
+                                    </div>
+                                    <!-- Price -->
+                                    <span class="fw-bold text-dark fs-5 flex-shrink-0" id="price-{{ item.id }}">₹{{ item.price_at_time }}</span>
+                                </label>
+                            </li>
+                            {% endfor %}
+                        </ul>
+
+                        <!-- Progress bar -->
+                        <div class="mt-4 mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="text-muted fw-bold">Items checked</small>
+                                <small class="fw-bold text-dark" id="progress-text-{{ order.id }}">0 / {{ order.items.count }}</small>
+                            </div>
+                            <div class="progress rounded-pill" style="height: 6px;">
+                                <div class="progress-bar bg-success rounded-pill" id="progress-bar-{{ order.id }}" role="progressbar" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <button type="submit"
+                            class="btn btn-success fw-bold rounded-pill px-4 shadow-sm mt-3 w-100 py-3"
+                            id="receive-btn-{{ order.id }}"
+                            disabled
+                            onclick="showConfirmModal(event, 'Confirm receipt of all items?', 'btn-success');">
+                            <i class="bi bi-check2-all me-1"></i> Confirm Receipt
+                        </button>
+                    </form>
+
+                {% else %}
+                    <!-- Normal item list (no checklist) -->
+                    <ul class="list-group list-group-flush mb-0">
+                        {% for item in order.items.all %}
+                            <li class="list-group-item px-0 py-3 d-flex justify-content-between align-items-center border-bottom">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-light rounded-3 d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                                        {% if item.product.image %}
+                                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">
+                                        {% else %}
+                                            <span class="fs-4">{{ item.product.icon|default:"📦" }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold mb-0 text-dark">{{ item.product.name }}</h6>
+                                        <small class="text-muted">Qty: {{ item.quantity }}</small>
+                                    </div>
+                                </div>
+                                <span class="fw-bold text-dark fs-5">₹{{ item.price_at_time }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 mb-4" style="background-color: #fff1e6;">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-4" style="color: #ff6600;">Order Summary</h5>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <span class="fs-5 fw-bold">Total:</span>
+                    <span class="fs-3 fw-bold text-dark">₹{{ order.total_amount }}</span>
+                </div>
+
+                {% if order.status == 'pending' %}
+                    <form action="{% url 'cancel_order' order.id %}" method="POST" class="mt-3">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm fw-bold rounded-pill w-100 py-2 shadow-sm" onclick="showConfirmModal(event, 'Are you sure you want to cancel this order?', 'btn-danger');">
+                            <i class="bi bi-x-circle me-1"></i> Cancel Order
+                        </button>
+                    </form>
+                {% endif %}
+
+                {% if order.status == 'received' and order.received_at %}
+                    <div class="mt-3 text-center">
+                        <small class="text-muted"><i class="bi bi-check2-all text-success"></i> Received at {{ order.received_at|time:"h:i A" }} on {{ order.received_at|date:"M d, Y" }}</small>
+                    </div>
+                {% endif %}
+
+                {% if order.status == 'delivered' %}
+                    <div class="mt-2 p-3 bg-white rounded-4 border border-success-subtle text-center">
+                        <p class="mb-0 text-success fw-bold small"><i class="bi bi-box-seam me-1"></i> Package has arrived! Check off items on the left.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reusable Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="fw-bold mb-0" id="confirmModalTitle">Confirm Action</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body py-3">
+        <p id="confirmModalMessage" class="mb-0 text-muted"></p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="confirmModalSubmitBtn" class="btn text-white fw-bold rounded-pill px-4" style="background-color: #ff6600;">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleReceiveBtn(orderId, itemId) {
+    const checkboxes = document.querySelectorAll('.check-item-' + orderId);
+    const total = checkboxes.length;
+    const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const allChecked = checked === total;
+
+    // Update progress bar
+    const bar = document.getElementById('progress-bar-' + orderId);
+    const text = document.getElementById('progress-text-' + orderId);
+    if (bar) bar.style.width = ((checked / total) * 100) + '%';
+    if (text) text.textContent = checked + ' / ' + total;
+
+    // Visual strike-through on checked item
+    const label = document.getElementById('label-' + itemId);
+    const price = document.getElementById('price-' + itemId);
+    const img   = document.getElementById('img-' + itemId);
+    const cb    = document.getElementById('citem-' + itemId);
+    if (cb && cb.checked) {
+        if (label) { label.querySelector('h6').style.textDecoration = 'line-through'; label.querySelector('h6').classList.add('text-muted'); }
+        if (price) { price.classList.add('text-muted'); price.classList.remove('text-dark'); }
+        if (img)   img.style.opacity = '0.4';
+    } else {
+        if (label) { label.querySelector('h6').style.textDecoration = 'none'; label.querySelector('h6').classList.remove('text-muted'); }
+        if (price) { price.classList.remove('text-muted'); price.classList.add('text-dark'); }
+        if (img)   img.style.opacity = '1';
+    }
+
+    // Enable button only when all checked
+    const btn = document.getElementById('receive-btn-' + orderId);
+    if (btn) btn.disabled = !allChecked;
+}
+
+let activeFormToSubmit = null;
+
+function showConfirmModal(event, message, buttonClass) {
+    event.preventDefault();
+    activeFormToSubmit = event.currentTarget.form;
+    
+    document.getElementById('confirmModalMessage').textContent = message;
+    
+    const submitBtn = document.getElementById('confirmModalSubmitBtn');
+    submitBtn.className = 'btn text-white fw-bold rounded-pill px-4 ' + (buttonClass || '');
+    if (buttonClass === 'btn-success') {
+        submitBtn.style.backgroundColor = '#28a745';
+    } else {
+        submitBtn.style.backgroundColor = '#ff6600';
+    }
+    
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    confirmModal.show();
+}
+
+document.getElementById('confirmModalSubmitBtn').addEventListener('click', function() {
+    if (activeFormToSubmit) {
+        activeFormToSubmit.submit();
+    }
+});
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+{% endblock %}
