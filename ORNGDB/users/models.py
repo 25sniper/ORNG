@@ -1,5 +1,10 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager as DefaultUserManager
 from django.db import models
+
+class UserManager(DefaultUserManager):
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        extra_fields.setdefault('role', 'admin')
+        return super().create_superuser(username, email, password, **extra_fields)
 
 class User(AbstractUser):
     ROLE_CHOICES = (
@@ -7,6 +12,8 @@ class User(AbstractUser):
         ('delivery', 'Delivery'),
         ('customer', 'Customer'),
     )
+
+    objects = UserManager()
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='customer')
     name = models.CharField(max_length=255, blank=True)
