@@ -244,3 +244,129 @@ def cart_update_qty(request, product_id):
         return JsonResponse({'success': True, 'cart_count': cart_count, 'html': html})
             
     return redirect('customer_menu')
+
+@login_required
+@require_POST
+def quick_bill_create(request):
+    if request.user.role != 'delivery':
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+        
+    store_name = request.POST.get('store_name', '').strip()
+    if not store_name:
+        return JsonResponse({'success': False, 'error': 'Store name is required.'})
+
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    # Extract items
+    items = []
+    for key, value in request.POST.items():
+        if key.startswith('qty_'):
+            try:
+                product_id = int(key.split('_')[1])
+                qty = int(value)
+                if qty > 0:
+                    product = Product.objects.filter(id=product_id, available=True).first()
+                    if product:
+                        items.append((product, qty))
+            except (ValueError, IndexError):
+                continue
+                
+    if not items:
+        return JsonResponse({'success': False, 'error': 'Please select at least one item.'})
+
+    try:
+        with transaction.atomic():
+            total_amount = sum(p.price * q for p, q in items)
+            
+            customer = User.objects.filter(role='customer', store_name__iexact=store_name).first()
+            
+            if customer:
+                status = 'delivered'
+                target_tab = '#delivery-tab'
+            else:
+                status = 'received'
+                target_tab = '#completed-tab'
+                
+            order = Order.objects.create(
+                customer=customer,
+                store_name=customer.store_name if customer else store_name,
+                status=status,
+                total_amount=total_amount,
+                assigned_delivery_user=request.user,
+                packed_at=timezone.now(),
+                delivered_at=timezone.now()
+            )
+            if status == 'received':
+                order.received_at = timezone.now()
+                order.save()
+                
+            for product, qty in items:
+                OrderItem.objects.create(
+                    order=order,
+                    product=product,
+                    quantity=qty,
+                    price_at_time=product.price
+                )
+                
+        msg = f"✓ Quick Bill #{order.id} placed successfully!"
+        return JsonResponse({'success': True, 'message': msg, 'target_tab': target_tab})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': 'An error occurred while placing the bill.'})
+
+@login_required
+def share_order_bill(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    
+    if request.user.role not in ['delivery', 'admin']:
+        if order.customer != request.user:
+            return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+            
+    divider_double = "=" * 50
+    divider_single = "-" * 50
+    
+    header = [
+        divider_double,
+        "ORNG DELIVERY".center(50),
+        "orng.pythonanywhere.com".center(50),
+        "Contact: 9994339666".center(50),
+        divider_double
+    ]
+    
+    local_dt = timezone.localtime(order.created_at)
+    date_str = local_dt.strftime('%d/%m/%Y')
+    time_str = local_dt.strftime('%H:%M')
+    order_num = f"#{order.id:05d}"
+    
+    customer_name = order.display_customer_name
+    
+    details = [
+        f"\nORDER NUMBER: {order_num}",
+        f"DATE: {date_str} | TIME: {time_str}",
+        f"\nCUSTOMER DETAILS:",
+        f"Name: {customer_name}",
+        f"\n{divider_single}",
+        f"{'DESCRIPTION'.ljust(20)}{'QTY'.rjust(6)}{'UNIT PRICE'.rjust(12)}{'TOTAL'.rjust(12)}",
+        divider_single
+    ]
+    
+    items_lines = []
+    for item in order.items.all():
+        desc = item.product.name
+        if len(desc) > 20:
+            desc = desc[:17] + "..."
+        desc_col = desc.ljust(20)
+        qty_col = str(item.quantity).rjust(6)
+        price_col = f"₹{item.price_at_time:.2f}".rjust(12)
+        total_col = f"₹{item.price_at_time * item.quantity:.2f}".rjust(12)
+        items_lines.append(f"{desc_col}{qty_col}{price_col}{total_col}")
+        
+    footer = [
+        divider_single,
+        f"\n{f'GRAND TOTAL:   ₹{order.total_amount:.2f}'.rjust(50)}",
+        "\nThank you for your business!",
+        divider_double
+    ]
+    
+    bill_text = "\n".join(header + details + items_lines + footer)
+    return JsonResponse({'success': True, 'bill_text': bill_text})

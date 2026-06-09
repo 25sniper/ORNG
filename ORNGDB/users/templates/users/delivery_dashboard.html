@@ -35,6 +35,13 @@
   }
 </style>
 
+<div class="d-flex justify-content-between align-items-center mb-2 mt-2 px-1">
+  <h5 class="fw-bold mb-0 text-dark" style="font-family: 'Outfit', sans-serif;">Dashboard</h5>
+  <button class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm" style="background-color: #ff6600;" onclick="openQuickBillModal()">
+    <i class="bi bi-plus-circle me-1"></i> Quick Bill
+  </button>
+</div>
+
 <ul class="nav nav-pills mb-4 border-0 mt-2 flex-nowrap w-100 justify-content-between" id="deliveryTabs" role="tablist" style="background-color: #f1f5f9; padding: 4px; border-radius: 50px;">
   <li class="nav-item flex-grow-1" role="presentation">
     <button class="nav-link active rounded-pill fw-bold py-2 px-1 w-100 text-center" id="packing-tab" data-bs-toggle="pill" data-bs-target="#packing" type="button" role="tab">
@@ -67,13 +74,14 @@
               <div class="col" id="packing-card-{{ order.id }}"
                    data-order-id="{{ order.id }}"
                    data-created="{{ order.created_at|date:'M d, Y • h:i A' }}"
-                   data-store="{{ order.customer.store_name }}"
-                   data-customer="{{ order.customer.name }}"
-                   data-phone="{{ order.customer.phone }}"
-                   data-location="{{ order.customer.location }}"
-                   data-maps="{{ order.customer.google_maps_url }}"
+                   data-store="{{ order.display_store_name }}"
+                   data-customer="{{ order.customer.name|default:'Guest' }}"
+                   data-phone="{% if order.customer %}{{ order.customer.phone }}{% endif %}"
+                   data-location="{% if order.customer %}{{ order.customer.location }}{% endif %}"
+                   data-maps="{% if order.customer %}{{ order.customer.google_maps_url }}{% endif %}"
                    data-total="{{ order.total_amount|floatformat:0 }}"
-                   data-deliver-url="{% url 'deliver_order' order.id %}">
+                   data-deliver-url="{% url 'deliver_order' order.id %}"
+                   data-share-url="{% url 'share_order_bill' order.id %}">
                   <div class="card border-0 shadow-sm rounded-4 border-start border-4 border-warning">
                       <!-- Order Header -->
                       <div class="card-header bg-white border-bottom-0 pt-3 pb-1 px-4 d-flex justify-content-between align-items-start">
@@ -89,7 +97,7 @@
                       <!-- Order Body -->
                       <div class="card-body px-4 pt-1 pb-3">
                           <div class="mb-3">
-                              <h5 class="fw-bold text-dark mb-1">{{ order.customer.store_name }}</h5>
+                              <h5 class="fw-bold text-dark mb-1">{{ order.display_store_name }}</h5>
                           </div>
 
                           {% if order.items.count > 3 %}
@@ -176,7 +184,7 @@
                       <div class="card-body px-4 pt-1 pb-3">
                           <div class="mb-3">
                               <div class="d-flex justify-content-between align-items-center mb-1">
-                                  <h5 class="fw-bold text-dark mb-0">{{ order.customer.store_name }}</h5>
+                                  <h5 class="fw-bold text-dark mb-0">{{ order.display_store_name }}</h5>
                                   <button type="button"
                                       class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill d-inline-flex align-items-center"
                                       style="font-size: 0.78rem;"
@@ -185,10 +193,10 @@
                                   </button>
                               </div>
                               <div class="text-muted small mb-2">
-                                  <i class="bi bi-person"></i> {{ order.customer.name }} &bull;
-                                  <i class="bi bi-telephone"></i> <a href="tel:{{ order.customer.phone }}" class="text-decoration-none">{{ order.customer.phone }}</a>
+                                  <i class="bi bi-person"></i> {{ order.customer.name|default:'Guest' }} &bull;
+                                  <i class="bi bi-telephone"></i> {% if order.customer %}<a href="tel:{{ order.customer.phone }}" class="text-decoration-none">{{ order.customer.phone }}</a>{% else %}N/A{% endif %}
                               </div>
-                              {% if order.status != 'delivered' %}
+                              {% if order.status != 'delivered' and order.customer %}
                               <div class="p-3 bg-light rounded-3 d-flex align-items-center mt-2">
                                   <i class="bi bi-geo-alt-fill text-danger fs-5 me-2"></i>
                                   <span class="text-dark small">{{ order.customer.location }}</span>
@@ -204,19 +212,19 @@
                           <!-- Action area -->
                           <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-2 flex-nowrap" id="action-bar-{{ order.id }}">
                               <span class="text-muted small text-nowrap me-2">
-                                  {% if order.status == 'packed' %}Collect Total:{% else %}Total:{% endif %}
+                                  Total:
                                   <span class="fw-bold text-dark fs-6">₹{{ order.total_amount|floatformat:0 }}</span>
                               </span>
                               <div class="d-flex align-items-center gap-2 flex-shrink-0">
                                   {% if order.status == 'packed' %}
                                   <button type="button"
-                                      class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center"
+                                      class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center deliver-btn-{{ order.id }}"
                                       style="background-color: #28a745; font-size: 0.8rem; border: none;"
                                       onclick="ajaxDeliverOrder({{ order.id }}, '{% url 'deliver_order' order.id %}', '{{ csrf_token }}')">
                                       <i class="bi bi-check2-circle me-1"></i> Mark Delivered
                                   </button>
                                   {% elif order.status == 'delivered' %}
-                                  <span class="badge rounded-pill px-3 fw-bold d-inline-flex align-items-center" style="font-size: 0.75rem; color: #e65c00; background-color: #fff5eb; border: 1px solid #ffd1a4; padding-top: 0.4rem; padding-bottom: 0.4rem;">
+                                  <span class="badge rounded-pill px-3 fw-bold d-inline-flex align-items-center deliver-btn-{{ order.id }}" style="font-size: 0.75rem; color: #e65c00; background-color: #fff5eb; border: 1px solid #ffd1a4; padding-top: 0.4rem; padding-bottom: 0.4rem;">
                                       <i class="bi bi-hourglass-split me-1"></i> Waiting
                                   </span>
                                   {% endif %}
@@ -242,16 +250,26 @@
               {% for order in completed_orders %}
               <div class="col">
                   <div class="card border-0 shadow-sm rounded-4 border-start border-4 border-secondary">
-                      <div class="card-body px-4 py-3 d-flex justify-content-between align-items-center">
-                          <div>
-                              <div class="d-flex align-items-center mb-1">
-                                  <h6 class="fw-bold mb-0 text-dark me-2" style="font-family: 'Outfit', sans-serif;">#{{ order.id }}</h6>
-                                  <span class="text-dark fw-medium">{{ order.customer.store_name }}</span>
+                      <div class="card-body px-4 py-3">
+                          <div class="d-flex justify-content-between align-items-center mb-2">
+                              <div>
+                                  <div class="d-flex align-items-center mb-1">
+                                      <h6 class="fw-bold mb-0 text-dark me-2" style="font-family: 'Outfit', sans-serif;">#{{ order.id }}</h6>
+                                      <span class="text-dark fw-medium">{{ order.display_store_name }}</span>
+                                  </div>
+                                  <small class="text-success fw-bold" style="font-size: 0.8rem;"><i class="bi bi-check-circle-fill me-1"></i> {{ order.received_at|date:"M d, Y • h:i A" }}</small>
                               </div>
-                              <small class="text-success fw-bold" style="font-size: 0.8rem;"><i class="bi bi-check-circle-fill me-1"></i> {{ order.received_at|date:"M d, Y • h:i A" }}</small>
+                              <div class="text-end">
+                                  <span class="fw-bold text-dark fs-5">₹{{ order.total_amount|floatformat:0 }}</span>
+                              </div>
                           </div>
                           <div class="text-end">
-                              <span class="fw-bold text-dark fs-5">₹{{ order.total_amount|floatformat:0 }}</span>
+                              <button type="button" id="share-btn-{{ order.id }}"
+                                  class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center"
+                                  style="font-size: 0.75rem;"
+                                  onclick="shareOrderBill({{ order.id }}, '{% url 'share_order_bill' order.id %}')">
+                                  <i class="bi bi-share me-1"></i> Share
+                              </button>
                           </div>
                       </div>
                   </div>
@@ -263,6 +281,98 @@
 
 </div>
 
+<!-- Quick Bill Modal -->
+<div class="modal fade" id="quickBillModal" tabindex="-1" aria-labelledby="quickBillModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <form id="quickBillForm" class="modal-content border-0 shadow rounded-4" onsubmit="event.preventDefault();">
+          
+          <!-- Screen 1: Menu View -->
+          <div id="qb-menu-view">
+              <div class="modal-header border-0 pb-0 px-4 pt-4">
+                  <h5 class="modal-title fw-bold text-dark" id="quickBillModalLabel" style="font-family: 'Outfit', sans-serif;">Quick Bill Menu</h5>
+                  <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body px-4 pt-3 pb-4">
+                  <div class="list-group list-group-flush border rounded-3" style="max-height: 380px; overflow-y: auto;">
+                      {% for product in products %}
+                      <div class="list-group-item py-2 border-bottom qb-product-item" data-product-id="{{ product.id }}" data-price="{{ product.price|floatformat:0 }}" data-name="{{ product.name }}">
+                          <div class="row align-items-center">
+                              <div class="col-auto">
+                                  <div class="rounded-3 shadow-sm bg-light overflow-hidden d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                      {% if product.image %}
+                                          <img src="{{ product.image.url }}" alt="{{ product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                      {% else %}
+                                          <span style="font-size: 1.3rem;">{{ product.icon|default:"📦" }}</span>
+                                      {% endif %}
+                                  </div>
+                              </div>
+                              <div class="col ps-0">
+                                  <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem; font-family: 'Outfit', sans-serif;">{{ product.name }}</h6>
+                                  <span class="fw-bold text-success" style="font-size: 0.8rem;">₹{{ product.price|floatformat:0 }}</span>
+                              </div>
+                              <div class="col-auto qb-qty-container">
+                                  <!-- ADD button initially -->
+                                  <button type="button" class="btn btn-sm bg-white border border-success text-success fw-bold rounded-3 shadow-sm qb-add-btn" style="width: 90px; height: 32px; font-size: 0.85rem;" onclick="addQBProduct({{ product.id }})">
+                                      ADD <i class="bi bi-plus text-success"></i>
+                                  </button>
+                                  <!-- Stepper control hidden initially -->
+                                  <div class="bg-white border border-success rounded-3 shadow-sm px-1 py-0 qb-qty-controls d-none" style="width: 90px; height: 32px; align-items: center; justify-content: space-between;">
+                                      <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5" style="line-height: 1;" onclick="changeQBProductQty({{ product.id }}, -1)"><i class="bi bi-dash"></i></button>
+                                      <input type="number" id="qb-qty-{{ product.id }}" name="qty_{{ product.id }}" value="0" min="0" class="form-control form-control-sm text-center text-success border-0 p-0 fw-bold qb-qty qb-qty-input" style="width: 32px; background: transparent; box-shadow: none; font-size: 0.85rem;">
+                                      <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5" style="line-height: 1;" onclick="changeQBProductQty({{ product.id }}, 1)"><i class="bi bi-plus"></i></button>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                      {% endfor %}
+                  </div>
+              </div>
+              <div class="modal-footer border-0 px-4 pb-4 pt-2 justify-content-center">
+                  <button type="button" id="qb-view-cart-btn" class="btn text-white fw-bold px-5 rounded-pill shadow-sm w-100 d-none" style="background-color: #ff6600; padding-top: 0.75rem; padding-bottom: 0.75rem;" onclick="showQBCartView()">
+                      <i class="bi bi-cart3 me-1"></i> View Cart <span id="qb-cart-badge" class="badge bg-white text-dark rounded-pill ms-2">0</span>
+                  </button>
+              </div>
+          </div>
+
+          <!-- Screen 2: Cart View -->
+          <div id="qb-cart-view" class="d-none">
+              <div class="modal-header border-0 pb-0 px-4 pt-4 d-flex align-items-center">
+                  <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="showQBMenuView()">
+                      <i class="bi bi-arrow-left"></i> Back
+                  </button>
+                  <h5 class="modal-title fw-bold text-dark ms-3" style="font-family: 'Outfit', sans-serif;">Your Cart</h5>
+                  <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body px-4 pt-3 pb-4">
+                  <!-- Selected items summary list -->
+                  <div class="list-group list-group-flush border rounded-3 mb-4" id="qb-cart-items-summary" style="max-height: 200px; overflow-y: auto;">
+                      <!-- Populated dynamically via JS -->
+                  </div>
+
+                  <!-- Store Name Selection Field -->
+                  <div class="mb-3 position-relative">
+                      <label class="form-label small fw-bold text-muted">Select Store/Customer <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control rounded-3" id="qb-store-name" name="store_name" required placeholder="Type name or select from list..." autocomplete="off">
+                      <div id="qb-store-suggestions" class="dropdown-menu w-100 shadow rounded-3 border-0 mt-1" style="max-height: 200px; overflow-y: auto; display: none; z-index: 1050;">
+                          <!-- Suggestions will be populated dynamically -->
+                      </div>
+                  </div>
+              </div>
+              <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex justify-content-between align-items-center">
+                  <div>
+                      <span class="text-muted small d-block">Total Amount</span>
+                      <span class="fw-bold fs-4 text-dark" id="qb-cart-total-display">₹0</span>
+                  </div>
+                  <button type="button" id="submitQuickBillBtn" class="btn text-white fw-bold px-4 rounded-pill shadow-sm" style="background-color: #ff6600; padding-top: 0.7rem; padding-bottom: 0.7rem;" onclick="submitQuickBill('{% url 'quick_bill_create' %}', '{{ csrf_token }}')">
+                      Place Order
+                  </button>
+              </div>
+          </div>
+          
+      </form>
+  </div>
+</div>
+
 <!-- Order Items Modals -->
 {% for order in delivery_orders %}
 <div class="modal fade" id="itemsModal-{{ order.id }}" tabindex="-1" aria-labelledby="itemsModalLabel-{{ order.id }}" aria-hidden="true">
@@ -271,7 +381,7 @@
             <div class="modal-header border-0 pb-0 px-4 pt-4">
                 <div>
                     <h5 class="modal-title fw-bold mb-0" id="itemsModalLabel-{{ order.id }}" style="color: #ff6600;">Order #{{ order.id }}</h5>
-                    <small class="text-muted">{{ order.customer.store_name }}</small>
+                    <small class="text-muted">{{ order.store_name }}</small>
                 </div>
                 <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -309,6 +419,11 @@
 <script>
 // ── Tab Persistence ───────────────────────────────────────────────────────────
 const TAB_KEY = 'deliveryActiveTab';
+const EXISTING_STORES = [
+    {% for store in existing_stores %}
+        "{{ store|escapejs }}",
+    {% endfor %}
+];
 
 document.addEventListener('DOMContentLoaded', function() {
     const savedTab = sessionStorage.getItem(TAB_KEY);
@@ -322,7 +437,98 @@ document.addEventListener('DOMContentLoaded', function() {
             sessionStorage.setItem(TAB_KEY, '#' + e.target.id);
         });
     });
+
+    // Handle manual change on quick bill inputs
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.classList.contains('qb-qty-input')) {
+            let val = parseInt(e.target.value) || 0;
+            if (val < 0) val = 0;
+            e.target.value = val;
+            
+            const productId = e.target.id.split('-')[2];
+            
+            if (val <= 0) {
+                // Hide stepper, show ADD button
+                const container = e.target.closest('.qb-qty-container');
+                if (container) {
+                    const addBtn = container.querySelector('.qb-add-btn');
+                    const controls = container.querySelector('.qb-qty-controls');
+                    if (addBtn) addBtn.classList.remove('d-none');
+                    if (controls) {
+                        controls.classList.add('d-none');
+                        controls.style.display = 'none';
+                    }
+                }
+            } else {
+                // Show stepper, hide ADD button
+                const container = e.target.closest('.qb-qty-container');
+                if (container) {
+                    const addBtn = container.querySelector('.qb-add-btn');
+                    const controls = container.querySelector('.qb-qty-controls');
+                    if (addBtn) addBtn.classList.add('d-none');
+                    if (controls) {
+                        controls.classList.remove('d-none');
+                        controls.style.display = 'inline-flex';
+                    }
+                }
+            }
+            
+            updateQBCartTotals();
+            if (document.getElementById('qb-cart-view').classList.contains('d-none') === false) {
+                renderQBCartSummaryList();
+            }
+        }
+    });
+
+    // Autocomplete for store suggestions starting with typed letters
+    const storeInput = document.getElementById('qb-store-name');
+    const suggestionsContainer = document.getElementById('qb-store-suggestions');
+
+    if (storeInput && suggestionsContainer) {
+        storeInput.addEventListener('input', function() {
+            const query = this.value.trim().toLowerCase();
+            if (query.length === 0) {
+                suggestionsContainer.style.display = 'none';
+                return;
+            }
+
+            // Filter stores that START WITH the query prefix
+            const matches = EXISTING_STORES.filter(store => 
+                store.toLowerCase().startsWith(query)
+            );
+
+            if (matches.length > 0) {
+                let html = '';
+                matches.forEach(store => {
+                    html += `<a class="dropdown-item py-2" href="#" onclick="selectStoreSuggestion(event, this)">${store}</a>`;
+                });
+                suggestionsContainer.innerHTML = html;
+                suggestionsContainer.style.display = 'block';
+            } else {
+                suggestionsContainer.style.display = 'none';
+            }
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (e.target !== storeInput && e.target !== suggestionsContainer && !suggestionsContainer.contains(e.target)) {
+                suggestionsContainer.style.display = 'none';
+            }
+        });
+    }
 });
+
+function selectStoreSuggestion(e, element) {
+    e.preventDefault();
+    const storeInput = document.getElementById('qb-store-name');
+    const suggestionsContainer = document.getElementById('qb-store-suggestions');
+    if (storeInput) {
+        storeInput.value = element.textContent;
+    }
+    if (suggestionsContainer) {
+        suggestionsContainer.style.display = 'none';
+    }
+}
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function showToast(msg, isSuccess) {
@@ -336,11 +542,11 @@ function showToast(msg, isSuccess) {
 
 // ── Build a delivery card from packing card data attributes ───────────────────
 function buildDeliveryCard(d, csrf) {
-    const mapsHref = d.maps
+    const mapsHref = d.maps && d.maps.trim() !== ''
         ? d.maps
         : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.location)}`;
 
-    const locationBlock = d.location ? `
+    const locationBlock = (d.location && d.location.trim() !== '') ? `
         <div class="p-3 bg-light rounded-3 d-flex align-items-center mt-2">
             <i class="bi bi-geo-alt-fill text-danger fs-5 me-2"></i>
             <span class="text-dark small">${d.location}</span>
@@ -366,24 +572,329 @@ function buildDeliveryCard(d, csrf) {
                     <h5 class="fw-bold text-dark mb-1">${d.store}</h5>
                     <div class="text-muted small mb-2">
                         <i class="bi bi-person"></i> ${d.customer} &bull;
-                        <i class="bi bi-telephone"></i> <a href="tel:${d.phone}" class="text-decoration-none">${d.phone}</a>
+                        <i class="bi bi-telephone"></i> <a href="${d.phone ? 'tel:' + d.phone : '#'}" class="text-decoration-none">${d.phone || 'N/A'}</a>
                     </div>
                     ${locationBlock}
                 </div>
                 <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-2 flex-nowrap" id="action-bar-${d.id}">
-                    <span class="text-muted small text-nowrap me-2">Collect Total:
+                    <span class="text-muted small text-nowrap me-2">Total:
                         <span class="fw-bold text-dark fs-6">₹${d.total}</span>
                     </span>
-                    <button type="button"
-                        class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm flex-shrink-0 d-inline-flex align-items-center"
-                        style="background-color:#28a745;font-size:0.8rem;border:none;"
-                        onclick="ajaxDeliverOrder(${d.id}, '${d.deliverUrl}', '${csrf}')">
-                        <i class="bi bi-check2-circle me-1"></i> Mark Delivered
-                    </button>
+                    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                        <button type="button"
+                            class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm flex-shrink-0 d-inline-flex align-items-center deliver-btn-${d.id}"
+                            style="background-color:#28a745;font-size:0.8rem;border:none;"
+                            onclick="ajaxDeliverOrder(${d.id}, '${d.deliverUrl}', '${csrf}')">
+                            <i class="bi bi-check2-circle me-1"></i> Mark Delivered
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>`;
+}
+
+// ── Quick Bill Logic ──────────────────────────────────────────────────────────
+function openQuickBillModal() {
+    document.getElementById('quickBillForm').reset();
+    document.querySelectorAll('.qb-qty').forEach(input => {
+        input.value = '0';
+    });
+    // Show all ADD buttons and hide all stepper controls
+    document.querySelectorAll('.qb-add-btn').forEach(btn => btn.classList.remove('d-none'));
+    document.querySelectorAll('.qb-qty-controls').forEach(ctrl => {
+        ctrl.classList.add('d-none');
+        ctrl.style.display = 'none';
+    });
+    
+    // Reset view visibility
+    showQBMenuView();
+    updateQBCartTotals();
+    
+    new bootstrap.Modal(document.getElementById('quickBillModal')).show();
+}
+
+function addQBProduct(productId) {
+    const input = document.getElementById('qb-qty-' + productId);
+    if (input) {
+        input.value = '1';
+        // Hide ADD button, show stepper
+        const container = input.closest('.qb-qty-container');
+        if (container) {
+            const addBtn = container.querySelector('.qb-add-btn');
+            const controls = container.querySelector('.qb-qty-controls');
+            if (addBtn) addBtn.classList.add('d-none');
+            if (controls) {
+                controls.classList.remove('d-none');
+                controls.style.display = 'inline-flex';
+            }
+        }
+        updateQBCartTotals();
+    }
+}
+
+function changeQBProductQty(productId, delta) {
+    const input = document.getElementById('qb-qty-' + productId);
+    if (input) {
+        let val = parseInt(input.value) || 0;
+        val += delta;
+        if (val <= 0) {
+            val = 0;
+            // Hide stepper, show ADD button
+            const container = input.closest('.qb-qty-container');
+            if (container) {
+                const addBtn = container.querySelector('.qb-add-btn');
+                const controls = container.querySelector('.qb-qty-controls');
+                if (addBtn) addBtn.classList.remove('d-none');
+                if (controls) {
+                    controls.classList.add('d-none');
+                    controls.style.display = 'none';
+                }
+            }
+        }
+        input.value = val;
+        updateQBCartTotals();
+        
+        // If we are currently looking at the Cart View, we should dynamically update it
+        if (document.getElementById('qb-cart-view').classList.contains('d-none') === false) {
+            renderQBCartSummaryList();
+        }
+    }
+}
+
+function updateQBCartTotals() {
+    let totalCount = 0;
+    let totalAmount = 0;
+    
+    document.querySelectorAll('.qb-product-item').forEach(item => {
+        const productId = item.dataset.productId;
+        const price = parseFloat(item.dataset.price) || 0;
+        const qtyInput = document.getElementById('qb-qty-' + productId);
+        const qty = qtyInput ? (parseInt(qtyInput.value) || 0) : 0;
+        
+        totalCount += qty;
+        totalAmount += qty * price;
+    });
+    
+    const cartBadge = document.getElementById('qb-cart-badge');
+    if (cartBadge) cartBadge.textContent = totalCount;
+    
+    const viewCartBtn = document.getElementById('qb-view-cart-btn');
+    if (viewCartBtn) {
+        if (totalCount > 0) {
+            viewCartBtn.classList.remove('d-none');
+        } else {
+            viewCartBtn.classList.add('d-none');
+        }
+    }
+    
+    const totalDisplay = document.getElementById('qb-cart-total-display');
+    if (totalDisplay) totalDisplay.textContent = '₹' + totalAmount;
+}
+
+function renderQBCartSummaryList() {
+    const summaryContainer = document.getElementById('qb-cart-items-summary');
+    if (!summaryContainer) return;
+    
+    let html = '';
+    let hasItems = false;
+    
+    document.querySelectorAll('.qb-product-item').forEach(item => {
+        const productId = item.dataset.productId;
+        const name = item.dataset.name;
+        const price = parseFloat(item.dataset.price) || 0;
+        const qtyInput = document.getElementById('qb-qty-' + productId);
+        const qty = qtyInput ? (parseInt(qtyInput.value) || 0) : 0;
+        
+        if (qty > 0) {
+            hasItems = true;
+            html += `
+            <div class="list-group-item d-flex justify-content-between align-items-center px-3 py-2.5">
+                <div class="d-flex align-items-center">
+                    <span class="d-inline-flex align-items-center justify-content-center me-2 flex-shrink-0" style="width: 14px; height: 14px; border: 1.5px solid #198754; padding: 2px; border-radius: 3px;">
+                        <span style="width: 5px; height: 5px; background-color: #198754; border-radius: 50%;"></span>
+                    </span>
+                    <span class="fw-bold text-dark small">${name}</span>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="text-muted small">${qty} x ₹${price.toFixed(0)}</span>
+                    <span class="fw-bold text-dark small">₹${(qty * price).toFixed(0)}</span>
+                </div>
+            </div>`;
+        }
+    });
+    
+    if (!hasItems) {
+        html = '<div class="p-3 text-center text-muted small">Your cart is empty.</div>';
+    }
+    
+    summaryContainer.innerHTML = html;
+}
+
+function showQBCartView() {
+    renderQBCartSummaryList();
+    document.getElementById('qb-menu-view').classList.add('d-none');
+    document.getElementById('qb-cart-view').classList.remove('d-none');
+}
+
+function showQBMenuView() {
+    document.getElementById('qb-cart-view').classList.add('d-none');
+    document.getElementById('qb-menu-view').classList.remove('d-none');
+}
+
+function submitQuickBill(url, csrfToken) {
+    const form = document.getElementById('quickBillForm');
+    if (!form.reportValidity()) return;
+    
+    let hasItems = false;
+    document.querySelectorAll('.qb-qty').forEach(input => {
+        if (parseInt(input.value) > 0) hasItems = true;
+    });
+    
+    if (!hasItems) {
+        showToast('Please select at least one item.', false);
+        return;
+    }
+    
+    const btn = document.getElementById('submitQuickBillBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    
+    const formData = new FormData(form);
+    
+    fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, true);
+            const modal = bootstrap.Modal.getInstance(document.getElementById('quickBillModal'));
+            if(modal) modal.hide();
+            if(data.target_tab) sessionStorage.setItem(TAB_KEY, data.target_tab);
+            setTimeout(() => { window.location.reload(); }, 1000);
+        } else {
+            showToast(data.error, false);
+            btn.disabled = false;
+            btn.innerHTML = 'Place Order';
+        }
+    })
+    .catch(() => {
+        showToast('Network error.', false);
+        btn.disabled = false;
+        btn.innerHTML = 'Place Order';
+    });
+}
+
+// ── Share Bill Logic ──────────────────────────────────────────────────────────
+function shareOrderBill(orderId, url) {
+    const btnId = 'share-btn-' + orderId;
+    const btn = document.getElementById(btnId);
+    if(btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    }
+    
+    fetch(url, {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            copyBillToClipboard(data.bill_text, orderId);
+        } else {
+            showToast('Error getting bill text.', false);
+        }
+        if(btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-share me-1"></i> Share';
+        }
+    })
+    .catch(() => {
+        showToast('Network error.', false);
+        if(btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-share me-1"></i> Share';
+        }
+    });
+}
+
+function copyBillToClipboard(text, orderId) {
+    // If Web Share is supported and we are in a secure context (HTTPS/localhost), use native share sheet
+    if (navigator.share && window.isSecureContext) {
+        let shared = false;
+        try {
+            const file = new File([text], `bill_${orderId}.txt`, { type: 'text/plain' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({
+                    files: [file],
+                    title: `Order #${orderId} Bill`,
+                    text: text
+                })
+                .then(() => {
+                    showToast('Shared successfully!', true);
+                })
+                .catch((err) => {
+                    console.log('Error sharing file, trying text only:', err);
+                    shareTextOnly(text);
+                });
+                shared = true;
+            }
+        } catch (e) {
+            console.log('File sharing not supported, trying text:', e);
+        }
+
+        if (!shared) {
+            shareTextOnly(text);
+        }
+    } else {
+        // Fallback for insecure contexts (like accessing 192.168.x.x over HTTP on mobile)
+        // Just copy the formatted receipt text to clipboard
+        fallbackCopyTextToClipboard(text);
+    }
+}
+
+function shareTextOnly(text) {
+    if (navigator.share) {
+        navigator.share({
+            title: 'Order Bill',
+            text: text
+        })
+        .then(() => showToast('Shared successfully!', true))
+        .catch((err) => {
+            console.log('Sharing text failed, falling back to clipboard:', err);
+            fallbackCopyTextToClipboard(text);
+        });
+    } else {
+        fallbackCopyTextToClipboard(text);
+    }
+}
+
+function fallbackCopyTextToClipboard(text) {
+    if(navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Bill copied to clipboard!', true);
+        }).catch(() => {
+            showToast('Failed to copy text.', false);
+        });
+    } else {
+        let textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showToast('Bill copied to clipboard!', true);
+        } catch (err) {
+            showToast('Failed to copy text.', false);
+        }
+        document.body.removeChild(textArea);
+    }
 }
 
 // ── AJAX: Mark as Packed ──────────────────────────────────────────────────────
@@ -403,6 +914,7 @@ function ajaxPackOrder(orderId, url, csrfToken) {
         maps:       packCard.dataset.maps,
         total:      packCard.dataset.total,
         deliverUrl: packCard.dataset.deliverUrl,
+        shareUrl:   packCard.dataset.shareUrl,
     } : null;
 
     btn.disabled = true;
@@ -488,7 +1000,7 @@ function ajaxPackOrder(orderId, url, csrfToken) {
 // ── AJAX: Mark Delivered ──────────────────────────────────────────────────────
 function ajaxDeliverOrder(orderId, url, csrfToken) {
     const actionBar = document.getElementById('action-bar-' + orderId);
-    const btn = actionBar ? actionBar.querySelector('button') : null;
+    const btn = actionBar ? actionBar.querySelector('.deliver-btn-' + orderId) : null;
     if (!btn) return;
 
     btn.disabled = true;
@@ -535,8 +1047,13 @@ function ajaxDeliverOrder(orderId, url, csrfToken) {
             btn.remove();
             const waitBadge = document.createElement('div');
             waitBadge.className = 'text-nowrap flex-shrink-0';
-            waitBadge.innerHTML = `<span class="badge rounded-pill px-3 fw-bold d-inline-flex align-items-center" style="font-size:0.75rem;color:#e65c00;background-color:#fff5eb;border:1px solid #ffd1a4;padding-top:0.4rem;padding-bottom:0.4rem;"><i class="bi bi-hourglass-split me-1"></i> Waiting Confirmation</span>`;
-            actionBar.appendChild(waitBadge);
+            waitBadge.innerHTML = `<span class="badge rounded-pill px-3 fw-bold d-inline-flex align-items-center deliver-btn-${orderId}" style="font-size:0.75rem;color:#e65c00;background-color:#fff5eb;border:1px solid #ffd1a4;padding-top:0.4rem;padding-bottom:0.4rem;"><i class="bi bi-hourglass-split me-1"></i> Waiting</span>`;
+            
+            // Re-insert at the end of the action bar flex container
+            const btnGroup = actionBar.querySelector('.gap-2');
+            if(btnGroup) {
+                btnGroup.appendChild(waitBadge);
+            }
 
         } else {
             showToast(data.error || 'Something went wrong.', false);

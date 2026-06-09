@@ -12,4 +12,6 @@ urlpatterns = [
     path('order/<int:order_id>/received/', views.mark_order_received, name='mark_order_received'),
     path('order/<int:order_id>/cancel/', views.cancel_order, name='cancel_order'),
     path('cart/update-qty/<int:product_id>/', views.cart_update_qty, name='cart_update_qty'),
+    path('quick-bill/', views.quick_bill_create, name='quick_bill_create'),
+    path('order/<int:order_id>/share/', views.share_order_bill, name='share_order_bill'),
 ]

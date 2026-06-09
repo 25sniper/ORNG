@@ -60,11 +60,11 @@
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-body p-4">
                 <h6 class="fw-bold mb-3 text-muted">Customer Details</h6>
-                <p class="mb-1 fw-bold text-dark"><i class="bi bi-shop me-2"></i> {{ order.customer.store_name }}</p>
-                <p class="mb-1"><i class="bi bi-person me-2 text-muted"></i> {{ order.customer.name }}</p>
+                <p class="mb-1 fw-bold text-dark"><i class="bi bi-shop me-2"></i> {{ order.store_name }}</p>
+                <p class="mb-1"><i class="bi bi-person me-2 text-muted"></i> {{ order.customer.name|default:"Guest" }}</p>
                 <p class="mb-1">
                     <i class="bi bi-telephone me-2 text-muted"></i> 
-                    <a href="tel:{{ order.customer.phone }}" class="text-decoration-none">{{ order.customer.phone }}</a>
+                    {% if order.customer %}<a href="tel:{{ order.customer.phone }}" class="text-decoration-none">{{ order.customer.phone }}</a>{% else %}N/A{% endif %}
                 </p>
                 <p class="mb-0">
                     <i class="bi bi-geo-alt me-2 text-muted"></i> 

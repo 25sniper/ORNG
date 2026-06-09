@@ -10,7 +10,8 @@ class Order(models.Model):
         ('received', 'Received'),
         ('cancelled', 'Cancelled'),
     )
-    customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
+    customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
+    store_name = models.CharField(max_length=255, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     assigned_delivery_user = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
@@ -25,10 +26,27 @@ class Order(models.Model):
     delivered_at = models.DateTimeField(null=True, blank=True)
     received_at = models.DateTimeField(null=True, blank=True)
 
+    @property
+    def display_customer_name(self):
+        if self.customer:
+            return self.customer.name or self.customer.store_name
+        return self.store_name
+
+    @property
+    def display_store_name(self):
+        if self.store_name:
+            return self.store_name
+        if self.customer:
+            return self.customer.store_name or self.customer.name
+        return "Guest"
+
     def __str__(self):
-        return f"Order #{self.id} - {self.customer.store_name} ({self.get_status_display()})"
+        return f"Order #{self.id} - {self.store_name} ({self.get_status_display()})"
 
     def save(self, *args, **kwargs):
+        if self.customer and not self.store_name:
+            self.store_name = self.customer.store_name
+            
         if not self.pk and not self.assigned_delivery_user:
             from django.contrib.auth import get_user_model
             User = get_user_model()

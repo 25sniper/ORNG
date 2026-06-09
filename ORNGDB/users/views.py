@@ -262,6 +262,8 @@ def delivery_dashboard(request):
         'packing_orders': packing_orders,
         'delivery_orders': delivery_orders,
         'completed_orders': completed_orders,
+        'products': Product.objects.filter(available=True).order_by('name'),
+        'existing_stores': User.objects.filter(role='customer').values_list('store_name', flat=True).distinct().order_by('store_name'),
     }
     return render(request, 'users/delivery_dashboard.html', context)
 @login_required
