@@ -823,52 +823,22 @@ function shareOrderBill(orderId, url) {
 }
 
 function copyBillToClipboard(text, orderId) {
-    // If Web Share is supported and we are in a secure context (HTTPS/localhost), use native share sheet
+    // If Web Share is supported and we are in a secure context (HTTPS/localhost), use native share sheet to share text
     if (navigator.share && window.isSecureContext) {
-        let shared = false;
-        try {
-            const file = new File([text], `bill_${orderId}.txt`, { type: 'text/plain' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                navigator.share({
-                    files: [file],
-                    title: `Order #${orderId} Bill`,
-                    text: text
-                })
-                .then(() => {
-                    showToast('Shared successfully!', true);
-                })
-                .catch((err) => {
-                    console.log('Error sharing file, trying text only:', err);
-                    shareTextOnly(text);
-                });
-                shared = true;
-            }
-        } catch (e) {
-            console.log('File sharing not supported, trying text:', e);
-        }
-
-        if (!shared) {
-            shareTextOnly(text);
-        }
-    } else {
-        // Fallback for insecure contexts (like accessing 192.168.x.x over HTTP on mobile)
-        // Just copy the formatted receipt text to clipboard
-        fallbackCopyTextToClipboard(text);
-    }
-}
-
-function shareTextOnly(text) {
-    if (navigator.share) {
         navigator.share({
-            title: 'Order Bill',
+            title: `Order #${orderId} Bill`,
             text: text
         })
-        .then(() => showToast('Shared successfully!', true))
+        .then(() => {
+            showToast('Shared successfully!', true);
+        })
         .catch((err) => {
             console.log('Sharing text failed, falling back to clipboard:', err);
             fallbackCopyTextToClipboard(text);
         });
     } else {
+        // Fallback for insecure contexts (like accessing 192.168.x.x over HTTP on mobile)
+        // Just copy the formatted receipt text to clipboard
         fallbackCopyTextToClipboard(text);
     }
 }
