@@ -293,7 +293,10 @@
                   <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body px-4 pt-3 pb-4">
-                  <div class="list-group list-group-flush border rounded-3" style="max-height: 380px; overflow-y: auto;">
+                  <div class="mb-3 position-relative">
+                      <input type="text" class="form-control rounded-3 py-2 shadow-sm border-0" id="qb-product-search" placeholder="🔍 Search products..." autocomplete="off">
+                  </div>
+                  <div class="list-group list-group-flush border rounded-3" style="max-height: 380px; overflow-y: auto;" id="qb-product-list">
                       {% for product in products %}
                       <div class="list-group-item py-2 border-bottom qb-product-item" data-product-id="{{ product.id }}" data-price="{{ product.price|floatformat:0 }}" data-name="{{ product.name }}">
                           <div class="row align-items-center">
@@ -1061,6 +1064,24 @@ function openItemsModal(orderId) {
     const modalEl = document.getElementById('itemsModal-' + orderId);
     if (modalEl) new bootstrap.Modal(modalEl).show();
 }
+
+// ── Quick Bill Product Search ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    const qbProductSearch = document.getElementById('qb-product-search');
+    if (qbProductSearch) {
+        qbProductSearch.addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('.qb-product-item').forEach(item => {
+                const name = item.getAttribute('data-name').toLowerCase();
+                if (name.includes(term)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+});
 </script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 {% endblock %}

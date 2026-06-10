@@ -154,6 +154,19 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+
+    // Maintain scroll position when editing and saving
+    const scrollPos = sessionStorage.getItem('adminProductsScrollPos');
+    if (scrollPos) {
+        window.scrollTo(0, parseInt(scrollPos));
+        sessionStorage.removeItem('adminProductsScrollPos');
+    }
+
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function() {
+            sessionStorage.setItem('adminProductsScrollPos', window.scrollY);
+        });
+    });
 });
 </script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">

@@ -7,8 +7,11 @@
         <p class="mb-0">Please check back later.</p>
     </div>
 {% else %}
+    <div class="mb-3 position-relative px-3 mt-3">
+        <input type="text" class="form-control rounded-3 py-2 shadow-sm border-0" id="customerProductSearch" placeholder="🔍 Search products..." autocomplete="off">
+    </div>
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5 mt-2 pb-5">
-        <div class="list-group list-group-flush">
+        <div class="list-group list-group-flush" id="customerProductList">
             {% for product in products %}
             <div class="list-group-item py-2 border-bottom product-item" data-product-id="{{ product.id }}">
                 <div class="row align-items-center">
@@ -150,6 +153,22 @@ document.addEventListener('DOMContentLoaded', function() {
             container.style.transform = 'translateY(100px)';
             container.style.opacity = '0';
         }
+    }
+
+    // Product Search Filter
+    const searchInput = document.getElementById('customerProductSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('.product-item').forEach(item => {
+                const name = item.querySelector('h6').textContent.toLowerCase();
+                if (name.includes(term)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
     }
 });
 </script>
