@@ -1070,10 +1070,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const qbProductSearch = document.getElementById('qb-product-search');
     if (qbProductSearch) {
         qbProductSearch.addEventListener('input', function(e) {
-            const term = e.target.value.toLowerCase();
+            const term = e.target.value.toLowerCase().trim();
             document.querySelectorAll('.qb-product-item').forEach(item => {
-                const name = item.getAttribute('data-name').toLowerCase();
-                if (name.includes(term)) {
+                const name = item.getAttribute('data-name').toLowerCase().trim();
+                if (name.startsWith(term)) {
                     item.style.display = 'block';
                 } else {
                     item.style.display = 'none';

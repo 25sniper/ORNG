@@ -159,10 +159,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('customerProductSearch');
     if (searchInput) {
         searchInput.addEventListener('input', function(e) {
-            const term = e.target.value.toLowerCase();
+            const term = e.target.value.toLowerCase().trim();
             document.querySelectorAll('.product-item').forEach(item => {
-                const name = item.querySelector('h6').textContent.toLowerCase();
-                if (name.includes(term)) {
+                const name = item.querySelector('h6').textContent.toLowerCase().trim();
+                if (name.startsWith(term)) {
                     item.style.display = 'block';
                 } else {
                     item.style.display = 'none';
