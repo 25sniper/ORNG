@@ -165,4 +165,42 @@ class ShareOrderBillTests(TestCase):
             self.assertEqual(len(line), 32, f"Line {idx} '{line}' is {len(line)} chars instead of 32")
 
 
+class QuickBillOptionalStoreTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.delivery = User.objects.create_user(
+            username='deliveryuser',
+            password='password123',
+            phone='9876543211',
+            role='delivery',
+            name='Test Delivery'
+        )
+        self.product = Product.objects.create(
+            name='Orange Juice',
+            price=80.00,
+            available=True
+        )
+
+    def test_quick_bill_with_empty_store_name(self):
+        self.client.login(username='deliveryuser', password='password123')
+        url = reverse('quick_bill_create')
+        data = {
+            'store_name': '',
+            f'qty_{self.product.id}': '2',
+            f'price_{self.product.id}': '80.00'
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+        res_data = response.json()
+        self.assertTrue(res_data['success'])
+        
+        # Verify the created order
+        from orders.models import Order
+        order = Order.objects.latest('id')
+        self.assertEqual(order.store_name, '-')
+        self.assertIsNone(order.customer)
+        self.assertEqual(order.total_amount, 160.00)
+
+
+
 

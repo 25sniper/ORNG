@@ -253,7 +253,7 @@ def quick_bill_create(request):
         
     store_name = request.POST.get('store_name', '').strip()
     if not store_name:
-        return JsonResponse({'success': False, 'error': 'Store name is required.'})
+        store_name = '-'
 
     from django.contrib.auth import get_user_model
     User = get_user_model()
