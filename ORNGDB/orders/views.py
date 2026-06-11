@@ -358,11 +358,9 @@ def share_order_bill(request, order_id):
     import textwrap
     for item in order.items.all():
         desc = item.product.name
-        wrapped_desc = textwrap.wrap(desc, width=32)
+        wrapped_desc = textwrap.wrap(desc, width=12)
         if not wrapped_desc:
-            wrapped_desc = [desc[:32]]
-        for line in wrapped_desc:
-            items_lines.append(line.ljust(32))
+            wrapped_desc = [""]
             
         qty_str = str(item.quantity).rjust(3)[:3]
         
@@ -382,8 +380,12 @@ def share_order_bill(request, order_id):
             total_str = f"{int(total_val)}"
         total_str = total_str.rjust(6)[:6]
         
-        numbers_line = f"{' ' * 12}{qty_str}{' ' * 3}{price_str}{' ' * 2}{total_str}"
-        items_lines.append(numbers_line)
+        first_name_part = wrapped_desc[0].ljust(12)
+        first_line = f"{first_name_part}{qty_str}   {price_str}  {total_str}"
+        items_lines.append(first_line)
+        
+        for line in wrapped_desc[1:]:
+            items_lines.append(line.ljust(12) + " " * 20)
         
     total_label = "TOTAL:"
     total_val_str = f"₹{order.total_amount:.2f}"
