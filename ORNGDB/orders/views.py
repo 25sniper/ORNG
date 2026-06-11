@@ -268,7 +268,12 @@ def quick_bill_create(request):
                 if qty > 0:
                     product = Product.objects.filter(id=product_id, available=True).first()
                     if product:
-                        items.append((product, qty))
+                        custom_price_str = request.POST.get(f'price_{product_id}')
+                        if custom_price_str is not None and custom_price_str.strip() != '':
+                            price = float(custom_price_str)
+                        else:
+                            price = float(product.price)
+                        items.append((product, qty, price))
             except (ValueError, IndexError):
                 continue
                 
@@ -277,7 +282,7 @@ def quick_bill_create(request):
 
     try:
         with transaction.atomic():
-            total_amount = sum(p.price * q for p, q in items)
+            total_amount = sum(price * q for p, q, price in items)
             
             customer = User.objects.filter(role='customer', store_name__iexact=store_name).first()
             
@@ -301,12 +306,12 @@ def quick_bill_create(request):
                 order.received_at = timezone.now()
                 order.save()
                 
-            for product, qty in items:
+            for product, qty, price in items:
                 OrderItem.objects.create(
                     order=order,
                     product=product,
                     quantity=qty,
-                    price_at_time=product.price
+                    price_at_time=price
                 )
                 
         msg = f"✓ Quick Bill #{order.id} placed successfully!"
