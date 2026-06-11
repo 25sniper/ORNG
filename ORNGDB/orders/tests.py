@@ -114,3 +114,55 @@ class OrderAutoAssignmentTests(TestCase):
         self.assertEqual(order.assigned_delivery_user, self.delivery2)
 
 
+class ShareOrderBillTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.admin = User.objects.create_superuser(
+            username='adminuser',
+            password='password123',
+            phone='9999999999',
+            role='admin',
+            name='Test Admin'
+        )
+        self.customer = User.objects.create_user(
+            username='9876543210',
+            password='password123',
+            phone='9876543210',
+            role='customer',
+            name='Test Customer'
+        )
+        self.product = Product.objects.create(
+            name='Fresh Mango Juice Special Pack',
+            price=120.00,
+            available=True
+        )
+        # Import Order & OrderItem
+        from orders.models import Order, OrderItem
+        self.order = Order.objects.create(
+            customer=self.customer,
+            total_amount=240.00,
+        )
+        self.order_item = OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            quantity=2,
+            price_at_time=120.00
+        )
+
+    def test_share_order_bill_format(self):
+        self.client.login(username='adminuser', password='password123')
+        url = reverse('share_order_bill', args=[self.order.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        
+        bill_text = data['bill_text']
+        
+        # Check that all lines are exactly 32 characters long
+        lines = bill_text.split('\n')
+        for idx, line in enumerate(lines):
+            self.assertEqual(len(line), 32, f"Line {idx} '{line}' is {len(line)} chars instead of 32")
+
+
+

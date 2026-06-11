@@ -327,14 +327,12 @@ def share_order_bill(request, order_id):
         if order.customer != request.user:
             return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
             
-    divider_double = "=" * 50
-    divider_single = "-" * 50
+    divider_double = "=" * 32
+    divider_single = "-" * 32
     
     header = [
         divider_double,
-        "ORNG DELIVERY".center(50),
-        "orng.pythonanywhere.com".center(50),
-        "Contact: 9994339666".center(50),
+        "ESTIMATION".center(32),
         divider_double
     ]
     
@@ -346,30 +344,59 @@ def share_order_bill(request, order_id):
     customer_name = order.display_customer_name
     
     details = [
-        f"\nORDER NUMBER: {order_num}",
-        f"DATE: {date_str} | TIME: {time_str}",
-        f"\nCUSTOMER DETAILS:",
-        f"Name: {customer_name}",
-        f"\n{divider_single}",
-        f"{'DESCRIPTION'.ljust(20)}{'QTY'.rjust(6)}{'UNIT PRICE'.rjust(12)}{'TOTAL'.rjust(12)}",
+        f"ORDER NO: {order_num}".ljust(32),
+        f"DATE: {date_str} | TIME: {time_str}".ljust(32),
+        " " * 32,
+        "CUSTOMER DETAILS:".ljust(32),
+        f"Name: {customer_name}".ljust(32),
+        divider_single,
+        "ITEM       QTY   PRICE     TOTAL",
         divider_single
     ]
     
     items_lines = []
+    import textwrap
     for item in order.items.all():
         desc = item.product.name
-        if len(desc) > 20:
-            desc = desc[:17] + "..."
-        desc_col = desc.ljust(20)
-        qty_col = str(item.quantity).rjust(6)
-        price_col = f"₹{item.price_at_time:.2f}".rjust(12)
-        total_col = f"₹{item.price_at_time * item.quantity:.2f}".rjust(12)
-        items_lines.append(f"{desc_col}{qty_col}{price_col}{total_col}")
+        wrapped_desc = textwrap.wrap(desc, width=32)
+        if not wrapped_desc:
+            wrapped_desc = [desc[:32]]
+        for line in wrapped_desc:
+            items_lines.append(line.ljust(32))
+            
+        qty_str = str(item.quantity).rjust(3)[:3]
         
+        price_val = item.price_at_time
+        price_str = f"{price_val:.2f}"
+        if len(price_str) > 6:
+            price_str = f"{price_val:.1f}"
+        if len(price_str) > 6:
+            price_str = f"{int(price_val)}"
+        price_str = price_str.rjust(6)[:6]
+        
+        total_val = item.price_at_time * item.quantity
+        total_str = f"{total_val:.2f}"
+        if len(total_str) > 6:
+            total_str = f"{total_val:.1f}"
+        if len(total_str) > 6:
+            total_str = f"{int(total_val)}"
+        total_str = total_str.rjust(6)[:6]
+        
+        numbers_line = f"{' ' * 12}{qty_str}{' ' * 3}{price_str}{' ' * 2}{total_str}"
+        items_lines.append(numbers_line)
+        
+    total_label = "TOTAL:"
+    total_val_str = f"₹{order.total_amount:.2f}"
+    spaces_needed = 32 - len(total_label) - len(total_val_str)
+    if spaces_needed < 1:
+        spaces_needed = 1
+    total_line = f"{total_label}{' ' * spaces_needed}{total_val_str}"
+    
     footer = [
         divider_single,
-        f"\n{f'GRAND TOTAL:   ₹{order.total_amount:.2f}'.rjust(50)}",
-        "\nThank you for your business!",
+        total_line,
+        " " * 32,
+        "Thank you for your business!".center(32),
         divider_double
     ]
     
