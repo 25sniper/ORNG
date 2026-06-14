@@ -14,4 +14,5 @@ urlpatterns = [
     path('cart/update-qty/<int:product_id>/', views.cart_update_qty, name='cart_update_qty'),
     path('quick-bill/', views.quick_bill_create, name='quick_bill_create'),
     path('order/<int:order_id>/share/', views.share_order_bill, name='share_order_bill'),
+    path('order/<int:order_id>/toggle-payment/', views.toggle_order_payment_status, name='toggle_order_payment_status'),
 ]

@@ -280,6 +280,14 @@ def quick_bill_create(request):
     if not items:
         return JsonResponse({'success': False, 'error': 'Please select at least one item.'})
 
+    item_order_str = request.POST.get('item_order', '').strip()
+    if item_order_str:
+        try:
+            ordered_ids = [int(x) for x in item_order_str.split(',') if x.strip()]
+            items.sort(key=lambda x: ordered_ids.index(x[0].id) if x[0].id in ordered_ids else 999)
+        except ValueError:
+            pass
+
     try:
         with transaction.atomic():
             total_amount = sum(price * q for p, q, price in items)
@@ -320,6 +328,19 @@ def quick_bill_create(request):
         return JsonResponse({'success': False, 'error': 'An error occurred while placing the bill.'})
 
 @login_required
+@require_POST
+def toggle_order_payment_status(request, order_id):
+    if request.user.role != 'delivery':
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+        
+    order = get_object_or_404(Order, id=order_id)
+    new_status = 'paid' if order.payment_status == 'unpaid' else 'unpaid'
+    order.payment_status = new_status
+    order.save()
+    
+    return JsonResponse({'success': True, 'payment_status': new_status})
+
+@login_required
 def share_order_bill(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     
@@ -350,27 +371,22 @@ def share_order_bill(request, order_id):
         "CUSTOMER DETAILS:".ljust(32),
         f"Name: {customer_name}".ljust(32),
         divider_single,
-        "ITEM       QTY   PRICE     TOTAL",
+        "NO ITEM          QTY       TOTAL",
         divider_single
     ]
     
     items_lines = []
     import textwrap
-    for item in order.items.all():
+    for idx, item in enumerate(order.items.all(), 1):
         desc = item.product.name
-        wrapped_desc = textwrap.wrap(desc, width=12)
+        wrapped_desc = textwrap.wrap(desc, width=14)
         if not wrapped_desc:
             wrapped_desc = [""]
             
-        qty_str = str(item.quantity).rjust(3)[:3]
+        no_str = f"{idx}."
+        no_str = no_str.ljust(3)[:3]
         
-        price_val = item.price_at_time
-        price_str = f"{price_val:.2f}"
-        if len(price_str) > 6:
-            price_str = f"{price_val:.1f}"
-        if len(price_str) > 6:
-            price_str = f"{int(price_val)}"
-        price_str = price_str.rjust(6)[:6]
+        qty_str = str(item.quantity).rjust(3)[:3]
         
         total_val = item.price_at_time * item.quantity
         total_str = f"{total_val:.2f}"
@@ -380,12 +396,12 @@ def share_order_bill(request, order_id):
             total_str = f"{int(total_val)}"
         total_str = total_str.rjust(6)[:6]
         
-        first_name_part = wrapped_desc[0].ljust(12)
-        first_line = f"{first_name_part}{qty_str}   {price_str}  {total_str}"
+        first_name_part = wrapped_desc[0].ljust(14)
+        first_line = f"{no_str}{first_name_part}{qty_str}      {total_str}"
         items_lines.append(first_line)
         
         for line in wrapped_desc[1:]:
-            items_lines.append(line.ljust(12) + " " * 20)
+            items_lines.append("   " + line.ljust(14) + " " * 15)
         
     total_label = "TOTAL:"
     total_val_str = f"₹{order.total_amount:.2f}"
@@ -394,9 +410,13 @@ def share_order_bill(request, order_id):
         spaces_needed = 1
     total_line = f"{total_label}{' ' * spaces_needed}{total_val_str}"
     
+    payment_status_text = f"PAYMENT STATUS: {order.payment_status.upper()}"
+    payment_line = payment_status_text.ljust(32)
+    
     footer = [
         divider_single,
         total_line,
+        payment_line,
         " " * 32,
         "Thank you for your business!".center(32),
         divider_double

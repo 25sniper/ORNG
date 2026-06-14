@@ -33,6 +33,24 @@
       color: #ffffff !important;
       border: none !important;
   }
+
+  /* Drag & Drop repositioning styles */
+  .qb-product-item.dragging {
+      opacity: 0.4;
+      background-color: #f8f9fa;
+      border: 1px dashed #ff6600 !important;
+  }
+  .qb-drag-handle {
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      margin-right: 4px;
+  }
+  .qb-drag-handle:active {
+      cursor: grabbing;
+  }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-2 mt-2 px-1">
@@ -256,6 +274,9 @@
                                   <div class="d-flex align-items-center mb-1">
                                       <h6 class="fw-bold mb-0 text-dark me-2" style="font-family: 'Outfit', sans-serif;">#{{ order.id }}</h6>
                                       <span class="text-dark fw-medium">{{ order.display_store_name }}</span>
+                                      <span id="payment-badge-{{ order.id }}" class="badge rounded-pill ms-2 text-bg-{% if order.payment_status == 'paid' %}success{% else %}danger{% endif %}" style="cursor: pointer; font-size: 0.75rem;" onclick="togglePaymentStatus({{ order.id }}, '{% url 'toggle_order_payment_status' order.id %}', '{{ csrf_token }}')">
+                                          {% if order.payment_status == 'paid' %}<i class="bi bi-currency-rupee me-1"></i> Paid{% else %}<i class="bi bi-exclamation-circle me-1"></i> Unpaid{% endif %}
+                                      </span>
                                   </div>
                                   <small class="text-success fw-bold" style="font-size: 0.8rem;"><i class="bi bi-check-circle-fill me-1"></i> {{ order.received_at|date:"M d, Y • h:i A" }}</small>
                               </div>
@@ -263,7 +284,10 @@
                                   <span class="fw-bold text-dark fs-5">₹{{ order.total_amount|floatformat:0 }}</span>
                               </div>
                           </div>
-                          <div class="text-end">
+                          <div class="text-end mt-2">
+                              <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center me-2" style="font-size: 0.75rem;" onclick="openItemsModal({{ order.id }})">
+                                  <i class="bi bi-eye me-1"></i> View Items
+                              </button>
                               <button type="button" id="share-btn-{{ order.id }}"
                                   class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center"
                                   style="font-size: 0.75rem;"
@@ -299,7 +323,11 @@
                   <div class="list-group list-group-flush border rounded-3" style="max-height: 380px; overflow-y: auto;" id="qb-product-list">
                       {% for product in products %}
                       <div class="list-group-item py-2 border-bottom qb-product-item" data-product-id="{{ product.id }}" data-price="{{ product.price|floatformat:0 }}" data-name="{{ product.name }}">
-                          <div class="row align-items-center">
+                          <div class="row align-items-center flex-nowrap">
+                              <!-- Drag Handle -->
+                              <div class="col-auto pe-0 qb-drag-handle" style="cursor: grab; touch-action: none; padding-left: 0.5rem;">
+                                  <i class="bi bi-grip-vertical text-muted fs-5"></i>
+                              </div>
                               <div class="col-auto">
                                   <div class="rounded-3 shadow-sm bg-light overflow-hidden d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
                                       {% if product.image %}
@@ -404,7 +432,40 @@
             <div class="modal-header border-0 pb-0 px-4 pt-4">
                 <div>
                     <h5 class="modal-title fw-bold mb-0" id="itemsModalLabel-{{ order.id }}" style="color: #ff6600;">Order #{{ order.id }}</h5>
-                    <small class="text-muted">{{ order.store_name }}</small>
+                    <small class="text-muted">{{ order.display_store_name }}</small>
+                </div>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 pt-3 pb-2">
+                <ul class="list-group list-group-flush">
+                    {% for item in order.items.all %}
+                    <li class="list-group-item px-0 py-3 d-flex justify-content-between align-items-center border-bottom">
+                        <div>
+                            <span class="fw-bold text-dark">{{ item.quantity }}x</span>
+                            <span class="ms-2 text-dark">{{ item.product.name }}</span>
+                        </div>
+                        <span class="fw-bold text-dark">₹{{ item.price_at_time|floatformat:0 }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex justify-content-between align-items-center">
+                <span class="text-muted small">{{ order.items.count }} items</span>
+                <span class="fw-bold fs-5 text-dark">Total: ₹{{ order.total_amount|floatformat:0 }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% for order in completed_orders %}
+<div class="modal fade" id="itemsModal-{{ order.id }}" tabindex="-1" aria-labelledby="itemsModalLabel-{{ order.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0" id="itemsModalLabel-{{ order.id }}" style="color: #ff6600;">Order #{{ order.id }}</h5>
+                    <small class="text-muted">{{ order.display_store_name }}</small>
                 </div>
                 <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -503,6 +564,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Clear quantity selection field on focus/touchstart to allow typed quantity selection
+    document.addEventListener('focus', function(e) {
+        if (e.target && e.target.classList.contains('qb-qty-input')) {
+            e.target.value = '';
+        }
+    }, true); // Capture phase required since focus does not bubble
+
+    document.addEventListener('touchstart', function(e) {
+        if (e.target && e.target.classList.contains('qb-qty-input')) {
+            e.target.value = '';
+        }
+    });
+
     // Autocomplete for store suggestions starting with typed letters
     const storeInput = document.getElementById('qb-store-name');
     const suggestionsContainer = document.getElementById('qb-store-suggestions');
@@ -532,6 +606,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        // Clear logic for store name
+        storeInput.addEventListener('focus', function() {
+            this.value = '';
+            clearProductSearch();
+        });
+        storeInput.addEventListener('touchstart', function() {
+            this.value = '';
+            clearProductSearch();
+        });
+
         // Hide suggestions when clicking outside
         document.addEventListener('click', function(e) {
             if (e.target !== storeInput && e.target !== suggestionsContainer && !suggestionsContainer.contains(e.target)) {
@@ -539,6 +623,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Auto clear product search on list touch/scroll
+    const qbProductList = document.getElementById('qb-product-list');
+    if (qbProductList) {
+        // Removed auto-clear per user request
+    }
+
+    // Initialize Drag & Drop for Quick Bill product list
+    initDragAndDrop();
 });
 
 function selectStoreSuggestion(e, element) {
@@ -617,7 +710,18 @@ function buildDeliveryCard(d, csrf) {
     </div>`;
 }
 
+function clearProductSearch() {
+    const search = document.getElementById('qb-product-search');
+    if (search && search.value.trim() !== '') {
+        search.value = '';
+        document.querySelectorAll('.qb-product-item').forEach(item => {
+            item.style.display = 'block';
+        });
+    }
+}
+
 // ── Quick Bill Logic ──────────────────────────────────────────────────────────
+let qbCartOrder = [];
 function openQuickBillModal() {
     document.getElementById('quickBillForm').reset();
     document.querySelectorAll('.qb-qty').forEach(input => {
@@ -689,14 +793,19 @@ function updateQBCartTotals() {
     let totalCount = 0;
     let totalAmount = 0;
     
+    qbCartOrder = [];
+    
     document.querySelectorAll('.qb-product-item').forEach(item => {
-        const productId = item.dataset.productId;
+        const productId = String(item.dataset.productId);
         const price = parseFloat(item.dataset.price) || 0;
         const qtyInput = document.getElementById('qb-qty-' + productId);
         const qty = qtyInput ? (parseInt(qtyInput.value) || 0) : 0;
         
-        totalCount += qty;
-        totalAmount += qty * price;
+        if (qty > 0) {
+            qbCartOrder.push(productId);
+            totalCount += qty;
+            totalAmount += qty * price;
+        }
     });
     
     const cartBadge = document.getElementById('qb-cart-badge');
@@ -720,34 +829,33 @@ function renderQBCartSummaryList() {
     if (!summaryContainer) return;
     
     let html = '';
-    let hasItems = false;
     
-    document.querySelectorAll('.qb-product-item').forEach(item => {
-        const productId = item.dataset.productId;
-        const name = item.dataset.name;
-        const price = parseFloat(item.dataset.price) || 0;
-        const qtyInput = document.getElementById('qb-qty-' + productId);
-        const qty = qtyInput ? (parseInt(qtyInput.value) || 0) : 0;
-        
-        if (qty > 0) {
-            hasItems = true;
-            html += `
-            <div class="list-group-item d-flex justify-content-between align-items-center px-3 py-2.5">
-                <div class="d-flex align-items-center">
-                    <span class="d-inline-flex align-items-center justify-content-center me-2 flex-shrink-0" style="width: 14px; height: 14px; border: 1.5px solid #198754; padding: 2px; border-radius: 3px;">
-                        <span style="width: 5px; height: 5px; background-color: #198754; border-radius: 50%;"></span>
-                    </span>
-                    <span class="fw-bold text-dark small">${name}</span>
-                </div>
-                <div class="d-flex align-items-center gap-3">
-                    <span class="text-muted small" style="cursor: pointer; user-select: none;" onmousedown="startLongPress(event, ${productId})" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchstart="startLongPress(event, ${productId})" ontouchend="cancelLongPress()">${qty} x ₹${price.toFixed(0)}</span>
-                    <span class="fw-bold text-dark small">₹${(qty * price).toFixed(0)}</span>
-                </div>
-            </div>`;
-        }
-    });
-    
-    if (!hasItems) {
+    if (qbCartOrder.length > 0) {
+        qbCartOrder.forEach((pid, index) => {
+            const item = document.querySelector(`.qb-product-item[data-product-id="${pid}"]`);
+            if (!item) return;
+            const name = item.dataset.name;
+            const price = parseFloat(item.dataset.price) || 0;
+            const qtyInput = document.getElementById('qb-qty-' + pid);
+            const qty = qtyInput ? (parseInt(qtyInput.value) || 0) : 0;
+            
+            if (qty > 0) {
+                html += `
+                <div class="list-group-item d-flex justify-content-between align-items-center px-3 py-2.5">
+                    <div class="d-flex align-items-center">
+                        <span class="d-inline-flex align-items-center justify-content-center me-2 flex-shrink-0" style="width: 14px; height: 14px; border: 1.5px solid #198754; padding: 2px; border-radius: 3px;">
+                            <span style="width: 5px; height: 5px; background-color: #198754; border-radius: 50%;"></span>
+                        </span>
+                        <span class="fw-bold text-dark small">${name}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-muted small" style="cursor: pointer; user-select: none;" onmousedown="startLongPress(event, ${pid})" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchstart="startLongPress(event, ${pid})" ontouchend="cancelLongPress()">${qty} x ₹${price.toFixed(0)}</span>
+                        <span class="fw-bold text-dark small">₹${(qty * price).toFixed(0)}</span>
+                    </div>
+                </div>`;
+            }
+        });
+    } else {
         html = '<div class="p-3 text-center text-muted small">Your cart is empty.</div>';
     }
     
@@ -784,6 +892,18 @@ function submitQuickBill(url, csrfToken) {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     
     const formData = new FormData(form);
+    
+    // update hidden input to submit to backend
+    let orderInput = document.getElementById('qb-item-order');
+    if(!orderInput) {
+        orderInput = document.createElement('input');
+        orderInput.type = 'hidden';
+        orderInput.id = 'qb-item-order';
+        orderInput.name = 'item_order';
+        document.getElementById('quickBillForm').appendChild(orderInput);
+    }
+    orderInput.value = qbCartOrder.join(',');
+    formData.append('item_order', orderInput.value);
     
     fetch(url, {
         method: 'POST',
@@ -1089,6 +1209,13 @@ function openItemsModal(orderId) {
 document.addEventListener('DOMContentLoaded', function() {
     const qbProductSearch = document.getElementById('qb-product-search');
     if (qbProductSearch) {
+        qbProductSearch.addEventListener('focus', function() {
+            clearProductSearch();
+        });
+        qbProductSearch.addEventListener('touchstart', function() {
+            clearProductSearch();
+        });
+        
         qbProductSearch.addEventListener('input', function(e) {
             const term = e.target.value.toLowerCase().trim();
             document.querySelectorAll('.qb-product-item').forEach(item => {
@@ -1102,6 +1229,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+function togglePaymentStatus(orderId, url, csrfToken) {
+    const badge = document.getElementById('payment-badge-' + orderId);
+    if (!badge) return;
+    
+    fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            if (data.payment_status === 'paid') {
+                badge.className = 'badge rounded-pill ms-2 text-bg-success';
+                badge.innerHTML = '<i class="bi bi-currency-rupee me-1"></i> Paid';
+            } else {
+                badge.className = 'badge rounded-pill ms-2 text-bg-danger';
+                badge.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i> Unpaid';
+            }
+            showToast('Payment status updated!', true);
+        } else {
+            showToast(data.error || 'Failed to update payment status.', false);
+        }
+    })
+    .catch(() => {
+        showToast('Network error.', false);
+    });
+}
 // ── Custom Price Long Press Logic ───────────────────────────────────────────
 let pressTimer;
 function startLongPress(e, productId) {
@@ -1168,6 +1323,84 @@ function saveCustomPrice() {
     }
     
     bootstrap.Modal.getInstance(document.getElementById('customPriceModal')).hide();
+}
+
+// ── Drag & Drop Repositioning Core ───────────────────────────────────────────
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.qb-product-item:not(.dragging)')].filter(el => el.style.display !== 'none');
+    
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+let draggingElement = null;
+
+function initDragAndDrop() {
+    const list = document.getElementById('qb-product-list');
+    if (!list) return;
+
+    list.addEventListener('mousedown', onStart);
+    list.addEventListener('touchstart', onStart, { passive: false });
+
+    function onStart(e) {
+        const handle = e.target.closest('.qb-drag-handle');
+        if (!handle) return;
+
+        const item = handle.closest('.qb-product-item');
+        if (!item) return;
+
+        e.stopPropagation();
+
+        draggingElement = item;
+        item.classList.add('dragging');
+
+        if (e.type === 'touchstart') {
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('touchend', onEnd);
+        } else {
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onEnd);
+        }
+    }
+
+    function onMove(e) {
+        if (!draggingElement) return;
+
+        if (e.type === 'touchmove') {
+            e.preventDefault();
+        }
+
+        const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+        const afterElement = getDragAfterElement(list, clientY);
+
+        if (afterElement == null) {
+            list.appendChild(draggingElement);
+        } else {
+            list.insertBefore(draggingElement, afterElement);
+        }
+    }
+
+    function onEnd(e) {
+        if (!draggingElement) return;
+
+        draggingElement.classList.remove('dragging');
+        draggingElement = null;
+
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+
+        // Rebuild and update the sequence from the new DOM order
+        updateQBCartTotals();
+    }
 }
 </script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
