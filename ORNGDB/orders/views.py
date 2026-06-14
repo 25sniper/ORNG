@@ -288,6 +288,14 @@ def quick_bill_create(request):
         except ValueError:
             pass
 
+    old_balance = 0.00
+    try:
+        old_balance = float(request.POST.get('old_balance', 0) or 0)
+        if old_balance < 0:
+            old_balance = 0.00
+    except (ValueError, TypeError):
+        old_balance = 0.00
+
     try:
         with transaction.atomic():
             total_amount = sum(price * q for p, q, price in items)
@@ -306,6 +314,7 @@ def quick_bill_create(request):
                 store_name=customer.store_name if customer else store_name,
                 status=status,
                 total_amount=total_amount,
+                old_balance=old_balance,
                 assigned_delivery_user=request.user,
                 packed_at=timezone.now(),
                 delivered_at=timezone.now()
@@ -409,13 +418,31 @@ def share_order_bill(request, order_id):
     if spaces_needed < 1:
         spaces_needed = 1
     total_line = f"{total_label}{' ' * spaces_needed}{total_val_str}"
-    
+
+    old_bal = order.old_balance
+    grand = order.grand_total
+
+    if old_bal > 0:
+        old_bal_label = "OLD BALANCE:"
+        old_bal_str = f"₹{old_bal:.2f}"
+        sp = 32 - len(old_bal_label) - len(old_bal_str)
+        old_bal_line = f"{old_bal_label}{' ' * max(1, sp)}{old_bal_str}"
+
+        grand_label = "GRAND TOTAL:"
+        grand_str = f"₹{grand:.2f}"
+        sp2 = 32 - len(grand_label) - len(grand_str)
+        grand_line = f"{grand_label}{' ' * max(1, sp2)}{grand_str}"
+
+        totals_lines = [total_line, old_bal_line, grand_line]
+    else:
+        totals_lines = [total_line]
+
     payment_status_text = f"PAYMENT STATUS: {order.payment_status.upper()}"
     payment_line = payment_status_text.ljust(32)
-    
+
     footer = [
         divider_single,
-        total_line,
+        *totals_lines,
         payment_line,
         " " * 32,
         "Thank you for your business!".center(32),

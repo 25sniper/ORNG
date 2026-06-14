@@ -376,8 +376,17 @@
               </div>
               <div class="modal-body px-4 pt-3 pb-4">
                   <!-- Selected items summary list -->
-                  <div class="list-group list-group-flush border rounded-3 mb-4" id="qb-cart-items-summary" style="max-height: 200px; overflow-y: auto;">
+                  <div class="list-group list-group-flush border rounded-3 mb-3" id="qb-cart-items-summary" style="max-height: 200px; overflow-y: auto;">
                       <!-- Populated dynamically via JS -->
+                  </div>
+
+                  <!-- Old Balance Field -->
+                  <div class="mb-3">
+                      <label class="form-label small fw-bold text-muted">Old Balance <span class="text-muted">(Optional)</span></label>
+                      <div class="input-group">
+                          <span class="input-group-text bg-light border-0 fw-bold text-muted">₹</span>
+                          <input type="number" id="qb-old-balance" name="old_balance" class="form-control rounded-end-3 border-0 bg-light" value="0" min="0" step="0.01" placeholder="0" style="box-shadow: none;" oninput="updateQBCartTotals()">
+                      </div>
                   </div>
 
                   <!-- Store Name Selection Field -->
@@ -389,12 +398,23 @@
                       </div>
                   </div>
               </div>
-              <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex justify-content-between align-items-center">
-                  <div>
-                      <span class="text-muted small d-block">Total Amount</span>
-                      <span class="fw-bold fs-4 text-dark" id="qb-cart-total-display">₹0</span>
+              <div class="modal-footer border-0 px-4 pb-4 pt-0 flex-column align-items-stretch gap-0">
+                  <!-- Totals breakdown -->
+                  <div class="border rounded-3 bg-light px-3 py-2 mb-3">
+                      <div class="d-flex justify-content-between align-items-center py-1">
+                          <span class="text-muted small">Items Total</span>
+                          <span class="fw-bold text-dark" id="qb-cart-items-total-display">₹0</span>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center py-1" id="qb-old-balance-row" style="display: none !important;">
+                          <span class="text-muted small">Old Balance</span>
+                          <span class="fw-bold text-warning" id="qb-cart-old-balance-display">₹0</span>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
+                          <span class="fw-bold text-dark">Grand Total</span>
+                          <span class="fw-bold fs-5 text-dark" id="qb-cart-grand-total-display">₹0</span>
+                      </div>
                   </div>
-                  <button type="button" id="submitQuickBillBtn" class="btn text-white fw-bold px-4 rounded-pill shadow-sm" style="background-color: #ff6600; padding-top: 0.7rem; padding-bottom: 0.7rem;" onclick="submitQuickBill('{% url 'quick_bill_create' %}', '{{ csrf_token }}')">
+                  <button type="button" id="submitQuickBillBtn" class="btn text-white fw-bold rounded-pill shadow-sm w-100" style="background-color: #ff6600; padding-top: 0.7rem; padding-bottom: 0.7rem;" onclick="submitQuickBill('{% url 'quick_bill_create' %}', '{{ csrf_token }}')">
                       Place Order
                   </button>
               </div>
@@ -449,9 +469,17 @@
                     {% endfor %}
                 </ul>
             </div>
-            <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex justify-content-between align-items-center">
+            <div class="modal-footer border-0 px-4 pb-4 pt-2">
                 <span class="text-muted small">{{ order.items.count }} items</span>
-                <span class="fw-bold fs-5 text-dark">Total: ₹{{ order.total_amount|floatformat:0 }}</span>
+                {% if order.old_balance > 0 %}
+                <div class="ms-auto text-end">
+                    <div class="text-muted small">Items Total: <span class="fw-bold text-dark">₹{{ order.total_amount|floatformat:0 }}</span></div>
+                    <div class="text-muted small">Old Balance: <span class="fw-bold text-warning">₹{{ order.old_balance|floatformat:0 }}</span></div>
+                    <div class="text-dark small fw-bold">Grand Total: <span class="fw-bold fs-6">₹{{ order.grand_total|floatformat:0 }}</span></div>
+                </div>
+                {% else %}
+                <span class="fw-bold fs-5 text-dark ms-auto">Total: ₹{{ order.total_amount|floatformat:0 }}</span>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -482,9 +510,17 @@
                     {% endfor %}
                 </ul>
             </div>
-            <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex justify-content-between align-items-center">
+            <div class="modal-footer border-0 px-4 pb-4 pt-2">
                 <span class="text-muted small">{{ order.items.count }} items</span>
-                <span class="fw-bold fs-5 text-dark">Total: ₹{{ order.total_amount|floatformat:0 }}</span>
+                {% if order.old_balance > 0 %}
+                <div class="ms-auto text-end">
+                    <div class="text-muted small">Items Total: <span class="fw-bold text-dark">₹{{ order.total_amount|floatformat:0 }}</span></div>
+                    <div class="text-muted small">Old Balance: <span class="fw-bold text-warning">₹{{ order.old_balance|floatformat:0 }}</span></div>
+                    <div class="text-dark small fw-bold">Grand Total: <span class="fw-bold fs-6">₹{{ order.grand_total|floatformat:0 }}</span></div>
+                </div>
+                {% else %}
+                <span class="fw-bold fs-5 text-dark ms-auto">Total: ₹{{ order.total_amount|floatformat:0 }}</span>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -630,9 +666,79 @@ document.addEventListener('DOMContentLoaded', function() {
         // Removed auto-clear per user request
     }
 
+    // Clear old balance input when focused/touched to allow easy typing
+    const oldBalanceInput = document.getElementById('qb-old-balance');
+    if (oldBalanceInput) {
+        oldBalanceInput.addEventListener('focus', function() {
+            if (parseFloat(this.value) === 0) this.value = '';
+        });
+        oldBalanceInput.addEventListener('touchstart', function() {
+            if (parseFloat(this.value) === 0) this.value = '';
+        });
+        oldBalanceInput.addEventListener('blur', function() {
+            if (this.value === '' || isNaN(parseFloat(this.value))) {
+                this.value = '0';
+                updateQBCartTotals();
+            }
+        });
+    }
+
+    // ── LocalStorage: Restore saved product order on load ───────────────────────
+    applySavedProductOrder();
+
+    // ── History API: Back-button navigation for Quick Bill modal/cart ────────────
+    window.addEventListener('popstate', function(e) {
+        const state = e.state;
+        const modalEl = document.getElementById('quickBillModal');
+        let modal = bootstrap.Modal.getInstance(modalEl);
+        if (state && state.modalOpen) {
+            // Modal should be open
+            if (!modal) {
+                // Open it silently (no extra history push)
+                qbHistoryManaged = true;
+                modal = new bootstrap.Modal(modalEl);
+            }
+            modal.show();
+            if (state.qbView === 'cart') {
+                // Coming back to cart — show cart view
+                renderQBCartSummaryList();
+                document.getElementById('qb-menu-view').classList.add('d-none');
+                document.getElementById('qb-cart-view').classList.remove('d-none');
+            } else {
+                // Coming back to menu — show menu view
+                document.getElementById('qb-cart-view').classList.add('d-none');
+                document.getElementById('qb-menu-view').classList.remove('d-none');
+            }
+        } else {
+            // Back out of modal entirely
+            if (modal) {
+                qbHistoryManaged = true;
+                modal.hide();
+            }
+        }
+    });
+
+    // Hide modal cleans up history if dismissed via UI (not back button)
+    document.getElementById('quickBillModal').addEventListener('hide.bs.modal', function() {
+        if (qbHistoryManaged) {
+            qbHistoryManaged = false;
+            return;
+        }
+        // User dismissed via X / backdrop — pop however many states we pushed
+        const cartVisible = !document.getElementById('qb-cart-view').classList.contains('d-none');
+        if (cartVisible) {
+            history.go(-2); // pop cart + menu states
+        } else {
+            history.go(-1); // pop menu state only
+        }
+    });
+
     // Initialize Drag & Drop for Quick Bill product list
     initDragAndDrop();
 });
+
+// Tracks whether a hide.bs.modal was triggered by our popstate handler (not the user)
+let qbHistoryManaged = false;
 
 function selectStoreSuggestion(e, element) {
     e.preventDefault();
@@ -727,6 +833,12 @@ function openQuickBillModal() {
     document.querySelectorAll('.qb-qty').forEach(input => {
         input.value = '0';
     });
+    // Reset old balance
+    const oldBalInput = document.getElementById('qb-old-balance');
+    if (oldBalInput) oldBalInput.value = '0';
+    const oldBalRow = document.getElementById('qb-old-balance-row');
+    if (oldBalRow) oldBalRow.style.setProperty('display', 'none', 'important');
+
     // Show all ADD buttons and hide all stepper controls
     document.querySelectorAll('.qb-add-btn').forEach(btn => btn.classList.remove('d-none'));
     document.querySelectorAll('.qb-qty-controls').forEach(ctrl => {
@@ -734,11 +846,18 @@ function openQuickBillModal() {
         ctrl.style.display = 'none';
     });
     
-    // Reset view visibility
-    showQBMenuView();
+    // Reset view visibility - do NOT push or pop history yet, just show menu view
+    showQBMenuView(false);
     updateQBCartTotals();
-    
-    new bootstrap.Modal(document.getElementById('quickBillModal')).show();
+
+    const modalEl = document.getElementById('quickBillModal');
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) {
+        modal = new bootstrap.Modal(modalEl);
+    }
+    modal.show();
+    // Push a history state so the back button closes the modal
+    history.pushState({ modalOpen: true, qbView: 'menu' }, '');
 }
 
 function addQBProduct(productId) {
@@ -819,9 +938,31 @@ function updateQBCartTotals() {
             viewCartBtn.classList.add('d-none');
         }
     }
-    
-    const totalDisplay = document.getElementById('qb-cart-total-display');
-    if (totalDisplay) totalDisplay.textContent = '₹' + totalAmount;
+
+    // Compute old balance and grand total
+    const oldBalInput = document.getElementById('qb-old-balance');
+    const oldBalance = oldBalInput ? (parseFloat(oldBalInput.value) || 0) : 0;
+    const grandTotal = totalAmount + oldBalance;
+
+    // Update items total display
+    const itemsTotalDisplay = document.getElementById('qb-cart-items-total-display');
+    if (itemsTotalDisplay) itemsTotalDisplay.textContent = '₹' + totalAmount.toFixed(0);
+
+    // Update old balance row visibility and display
+    const oldBalRow = document.getElementById('qb-old-balance-row');
+    const oldBalDisplay = document.getElementById('qb-cart-old-balance-display');
+    if (oldBalRow && oldBalDisplay) {
+        if (oldBalance > 0) {
+            oldBalRow.style.removeProperty('display');
+            oldBalDisplay.textContent = '₹' + oldBalance.toFixed(0);
+        } else {
+            oldBalRow.style.setProperty('display', 'none', 'important');
+        }
+    }
+
+    // Update grand total display
+    const grandTotalDisplay = document.getElementById('qb-cart-grand-total-display');
+    if (grandTotalDisplay) grandTotalDisplay.textContent = '₹' + grandTotal.toFixed(0);
 }
 
 function renderQBCartSummaryList() {
@@ -866,11 +1007,18 @@ function showQBCartView() {
     renderQBCartSummaryList();
     document.getElementById('qb-menu-view').classList.add('d-none');
     document.getElementById('qb-cart-view').classList.remove('d-none');
+    // Push cart state so back button returns to menu
+    history.pushState({ modalOpen: true, qbView: 'cart' }, '');
 }
 
-function showQBMenuView() {
-    document.getElementById('qb-cart-view').classList.add('d-none');
-    document.getElementById('qb-menu-view').classList.remove('d-none');
+function showQBMenuView(goBackHistory = true) {
+    if (goBackHistory) {
+        // Use history.back() so back button pops the cart state naturally
+        history.back();
+    } else {
+        document.getElementById('qb-cart-view').classList.add('d-none');
+        document.getElementById('qb-menu-view').classList.remove('d-none');
+    }
 }
 
 function submitQuickBill(url, csrfToken) {
@@ -1400,7 +1548,36 @@ function initDragAndDrop() {
 
         // Rebuild and update the sequence from the new DOM order
         updateQBCartTotals();
+        // Persist the new order in localStorage
+        saveProductOrder();
     }
+}
+</script>
+
+<script>
+function saveProductOrder() {
+    const list = document.getElementById('qb-product-list');
+    if (!list) return;
+    const ids = Array.from(list.querySelectorAll('.qb-product-item')).map(el => el.dataset.productId);
+    try {
+        localStorage.setItem('qb_product_order', JSON.stringify(ids));
+    } catch(e) { /* storage full / private mode */ }
+}
+
+function applySavedProductOrder() {
+    const list = document.getElementById('qb-product-list');
+    if (!list) return;
+    let saved;
+    try {
+        saved = JSON.parse(localStorage.getItem('qb_product_order') || 'null');
+    } catch(e) { return; }
+    if (!saved || !Array.isArray(saved) || saved.length === 0) return;
+
+    // Reorder DOM nodes to match saved sequence (unknown IDs stay at end)
+    saved.forEach(id => {
+        const el = list.querySelector(`.qb-product-item[data-product-id="${id}"]`);
+        if (el) list.appendChild(el);
+    });
 }
 </script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">

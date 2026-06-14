@@ -21,11 +21,16 @@ class Order(models.Model):
         related_name='deliveries'
     )
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    old_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     payment_status = models.CharField(max_length=20, choices=(('paid', 'Paid'), ('unpaid', 'Unpaid')), default='unpaid')
     created_at = models.DateTimeField(auto_now_add=True)
     packed_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     received_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def grand_total(self):
+        return self.total_amount + self.old_balance
 
     @property
     def display_customer_name(self):
