@@ -716,7 +716,7 @@
 </div>
 
 <!-- Custom Price Modal -->
-<div class="modal fade" id="customPriceModal" tabindex="-1" aria-labelledby="customPriceModalLabel" aria-hidden="true" style="z-index: 1060;">
+<div class="modal fade" id="customPriceModal" tabindex="-1" aria-labelledby="customPriceModalLabel" aria-hidden="true" style="z-index: 3000;">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content border-0 shadow rounded-4">
             <div class="modal-header border-0 pb-0 px-4 pt-4">
@@ -2113,7 +2113,16 @@ function openCustomPriceModal(productId) {
     document.getElementById('custom-price-input').value = currentPrice;
     document.getElementById('customPriceModalLabel').textContent = `Set Price: ${productName}`;
     
-    new bootstrap.Modal(document.getElementById('customPriceModal')).show();
+    const modalEl = document.getElementById('customPriceModal');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        modalEl.addEventListener('shown.bs.modal', function handler() {
+            const backdrop = document.querySelector('.modal-backdrop:last-of-type');
+            if (backdrop) backdrop.style.zIndex = '2999';
+            modalEl.removeEventListener('shown.bs.modal', handler);
+        });
+    }
 }
 
 function saveCustomPrice() {
