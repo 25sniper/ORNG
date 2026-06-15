@@ -7,6 +7,10 @@ class Product(models.Model):
     stock_quantity = models.PositiveIntegerField(null=True, blank=True)
     image = models.ImageField(upload_to='product_images/', blank=True, null=True)
     icon = models.CharField(max_length=50, blank=True, default='📦')
+    position = models.PositiveIntegerField(default=0, db_index=True)
+
+    class Meta:
+        ordering = ['position', 'name']
 
     def __str__(self):
         return f"{self.name} (₹{self.price})"

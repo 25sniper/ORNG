@@ -1,3 +1,4 @@
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
@@ -88,7 +89,7 @@ def customer_menu(request):
     if request.user.role != 'customer':
         return redirect('home')
         
-    products = Product.objects.filter(available=True).order_by('name')
+    products = Product.objects.filter(available=True).order_by('position', 'name')
     cart_items = CartItem.objects.filter(customer=request.user)
     cart_count = cart_items.aggregate(total_qty=Sum('quantity'))['total_qty'] or 0
     
@@ -258,12 +259,65 @@ def delivery_dashboard(request):
         status='received'
     ).select_related('customer').prefetch_related('items__product').order_by('-received_at')
     
+    from django.db.models import Sum, F
+    from django.db.models.functions import Lower, Coalesce
+
+    customers = User.objects.filter(role='customer').order_by('store_name')
+    
+    unpaid_balances = Order.objects.filter(
+        payment_status='unpaid'
+    ).exclude(
+        status='cancelled'
+    ).annotate(
+        store_name_lower=Lower('store_name')
+    ).values('store_name_lower').annotate(
+        balance=Sum(Coalesce('remaining_balance', F('total_amount') + F('old_balance')))
+    )
+    balance_map = {item['store_name_lower']: item['balance'] for item in unpaid_balances}
+    
+    stores_list = []
+    registered_store_names_lower = set()
+    
+    for c in customers:
+        store_name_lower = c.store_name.lower().strip()
+        registered_store_names_lower.add(store_name_lower)
+        balance = balance_map.get(store_name_lower, 0.00)
+        stores_list.append({
+            'id': c.id,
+            'name': c.store_name or c.name or c.username,
+            'owner_name': c.name,
+            'phone': c.phone,
+            'location': c.location,
+            'google_maps_url': c.google_maps_url,
+            'balance': balance,
+            'is_registered': True
+        })
+        
+    for item in unpaid_balances:
+        s_name_lower = item['store_name_lower']
+        if s_name_lower not in registered_store_names_lower and s_name_lower.strip() and s_name_lower != '-':
+            orig_order = Order.objects.filter(store_name__iexact=s_name_lower).first()
+            orig_name = orig_order.store_name if orig_order else s_name_lower
+            stores_list.append({
+                'id': None,
+                'name': orig_name,
+                'owner_name': 'Guest Customer',
+                'phone': orig_order.customer.phone if (orig_order and orig_order.customer) else None,
+                'location': orig_order.customer.location if (orig_order and orig_order.customer) else None,
+                'google_maps_url': orig_order.customer.google_maps_url if (orig_order and orig_order.customer) else None,
+                'balance': item['balance'],
+                'is_registered': False
+            })
+            
+    stores_list = sorted(stores_list, key=lambda x: x['name'].lower())
+
     context = {
         'packing_orders': packing_orders,
         'delivery_orders': delivery_orders,
         'completed_orders': completed_orders,
-        'products': Product.objects.filter(available=True).order_by('name'),
+        'products': Product.objects.filter(available=True).order_by('position', 'name'),
         'existing_stores': User.objects.filter(role='customer').values_list('store_name', flat=True).distinct().order_by('store_name'),
+        'stores_list': stores_list,
     }
     return render(request, 'users/delivery_dashboard.html', context)
 @login_required
@@ -341,7 +395,7 @@ def admin_edit_product(request, product_id):
 def admin_products_view(request):
     if request.user.role != 'admin':
         return redirect('home')
-    products = Product.objects.all().order_by('name')
+    products = Product.objects.all().order_by('position', 'name')
     return render(request, 'users/admin_products.html', {'products': products})
 
 @login_required
@@ -414,3 +468,39 @@ def profile_view(request):
         return redirect('profile_view')
         
     return render(request, 'users/profile.html')
+
+@login_required
+@require_POST
+def admin_delete_order_history(request):
+    if request.user.role != 'admin':
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+        return redirect('home')
+        
+    Order.objects.all().delete()
+    
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({'success': True, 'message': 'All orders and balance history have been deleted successfully.'})
+        
+    messages.success(request, 'All orders and balance history have been deleted successfully.')
+    return redirect('admin_dashboard')
+
+@login_required
+@require_POST
+def admin_reorder_products(request):
+    if request.user.role != 'admin':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        product_ids = data.get('order', [])
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'Invalid data'}, status=400)
+
+    if not product_ids:
+        return JsonResponse({'error': 'No product IDs provided'}, status=400)
+
+    for position, product_id in enumerate(product_ids):
+        Product.objects.filter(id=product_id).update(position=position)
+
+    return JsonResponse({'success': True})

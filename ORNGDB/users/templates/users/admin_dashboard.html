@@ -10,6 +10,8 @@
             <li><a class="dropdown-item py-2 fw-bold" href="{% url 'admin_products_view' %}"><i class="bi bi-box-seam me-2 text-primary"></i> Products</a></li>
             <li><a class="dropdown-item py-2 fw-bold" href="{% url 'admin_stores_view' %}"><i class="bi bi-shop me-2 text-success"></i> Stores</a></li>
             <li><a class="dropdown-item py-2 fw-bold" href="{% url 'admin_staff_view' %}"><i class="bi bi-people me-2 text-info"></i> Delivery Staff</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><button class="dropdown-item py-2 fw-bold text-danger" type="button" onclick="confirmDeleteHistory('{% url 'admin_delete_order_history' %}', '{{ csrf_token }}')"><i class="bi bi-trash3 me-2"></i> Delete History</button></li>
         </ul>
     </div>
 </div>
@@ -124,6 +126,76 @@ function adminAssignDelivery(selectEl) {
     })
     .catch(() => showAdminToast('Network error.', false));
 }
+
+let deleteUrl = '';
+let deleteCsrf = '';
+
+function confirmDeleteHistory(url, csrfToken) {
+    deleteUrl = url;
+    deleteCsrf = csrfToken;
+    const modalEl = document.getElementById('deleteHistoryModal');
+    if (modalEl) {
+        new bootstrap.Modal(modalEl).show();
+    }
+}
+
+function executeDeleteHistory() {
+    const btn = document.getElementById('deleteHistoryConfirmBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    }
+    
+    fetch(deleteUrl, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': deleteCsrf, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showAdminToast('✓ ' + data.message, true);
+            const modalEl = document.getElementById('deleteHistoryModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            }
+            setTimeout(() => { window.location.reload(); }, 1000);
+        } else {
+            showAdminToast(data.error || 'Failed to delete history.', false);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Delete';
+            }
+        }
+    })
+    .catch(() => {
+        showAdminToast('Network error.', false);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = 'Delete';
+        }
+    });
+}
 </script>
+
+<!-- Delete History Confirmation Modal -->
+<div class="modal fade" id="deleteHistoryModal" tabindex="-1" aria-labelledby="deleteHistoryModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4 text-start">
+                <h6 class="modal-title fw-bold text-dark" id="deleteHistoryModalLabel"><i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> Delete History?</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3 text-start">
+                <p class="text-muted small mb-0">Are you sure you want to delete all orders and reset the entire history of store balances? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0 d-flex gap-2">
+                <button type="button" class="btn btn-light rounded-pill px-3 py-2 fw-bold flex-grow-1 border" data-bs-dismiss="modal" style="font-size:0.85rem;">Cancel</button>
+                <button type="button" id="deleteHistoryConfirmBtn" class="btn btn-danger rounded-pill px-3 py-2 fw-bold flex-grow-1" style="font-size:0.85rem;" onclick="executeDeleteHistory()">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 {% endblock %}

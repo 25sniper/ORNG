@@ -202,5 +202,64 @@ class QuickBillOptionalStoreTests(TestCase):
         self.assertEqual(order.total_amount, 160.00)
 
 
+class PayStoreBalanceTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.delivery = User.objects.create_user(
+            username='deliveryuser',
+            password='password123',
+            phone='9876543211',
+            role='delivery',
+            name='Test Delivery'
+        )
+        self.customer = User.objects.create_user(
+            username='cust1',
+            password='password123',
+            phone='1234567890',
+            role='customer',
+            store_name='Alpha Store'
+        )
+        from orders.models import Order
+        self.o1 = Order.objects.create(
+            customer=self.customer,
+            store_name='Alpha Store',
+            total_amount=500.00,
+            old_balance=0.00,
+            remaining_balance=500.00,
+            payment_status='unpaid',
+            status='received'
+        )
+        self.o2 = Order.objects.create(
+            customer=self.customer,
+            store_name='Alpha Store',
+            total_amount=400.00,
+            old_balance=0.00,
+            remaining_balance=400.00,
+            payment_status='unpaid',
+            status='received'
+        )
+
+    def test_pay_store_balance_success(self):
+        self.client.login(username='deliveryuser', password='password123')
+        url = reverse('pay_store_balance')
+        data = {
+            'store_name': 'Alpha Store',
+            'amount_paid': '700.00'
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+        res_data = response.json()
+        self.assertTrue(res_data['success'])
+
+        self.o1.refresh_from_db()
+        self.o2.refresh_from_db()
+
+        from decimal import Decimal
+        self.assertEqual(self.o1.remaining_balance, Decimal('0.00'))
+        self.assertEqual(self.o1.payment_status, 'paid')
+        self.assertEqual(self.o2.remaining_balance, Decimal('200.00'))
+        self.assertEqual(self.o2.payment_status, 'unpaid')
+
+
 
 

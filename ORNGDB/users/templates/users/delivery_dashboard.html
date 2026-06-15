@@ -51,13 +51,244 @@
   .qb-drag-handle:active {
       cursor: grabbing;
   }
+
+  /* Quick Bill Modal Premium Responsive Styling */
+  #quickBillModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: background-color 0.2s ease;
+  }
+
+  #quickBillForm {
+      display: flex;
+      flex-direction: column;
+      margin: 0 !important;
+      background: #ffffff;
+      width: 100%;
+      overflow: hidden;
+  }
+
+  /* Mobile view: full screen */
+  @media (max-width: 575.98px) {
+      #quickBillModal {
+          background-color: #ffffff;
+      }
+      #quickBillForm {
+          height: 100%;
+          max-width: 100%;
+          border-radius: 0;
+          box-shadow: none;
+      }
+  }
+
+  /* Desktop/Tablet view: popup modal card */
+  @media (min-width: 576px) {
+      #quickBillModal {
+          background-color: rgba(0, 0, 0, 0.45); /* Elegant backdrop overlay */
+          padding: 24px;
+      }
+      #quickBillForm {
+          max-width: 500px;
+          height: 90vh; /* modal-like max height */
+          max-height: 800px;
+          border-radius: 20px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05);
+          border: 1px solid rgba(0, 0, 0, 0.08);
+      }
+  }
+
+  /* Inner views styling */
+  #qb-menu-view, #qb-cart-view {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+  }
+
+  /* Header container */
+  .qb-header {
+      flex-shrink: 0;
+      background-color: #ffffff;
+      border-bottom: 1px solid #eef1f6;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+  }
+
+  /* Search bar container */
+  .qb-search-container {
+      flex-shrink: 0;
+      padding: 16px 24px 12px 24px;
+      background-color: #ffffff;
+  }
+
+  /* Content area for scrollable elements */
+  .qb-content-scroll {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 0 24px 24px 24px;
+      -webkit-overflow-scrolling: touch;
+  }
+
+  /* Footer container */
+  .qb-footer {
+      flex-shrink: 0;
+      border-top: 1px solid #eef1f6;
+      padding: 16px 24px 24px 24px;
+      background-color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+  }
+
+  /* Custom product item design */
+  .qb-product-item {
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      border-radius: 12px !important;
+      margin-bottom: 10px;
+      border: 1px solid #f1f3f5 !important;
+      padding: 12px 16px !important;
+  }
+
+  .qb-product-item:hover {
+      background-color: #f8f9fa;
+  }
+
+  .qb-product-item:active {
+      transform: scale(0.99);
+  }
+
+  /* Custom scrollbar styling for premium look */
+  .qb-content-scroll::-webkit-scrollbar {
+      width: 6px;
+  }
+  .qb-content-scroll::-webkit-scrollbar-track {
+      background: transparent;
+  }
+  .qb-content-scroll::-webkit-scrollbar-thumb {
+      background-color: rgba(0,0,0,0.1);
+      border-radius: 10px;
+  }
+
+  /* Stores Modal Styling */
+  #storesModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: background-color 0.2s ease;
+  }
+
+  #storesModalContent {
+      display: flex;
+      flex-direction: column;
+      margin: 0 !important;
+      background: #ffffff;
+      width: 100%;
+      overflow: hidden;
+  }
+
+  /* Mobile view: full screen */
+  @media (max-width: 575.98px) {
+      #storesModal {
+          background-color: #ffffff;
+      }
+      #storesModalContent {
+          height: 100%;
+          max-width: 100%;
+          border-radius: 0;
+          box-shadow: none;
+      }
+  }
+
+  /* Desktop/Tablet view: popup modal card */
+  @media (min-width: 576px) {
+      #storesModal {
+          background-color: rgba(0, 0, 0, 0.45); /* Elegant backdrop overlay */
+          padding: 24px;
+      }
+      #storesModalContent {
+          max-width: 500px;
+          height: 90vh; /* modal-like max height */
+          max-height: 800px;
+          border-radius: 20px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05);
+          border: 1px solid rgba(0, 0, 0, 0.08);
+      }
+  }
+
+  /* Mobile compact overrides for Quick Bill to fit everything on one screen */
+  @media (max-width: 575.98px) {
+      #quickBillModal .qb-header {
+          padding: 12px 16px !important;
+      }
+      #quickBillModal .qb-search-container {
+          padding: 12px 16px 8px 16px !important;
+      }
+      #quickBillModal .qb-content-scroll {
+          padding: 0 16px 12px 16px !important;
+      }
+      #quickBillModal .qb-footer {
+          padding: 12px 16px 16px 16px !important;
+      }
+      
+      /* Compact form elements in the cart view */
+      #qb-cart-view .mb-2 {
+          margin-bottom: 0.5rem !important;
+      }
+      #qb-cart-view label.form-label {
+          margin-bottom: 0.25rem !important;
+          font-size: 0.75rem !important;
+      }
+      #qb-cart-view .input-group-text, #qb-cart-view .form-control {
+          padding-top: 0.375rem !important;
+          padding-bottom: 0.375rem !important;
+          font-size: 0.875rem !important;
+      }
+      /* Compact totals display in footer */
+      #qb-cart-view .qb-footer .border {
+          padding: 0.375rem 0.75rem !important;
+          margin-bottom: 0.5rem !important;
+      }
+      #qb-cart-view .qb-footer .py-1 {
+          padding-top: 0.15rem !important;
+          padding-bottom: 0.15rem !important;
+      }
+      #qb-cart-view #submitQuickBillBtn {
+          padding-top: 0.5rem !important;
+          padding-bottom: 0.5rem !important;
+          font-size: 0.95rem !important;
+      }
+  }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-2 mt-2 px-1">
   <h5 class="fw-bold mb-0 text-dark" style="font-family: 'Outfit', sans-serif;">Dashboard</h5>
-  <button class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm" style="background-color: #ff6600;" onclick="openQuickBillModal()">
-    <i class="bi bi-plus-circle me-1"></i> Quick Bill
-  </button>
+  <div class="d-flex gap-2">
+    <button class="btn btn-sm btn-light border fw-bold px-3 rounded-pill shadow-sm text-dark d-inline-flex align-items-center" onclick="openStoresModal()">
+      <i class="bi bi-shop me-1 text-secondary"></i> Stores
+    </button>
+    <button class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center" style="background-color: #ff6600;" onclick="openQuickBillModal()">
+      <i class="bi bi-plus-circle me-1"></i> Quick Bill
+    </button>
+  </div>
 </div>
 
 <ul class="nav nav-pills mb-4 border-0 mt-2 flex-nowrap w-100 justify-content-between" id="deliveryTabs" role="tablist" style="background-color: #f1f5f9; padding: 4px; border-radius: 50px;">
@@ -274,26 +505,35 @@
                                   <div class="d-flex align-items-center mb-1">
                                       <h6 class="fw-bold mb-0 text-dark me-2" style="font-family: 'Outfit', sans-serif;">#{{ order.id }}</h6>
                                       <span class="text-dark fw-medium">{{ order.display_store_name }}</span>
-                                      <span id="payment-badge-{{ order.id }}" class="badge rounded-pill ms-2 text-bg-{% if order.payment_status == 'paid' %}success{% else %}danger{% endif %}" style="cursor: pointer; font-size: 0.75rem;" onclick="togglePaymentStatus({{ order.id }}, '{% url 'toggle_order_payment_status' order.id %}', '{{ csrf_token }}')">
-                                          {% if order.payment_status == 'paid' %}<i class="bi bi-currency-rupee me-1"></i> Paid{% else %}<i class="bi bi-exclamation-circle me-1"></i> Unpaid{% endif %}
-                                      </span>
                                   </div>
                                   <small class="text-success fw-bold" style="font-size: 0.8rem;"><i class="bi bi-check-circle-fill me-1"></i> {{ order.received_at|date:"M d, Y • h:i A" }}</small>
                               </div>
                               <div class="text-end">
-                                  <span class="fw-bold text-dark fs-5">₹{{ order.total_amount|floatformat:0 }}</span>
+                                  <span class="fw-bold text-dark fs-5">₹{{ order.grand_total|floatformat:0 }}</span>
+                                  {% if order.payment_status == 'paid' %}
+                                      <div class="text-success small fw-bold mt-1" id="card-balance-status-{{ order.id }}"><i class="bi bi-check-circle-fill"></i> Paid</div>
+                                  {% else %}
+                                      <div class="text-danger small fw-bold mt-1" id="card-balance-status-{{ order.id }}">
+                                          Due: ₹{% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:0 }}{% else %}{{ order.grand_total|floatformat:0 }}{% endif %}
+                                      </div>
+                                  {% endif %}
                               </div>
                           </div>
-                          <div class="text-end mt-2">
-                              <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center me-2" style="font-size: 0.75rem;" onclick="openItemsModal({{ order.id }})">
-                                  <i class="bi bi-eye me-1"></i> View Items
+                          <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                              <button type="button" id="pay-btn-{{ order.id }}" class="btn btn-sm {% if order.payment_status == 'paid' %}btn-success{% else %}btn-outline-success{% endif %} fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center" style="font-size: 0.75rem;" {% if order.payment_status == 'paid' %}disabled{% else %}onclick="openOrderPaymentModal({{ order.id }}, {{ order.grand_total|floatformat:2 }}, {% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:2 }}{% else %}{{ order.grand_total|floatformat:2 }}{% endif %}, '{% url 'toggle_order_payment_status' order.id %}', '{{ csrf_token }}')"{% endif %}>
+                                  <i class="bi bi-cash-coin me-1"></i> Payment
                               </button>
-                              <button type="button" id="share-btn-{{ order.id }}"
-                                  class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center"
-                                  style="font-size: 0.75rem;"
-                                  onclick="shareOrderBill({{ order.id }}, '{% url 'share_order_bill' order.id %}')">
-                                  <i class="bi bi-share me-1"></i> Share
-                              </button>
+                              <div>
+                                  <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center me-2" style="font-size: 0.75rem;" onclick="openItemsModal({{ order.id }})">
+                                      <i class="bi bi-receipt me-1"></i> Bill
+                                  </button>
+                                  <button type="button" id="share-btn-{{ order.id }}"
+                                      class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center"
+                                      style="font-size: 0.75rem;"
+                                      onclick="shareOrderBill({{ order.id }}, '{% url 'share_order_bill' order.id %}')">
+                                      <i class="bi bi-share me-1"></i> Share
+                                  </button>
+                              </div>
                           </div>
                       </div>
                   </div>
@@ -303,124 +543,175 @@
       {% endif %}
   </div>
 
+  <!-- REMOVED STORES TAB -->
+
 </div>
 
-<!-- Quick Bill Modal -->
-<div class="modal fade" id="quickBillModal" tabindex="-1" aria-labelledby="quickBillModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-      <form id="quickBillForm" class="modal-content border-0 shadow rounded-4" onsubmit="event.preventDefault();">
+<!-- Quick Bill Full Screen Container -->
+<div id="quickBillModal" class="d-none">
+  <form id="quickBillForm" onsubmit="event.preventDefault();">
+      
+      <!-- Screen 1: Menu View -->
+      <div id="qb-menu-view" class="bg-white">
+          <div class="qb-header shadow-sm">
+              <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm me-3" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;" onclick="closeQuickBillModal()">
+                  <i class="bi bi-arrow-left fs-5"></i>
+              </button>
+              <h5 class="fw-bold text-dark mb-0" id="quickBillModalLabel" style="font-family: 'Outfit', sans-serif;">Quick Bill Menu</h5>
+          </div>
           
-          <!-- Screen 1: Menu View -->
-          <div id="qb-menu-view">
-              <div class="modal-header border-0 pb-0 px-4 pt-4">
-                  <h5 class="modal-title fw-bold text-dark" id="quickBillModalLabel" style="font-family: 'Outfit', sans-serif;">Quick Bill Menu</h5>
-                  <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+          <div class="qb-search-container">
+              <div class="position-relative">
+                  <input type="text" class="form-control rounded-3 py-2 border" id="qb-product-search" placeholder="🔍 Search products..." autocomplete="off" style="border-color: #dee2e6; box-shadow: none;">
               </div>
-              <div class="modal-body px-4 pt-3 pb-4">
-                  <div class="mb-3 position-relative">
-                      <input type="text" class="form-control rounded-3 py-2 shadow-sm border-0" id="qb-product-search" placeholder="🔍 Search products..." autocomplete="off">
-                  </div>
-                  <div class="list-group list-group-flush border rounded-3" style="max-height: 380px; overflow-y: auto;" id="qb-product-list">
-                      {% for product in products %}
-                      <div class="list-group-item py-2 border-bottom qb-product-item" data-product-id="{{ product.id }}" data-price="{{ product.price|floatformat:0 }}" data-name="{{ product.name }}">
-                          <div class="row align-items-center flex-nowrap">
-                              <!-- Drag Handle -->
-                              <div class="col-auto pe-0 qb-drag-handle" style="cursor: grab; touch-action: none; padding-left: 0.5rem;">
-                                  <i class="bi bi-grip-vertical text-muted fs-5"></i>
-                              </div>
-                              <div class="col-auto">
-                                  <div class="rounded-3 shadow-sm bg-light overflow-hidden d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                      {% if product.image %}
-                                          <img src="{{ product.image.url }}" alt="{{ product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
-                                      {% else %}
-                                          <span style="font-size: 1.3rem;">{{ product.icon|default:"📦" }}</span>
-                                      {% endif %}
-                                  </div>
-                              </div>
-                              <div class="col ps-0">
-                                  <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem; font-family: 'Outfit', sans-serif;">{{ product.name }}</h6>
-                                  <span class="fw-bold text-success qb-price-display" id="qb-price-display-{{ product.id }}" style="font-size: 0.8rem; cursor: pointer; user-select: none;" onmousedown="startLongPress(event, {{ product.id }})" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchstart="startLongPress(event, {{ product.id }})" ontouchend="cancelLongPress()">₹{{ product.price|floatformat:0 }}</span>
-                              </div>
-                              <div class="col-auto qb-qty-container">
-                                  <!-- ADD button initially -->
-                                  <button type="button" class="btn btn-sm bg-white border border-success text-success fw-bold rounded-3 shadow-sm qb-add-btn" style="width: 90px; height: 32px; font-size: 0.85rem;" onclick="addQBProduct({{ product.id }})">
-                                      ADD <i class="bi bi-plus text-success"></i>
-                                  </button>
-                                  <!-- Stepper control hidden initially -->
-                                  <div class="bg-white border border-success rounded-3 shadow-sm px-1 py-0 qb-qty-controls d-none" style="width: 90px; height: 32px; align-items: center; justify-content: space-between;">
-                                      <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5" style="line-height: 1;" onclick="changeQBProductQty({{ product.id }}, -1)"><i class="bi bi-dash"></i></button>
-                                      <input type="number" id="qb-qty-{{ product.id }}" name="qty_{{ product.id }}" value="0" min="0" class="form-control form-control-sm text-center text-success border-0 p-0 fw-bold qb-qty qb-qty-input" style="width: 32px; background: transparent; box-shadow: none; font-size: 0.85rem;">
-                                      <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5" style="line-height: 1;" onclick="changeQBProductQty({{ product.id }}, 1)"><i class="bi bi-plus"></i></button>
-                                  </div>
-                              </div>
+          </div>
+          
+          <div class="qb-content-scroll" id="qb-product-list">
+              {% for product in products %}
+              <div class="qb-product-item bg-white" data-product-id="{{ product.id }}" data-price="{{ product.price|floatformat:0 }}" data-name="{{ product.name }}">
+                  <div class="row align-items-center flex-nowrap w-100 m-0">
+                      <div class="col-auto p-0">
+                          <div class="rounded-3 shadow-sm bg-light overflow-hidden d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                              {% if product.image %}
+                                  <img src="{{ product.image.url }}" alt="{{ product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                              {% else %}
+                                  <span style="font-size: 1.4rem;">{{ product.icon|default:"📦" }}</span>
+                              {% endif %}
                           </div>
                       </div>
-                      {% endfor %}
+                      <div class="col ps-3 text-start">
+                          <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem; font-family: 'Outfit', sans-serif;">{{ product.name }}</h6>
+                          <span class="fw-bold text-success qb-price-display" id="qb-price-display-{{ product.id }}" style="font-size: 0.85rem; cursor: pointer; user-select: none;" onmousedown="startLongPress(event, {{ product.id }})" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchstart="startLongPress(event, {{ product.id }})" ontouchend="cancelLongPress()">₹{{ product.price|floatformat:0 }}</span>
+                      </div>
+                      <div class="col-auto p-0 qb-qty-container">
+                          <!-- ADD button initially -->
+                          <button type="button" class="btn btn-sm bg-white border border-success text-success fw-bold rounded-3 shadow-sm qb-add-btn" style="width: 90px; height: 32px; font-size: 0.85rem;" onclick="addQBProduct({{ product.id }})">
+                              ADD <i class="bi bi-plus text-success"></i>
+                          </button>
+                          <!-- Stepper control hidden initially -->
+                          <div class="bg-white border border-success rounded-3 shadow-sm px-1 py-0 qb-qty-controls d-none" style="width: 90px; height: 32px; align-items: center; justify-content: space-between;">
+                              <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5" style="line-height: 1;" onclick="changeQBProductQty({{ product.id }}, -1)"><i class="bi bi-dash"></i></button>
+                              <input type="number" id="qb-qty-{{ product.id }}" name="qty_{{ product.id }}" value="0" min="0" class="form-control form-control-sm text-center text-success border-0 p-0 fw-bold qb-qty qb-qty-input" style="width: 32px; background: transparent; box-shadow: none; font-size: 0.85rem;">
+                              <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5" style="line-height: 1;" onclick="changeQBProductQty({{ product.id }}, 1)"><i class="bi bi-plus"></i></button>
+                          </div>
+                      </div>
                   </div>
               </div>
-              <div class="modal-footer border-0 px-4 pb-4 pt-2 justify-content-center">
-                  <button type="button" id="qb-view-cart-btn" class="btn text-white fw-bold px-5 rounded-pill shadow-sm w-100 d-none" style="background-color: #ff6600; padding-top: 0.75rem; padding-bottom: 0.75rem;" onclick="showQBCartView()">
-                      <i class="bi bi-cart3 me-1"></i> View Cart <span id="qb-cart-badge" class="badge bg-white text-dark rounded-pill ms-2">0</span>
-                  </button>
-              </div>
+              {% endfor %}
           </div>
+          
+          <div class="qb-footer">
+              <button type="button" id="qb-view-cart-btn" class="btn text-white fw-bold px-5 rounded-pill shadow-sm w-100 d-none" style="background-color: #ff6600; padding-top: 0.75rem; padding-bottom: 0.75rem;" onclick="showQBCartView()">
+                  <i class="bi bi-cart3 me-1"></i> View Cart <span id="qb-cart-badge" class="badge bg-white text-dark rounded-pill ms-2">0</span>
+              </button>
+          </div>
+      </div>
 
-          <!-- Screen 2: Cart View -->
-          <div id="qb-cart-view" class="d-none">
-              <div class="modal-header border-0 pb-0 px-4 pt-4 d-flex align-items-center">
-                  <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="showQBMenuView()">
-                      <i class="bi bi-arrow-left"></i> Back
-                  </button>
-                  <h5 class="modal-title fw-bold text-dark ms-3" style="font-family: 'Outfit', sans-serif;">Your Cart</h5>
-                  <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
-              </div>
-              <div class="modal-body px-4 pt-3 pb-4">
-                  <!-- Selected items summary list -->
-                  <div class="list-group list-group-flush border rounded-3 mb-3" id="qb-cart-items-summary" style="max-height: 200px; overflow-y: auto;">
+      <!-- Screen 2: Cart View -->
+      <div id="qb-cart-view" class="d-none bg-white">
+          <div class="qb-header shadow-sm">
+              <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm me-3" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;" onclick="history.back()">
+                  <i class="bi bi-arrow-left fs-5"></i>
+              </button>
+              <h5 class="fw-bold text-dark mb-0" style="font-family: 'Outfit', sans-serif;">Cart</h5>
+          </div>
+          
+          <div class="qb-content-scroll pt-2">
+              <!-- Selected items summary list -->
+              <div class="mb-2">
+                  <label class="form-label small fw-bold text-muted mb-1">Selected Items</label>
+                  <div class="list-group list-group-flush border rounded-3" id="qb-cart-items-summary" style="max-height: 180px; overflow-y: auto;">
                       <!-- Populated dynamically via JS -->
                   </div>
+              </div>
 
-                  <!-- Old Balance Field -->
-                  <div class="mb-3">
-                      <label class="form-label small fw-bold text-muted">Old Balance <span class="text-muted">(Optional)</span></label>
-                      <div class="input-group">
-                          <span class="input-group-text bg-light border-0 fw-bold text-muted">₹</span>
-                          <input type="number" id="qb-old-balance" name="old_balance" class="form-control rounded-end-3 border-0 bg-light" value="0" min="0" step="0.01" placeholder="0" style="box-shadow: none;" oninput="updateQBCartTotals()">
-                      </div>
-                  </div>
-
-                  <!-- Store Name Selection Field -->
-                  <div class="mb-3 position-relative">
-                      <label class="form-label small fw-bold text-muted">Select Store/Customer <span class="text-muted">(Optional)</span></label>
-                      <input type="text" class="form-control rounded-3" id="qb-store-name" name="store_name" placeholder="Type name or select from list..." autocomplete="off">
-                      <div id="qb-store-suggestions" class="dropdown-menu w-100 shadow rounded-3 border-0 mt-1" style="max-height: 200px; overflow-y: auto; display: none; z-index: 1050;">
-                          <!-- Suggestions will be populated dynamically -->
-                      </div>
+              <!-- Old Balance Field -->
+              <div class="mb-2">
+                  <label class="form-label small fw-bold text-muted">Old Balance <span class="text-muted">(Optional)</span></label>
+                  <div class="input-group">
+                      <span class="input-group-text bg-light border-0 fw-bold text-muted">₹</span>
+                      <input type="number" id="qb-old-balance" name="old_balance" class="form-control rounded-end-3 border-0 bg-light" value="0" min="0" step="0.01" placeholder="0" style="box-shadow: none;" oninput="updateQBCartTotals()">
                   </div>
               </div>
-              <div class="modal-footer border-0 px-4 pb-4 pt-0 flex-column align-items-stretch gap-0">
-                  <!-- Totals breakdown -->
-                  <div class="border rounded-3 bg-light px-3 py-2 mb-3">
-                      <div class="d-flex justify-content-between align-items-center py-1">
-                          <span class="text-muted small">Items Total</span>
-                          <span class="fw-bold text-dark" id="qb-cart-items-total-display">₹0</span>
-                      </div>
-                      <div class="d-flex justify-content-between align-items-center py-1" id="qb-old-balance-row" style="display: none !important;">
-                          <span class="text-muted small">Old Balance</span>
-                          <span class="fw-bold text-warning" id="qb-cart-old-balance-display">₹0</span>
-                      </div>
-                      <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
-                          <span class="fw-bold text-dark">Grand Total</span>
-                          <span class="fw-bold fs-5 text-dark" id="qb-cart-grand-total-display">₹0</span>
-                      </div>
+
+              <!-- Store Name Selection Field -->
+              <div class="mb-2 position-relative">
+                  <label class="form-label small fw-bold text-muted">Select Store/Customer <span class="text-muted">(Optional)</span></label>
+                  <input type="text" class="form-control rounded-3" id="qb-store-name" name="store_name" placeholder="Type name or select from list..." autocomplete="off" style="box-shadow: none; border-color: #dee2e6;">
+                  <div id="qb-store-suggestions" class="dropdown-menu w-100 shadow rounded-3 border-0 mt-1" style="max-height: 200px; overflow-y: auto; display: none; z-index: 1050;">
+                      <!-- Suggestions will be populated dynamically -->
                   </div>
-                  <button type="button" id="submitQuickBillBtn" class="btn text-white fw-bold rounded-pill shadow-sm w-100" style="background-color: #ff6600; padding-top: 0.7rem; padding-bottom: 0.7rem;" onclick="submitQuickBill('{% url 'quick_bill_create' %}', '{{ csrf_token }}')">
-                      Place Order
-                  </button>
               </div>
           </div>
           
-      </form>
+          <div class="qb-footer">
+              <!-- Totals breakdown -->
+              <div class="border rounded-3 bg-light px-3 py-2 mb-3 w-100 text-start">
+                  <div class="d-flex justify-content-between align-items-center py-1">
+                      <span class="text-muted small">Items Total</span>
+                      <span class="fw-bold text-dark" id="qb-cart-items-total-display">₹0</span>
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center py-1" id="qb-old-balance-row" style="display: none !important;">
+                      <span class="text-muted small">Old Balance</span>
+                      <span class="fw-bold text-warning" id="qb-cart-old-balance-display">₹0</span>
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
+                      <span class="fw-bold text-dark">Grand Total</span>
+                      <span class="fw-bold fs-5 text-dark" id="qb-cart-grand-total-display">₹0</span>
+                  </div>
+              </div>
+              <button type="button" id="submitQuickBillBtn" class="btn text-white fw-bold rounded-pill shadow-sm w-100" style="background-color: #ff6600; padding-top: 0.7rem; padding-bottom: 0.7rem;" onclick="submitQuickBill('{% url 'quick_bill_create' %}', '{{ csrf_token }}')">
+                  Place Order
+              </button>
+          </div>
+      </div>
+  </form>
+</div>
+
+<!-- Stores Overlay/Modal Container -->
+<div id="storesModal" class="d-none">
+  <div id="storesModalContent" class="bg-white">
+      <div class="qb-header shadow-sm">
+          <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm me-3" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;" onclick="closeStoresModal()">
+              <i class="bi bi-arrow-left fs-5"></i>
+          </button>
+          <h5 class="fw-bold text-dark mb-0" style="font-family: 'Outfit', sans-serif;">Stores / Permanent Customers</h5>
+      </div>
+      
+      <div class="qb-search-container">
+          <div class="position-relative">
+              <input type="text" class="form-control rounded-3 py-2 border" id="stores-search-input" placeholder="🔍 Search stores..." autocomplete="off" style="border-color: #dee2e6; box-shadow: none;">
+          </div>
+      </div>
+      
+      <div class="qb-content-scroll pt-2" id="stores-list-container">
+          {% for store in stores_list %}
+              {% if store.is_registered %}
+              <div class="card border-0 shadow-sm rounded-4 border-start border-4 {% if store.balance > 0 %}border-warning{% else %}border-success{% endif %} mb-2 stores-item-card" data-store-name="{{ store.name }}">
+                  <div class="card-body px-4 py-2.5 text-start">
+                      <div class="d-flex justify-content-between align-items-center">
+                          <div>
+                              <h6 class="fw-bold mb-0 text-dark" style="font-family: 'Outfit', sans-serif; font-size: 0.95rem;">{{ store.name }}</h6>
+                              {% if store.phone %}
+                              <small class="text-muted" style="font-size: 0.8rem;"><i class="bi bi-telephone me-1"></i> <a href="tel:{{ store.phone }}" class="text-decoration-none text-muted">{{ store.phone }}</a></small>
+                              {% endif %}
+                          </div>
+                          <div class="text-end d-flex align-items-center gap-2">
+                              <span class="badge rounded-pill {% if store.balance > 0 %}text-bg-warning text-dark{% else %}text-bg-success{% endif %} fw-bold px-3 py-1.5 border-0 shadow-sm" style="font-size: 0.85rem;">
+                                  ₹{{ store.balance|floatformat:0 }}
+                              </span>
+                              {% if store.balance > 0 %}
+                              <button type="button" class="btn btn-sm btn-outline-success fw-bold px-2.5 rounded-pill shadow-sm" style="font-size: 0.75rem;" onclick="openStorePaymentModal('{{ store.name|escapejs }}', {{ store.balance|floatformat:2 }}, '{{ csrf_token }}')">
+                                  Pay
+                              </button>
+                              {% endif %}
+                          </div>
+                      </div>
+                  </div>
+              </div>
+              {% endif %}
+          {% endfor %}
+      </div>
   </div>
 </div>
 
@@ -439,6 +730,80 @@
             </div>
             <div class="modal-footer border-0 px-4 pb-4 pt-0">
                 <button type="button" class="btn w-100 fw-bold text-white rounded-pill shadow-sm" style="background-color: #ff6600;" onclick="saveCustomPrice()">Save Price</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Order Payment Modal -->
+<div class="modal fade" id="orderPaymentModal" tabindex="-1" aria-labelledby="orderPaymentModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h6 class="modal-title fw-bold text-dark" id="orderPaymentModalLabel">Record Payment</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <input type="hidden" id="pay-modal-order-id">
+                <input type="hidden" id="pay-modal-url">
+                <input type="hidden" id="pay-modal-csrf">
+                
+                <div class="mb-2 text-start">
+                    <span class="text-muted small">Total Due:</span>
+                    <span class="fw-bold text-dark ms-1" id="pay-modal-total-due-display">₹0</span>
+                </div>
+                
+                <div class="mb-3 text-start">
+                    <label class="form-label small fw-bold text-muted">Amount Paid (₹)</label>
+                    <input type="number" id="pay-modal-amount-input" class="form-control rounded-3" step="0.01" min="0" placeholder="0.00" oninput="updatePaymentModalRemaining()" style="box-shadow: none;">
+                </div>
+                
+                <div class="bg-light rounded-3 p-2.5 text-center d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">Remaining:</span>
+                    <span class="fw-bold text-danger" id="pay-modal-remaining-display">₹0</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0">
+                <button type="button" class="btn w-100 fw-bold text-white rounded-pill shadow-sm" style="background-color: #28a745;" onclick="saveOrderPayment()">Save Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Store Payment Modal -->
+<div class="modal fade" id="storePaymentModal" tabindex="-1" aria-labelledby="storePaymentModalLabel" aria-hidden="true" style="z-index: 3000;">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h6 class="modal-title fw-bold text-dark" id="storePaymentModalLabel">Store Payment</h6>
+                <button type="button" class="btn-close" onclick="closeStorePaymentModal()" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <input type="hidden" id="store-pay-name">
+                <input type="hidden" id="store-pay-csrf">
+                
+                <div class="mb-2 text-start">
+                    <span class="text-muted small">Store Name:</span>
+                    <div class="fw-bold text-dark mt-1" id="store-pay-name-display" style="font-family: 'Outfit', sans-serif;">Store Name</div>
+                </div>
+                
+                <div class="mb-2 text-start">
+                    <span class="text-muted small">Total Due:</span>
+                    <span class="fw-bold text-dark ms-1" id="store-pay-total-due-display">₹0</span>
+                </div>
+                
+                <div class="mb-3 text-start">
+                    <label class="form-label small fw-bold text-muted">Amount Paid (₹)</label>
+                    <input type="number" id="store-pay-amount-input" class="form-control rounded-3" step="0.01" min="0" placeholder="0.00" oninput="updateStorePaymentRemaining()" style="box-shadow: none;">
+                </div>
+                
+                <div class="bg-light rounded-3 p-2.5 text-center d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">Remaining:</span>
+                    <span class="fw-bold text-danger" id="store-pay-remaining-display">₹0</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0">
+                <button type="button" class="btn w-100 fw-bold text-white rounded-pill shadow-sm" style="background-color: #28a745;" onclick="saveStorePayment()">Save Payment</button>
             </div>
         </div>
     </div>
@@ -490,37 +855,67 @@
 <div class="modal fade" id="itemsModal-{{ order.id }}" tabindex="-1" aria-labelledby="itemsModalLabel-{{ order.id }}" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow rounded-4">
-            <div class="modal-header border-0 pb-0 px-4 pt-4">
-                <div>
-                    <h5 class="modal-title fw-bold mb-0" id="itemsModalLabel-{{ order.id }}" style="color: #ff6600;">Order #{{ order.id }}</h5>
-                    <small class="text-muted">{{ order.display_store_name }}</small>
+            <div class="modal-header border-0 pb-0 px-4 pt-4 text-center d-block position-relative">
+                <button type="button" class="btn-close position-absolute end-0 top-0 mt-4 me-4" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="text-center mb-2">
+                    <i class="bi bi-receipt fs-1 text-secondary opacity-50"></i>
                 </div>
-                <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title fw-bold mb-1" id="itemsModalLabel-{{ order.id }}" style="font-family: 'Outfit', sans-serif;">Invoice #{{ order.id }}</h5>
+                <p class="text-muted small mb-0">{{ order.display_store_name }}</p>
+                <p class="text-muted" style="font-size: 0.75rem;">{{ order.received_at|date:"M d, Y • h:i A" }}</p>
             </div>
-            <div class="modal-body px-4 pt-3 pb-2">
-                <ul class="list-group list-group-flush">
-                    {% for item in order.items.all %}
-                    <li class="list-group-item px-0 py-3 d-flex justify-content-between align-items-center border-bottom">
-                        <div>
-                            <span class="fw-bold text-dark">{{ item.quantity }}x</span>
-                            <span class="ms-2 text-dark">{{ item.product.name }}</span>
-                        </div>
-                        <span class="fw-bold text-dark">₹{{ item.price_at_time|floatformat:0 }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            <div class="modal-footer border-0 px-4 pb-4 pt-2">
-                <span class="text-muted small">{{ order.items.count }} items</span>
-                {% if order.old_balance > 0 %}
-                <div class="ms-auto text-end">
-                    <div class="text-muted small">Items Total: <span class="fw-bold text-dark">₹{{ order.total_amount|floatformat:0 }}</span></div>
-                    <div class="text-muted small">Old Balance: <span class="fw-bold text-warning">₹{{ order.old_balance|floatformat:0 }}</span></div>
-                    <div class="text-dark small fw-bold">Grand Total: <span class="fw-bold fs-6">₹{{ order.grand_total|floatformat:0 }}</span></div>
+            <div class="modal-body px-4 pt-2 pb-2">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-sm mb-0">
+                        <thead class="border-bottom border-2">
+                            <tr>
+                                <th class="text-muted small fw-bold pb-2" style="width: 50%;">Item</th>
+                                <th class="text-muted small fw-bold text-center pb-2" style="width: 20%;">Qty</th>
+                                <th class="text-muted small fw-bold text-end pb-2" style="width: 30%;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in order.items.all %}
+                            <tr class="border-bottom">
+                                <td class="py-2 text-dark">{{ item.product.name }}</td>
+                                <td class="py-2 text-dark text-center">{{ item.quantity }}</td>
+                                <td class="py-2 text-dark text-end fw-medium">₹{{ item.price_at_time|floatformat:0 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                {% else %}
-                <span class="fw-bold fs-5 text-dark ms-auto">Total: ₹{{ order.total_amount|floatformat:0 }}</span>
-                {% endif %}
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0 d-block">
+                <div class="bg-light rounded-4 p-3 mt-2 shadow-sm border border-secondary border-opacity-10">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Items Total:</span>
+                        <span class="text-dark fw-bold small">₹{{ order.total_amount|floatformat:0 }}</span>
+                    </div>
+                    {% if order.old_balance > 0 %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Old Balance:</span>
+                        <span class="text-warning fw-bold small">₹{{ order.old_balance|floatformat:0 }}</span>
+                    </div>
+                    {% endif %}
+                    <hr class="my-2 border-secondary opacity-25">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-dark fw-bold">Grand Total:</span>
+                        <span class="text-dark fw-bold fs-5">₹{{ order.grand_total|default:order.total_amount|floatformat:0 }}</span>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    {% if order.payment_status == 'paid' %}
+                    <span class="badge rounded-pill text-bg-success py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                        <i class="bi bi-check-circle-fill me-1"></i> Payment Received
+                    </span>
+                    {% else %}
+                    <span class="badge rounded-pill text-bg-danger py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                        <i class="bi bi-clock-history me-1"></i> Due: ₹{% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:0 }}{% else %}{{ order.grand_total|floatformat:0 }}{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -544,6 +939,41 @@ const EXISTING_STORES = [
         "{{ store|escapejs }}",
     {% endfor %}
 ];
+
+const STORE_BALANCES = {
+    {% for s in stores_list %}
+        ["{{ s.name|escapejs }}".toLowerCase().trim()]: {{ s.balance|default:0 }},
+    {% endfor %}
+};
+
+function checkStoreBalance() {
+    const storeInput = document.getElementById('qb-store-name');
+    const oldBalInput = document.getElementById('qb-old-balance');
+    if (!storeInput || !oldBalInput) return;
+
+    const val = storeInput.value.toLowerCase().trim();
+    if (val in STORE_BALANCES) {
+        const bal = parseFloat(STORE_BALANCES[val]) || 0;
+        oldBalInput.value = bal.toFixed(2);
+        if (bal > 0) {
+            oldBalInput.readOnly = true;
+            oldBalInput.dataset.wasReadonly = 'true';
+            oldBalInput.style.backgroundColor = '#e9ecef';
+        } else {
+            oldBalInput.readOnly = false;
+            oldBalInput.dataset.wasReadonly = 'false';
+            oldBalInput.style.backgroundColor = '';
+        }
+    } else {
+        if (oldBalInput.readOnly) {
+            oldBalInput.value = '0';
+            oldBalInput.readOnly = false;
+            oldBalInput.dataset.wasReadonly = 'false';
+            oldBalInput.style.backgroundColor = '';
+        }
+    }
+    updateQBCartTotals();
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     const savedTab = sessionStorage.getItem(TAB_KEY);
@@ -620,14 +1050,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (storeInput && suggestionsContainer) {
         storeInput.addEventListener('input', function() {
             const query = this.value.trim().toLowerCase();
+            checkStoreBalance();
             if (query.length === 0) {
                 suggestionsContainer.style.display = 'none';
                 return;
             }
 
-            // Filter stores that START WITH the query prefix
+            // Filter stores that contain the query string (case-insensitive)
             const matches = EXISTING_STORES.filter(store => 
-                store.toLowerCase().startsWith(query)
+                store.toLowerCase().includes(query)
             );
 
             if (matches.length > 0) {
@@ -645,10 +1076,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear logic for store name
         storeInput.addEventListener('focus', function() {
             this.value = '';
+            checkStoreBalance();
             clearProductSearch();
         });
         storeInput.addEventListener('touchstart', function() {
             this.value = '';
+            checkStoreBalance();
             clearProductSearch();
         });
 
@@ -683,62 +1116,139 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ── LocalStorage: Restore saved product order on load ───────────────────────
-    applySavedProductOrder();
 
-    // ── History API: Back-button navigation for Quick Bill modal/cart ────────────
+    // ── History API: Back-button navigation for Quick Bill and Stores Modals ────────────
+    // ── Modal navigation stack ───────────────────────────────────────────────
+    // We use a single history entry per modal session.
+    // _modalNavStack tracks layers within that session (menu → cart).
+    // popstate always means: go back one layer, or close if at root.
+    window._modalNavStack = [];  // e.g. ['qb-menu'] | ['qb-menu','qb-cart'] | ['stores']
+
     window.addEventListener('popstate', function(e) {
-        const state = e.state;
-        const modalEl = document.getElementById('quickBillModal');
-        let modal = bootstrap.Modal.getInstance(modalEl);
-        if (state && state.modalOpen) {
-            // Modal should be open
-            if (!modal) {
-                // Open it silently (no extra history push)
-                qbHistoryManaged = true;
-                modal = new bootstrap.Modal(modalEl);
-            }
-            modal.show();
-            if (state.qbView === 'cart') {
-                // Coming back to cart — show cart view
-                renderQBCartSummaryList();
-                document.getElementById('qb-menu-view').classList.add('d-none');
-                document.getElementById('qb-cart-view').classList.remove('d-none');
-            } else {
-                // Coming back to menu — show menu view
-                document.getElementById('qb-cart-view').classList.add('d-none');
-                document.getElementById('qb-menu-view').classList.remove('d-none');
-            }
-        } else {
-            // Back out of modal entirely
-            if (modal) {
-                qbHistoryManaged = true;
-                modal.hide();
-            }
-        }
-    });
+        const qbModalEl = document.getElementById('quickBillModal');
+        const storesModalEl = document.getElementById('storesModal');
 
-    // Hide modal cleans up history if dismissed via UI (not back button)
-    document.getElementById('quickBillModal').addEventListener('hide.bs.modal', function() {
-        if (qbHistoryManaged) {
-            qbHistoryManaged = false;
+        if (window._modalNavStack.length === 0) {
+            // Nothing open — ensure both are hidden
+            _hideAllModals();
             return;
         }
-        // User dismissed via X / backdrop — pop however many states we pushed
-        const cartVisible = !document.getElementById('qb-cart-view').classList.contains('d-none');
-        if (cartVisible) {
-            history.go(-2); // pop cart + menu states
-        } else {
-            history.go(-1); // pop menu state only
+
+        const top = window._modalNavStack[window._modalNavStack.length - 1];
+
+        if (top === 'qb-cart') {
+            // Back from cart → go to menu
+            window._modalNavStack.pop();
+            history.pushState({ modalOpen: true }, '');
+            document.getElementById('qb-cart-view').classList.add('d-none');
+            document.getElementById('qb-menu-view').classList.remove('d-none');
+            return;
         }
+
+        if (top === 'qb-menu') {
+            // Back from menu → close QB modal
+            window._modalNavStack = [];
+            if (qbModalEl) {
+                qbModalEl.classList.add('d-none');
+                qbModalEl.style.height = '';
+                delete qbModalEl.dataset.lockedHeight;
+            }
+            document.body.style.overflow = '';
+            return;
+        }
+
+        if (top === 'stores') {
+            // Back from stores → close stores modal
+            window._modalNavStack = [];
+            if (storesModalEl) {
+                storesModalEl.classList.add('d-none');
+                storesModalEl.style.height = '';
+                delete storesModalEl.dataset.lockedHeight;
+            }
+            document.body.style.overflow = '';
+            return;
+        }
+
+        _hideAllModals();
     });
 
-    // Initialize Drag & Drop for Quick Bill product list
-    initDragAndDrop();
+    function _hideAllModals() {
+        const qbModalEl = document.getElementById('quickBillModal');
+        const storesModalEl = document.getElementById('storesModal');
+        window._modalNavStack = [];
+        if (qbModalEl) {
+            qbModalEl.classList.add('d-none');
+            qbModalEl.style.height = '';
+            delete qbModalEl.dataset.lockedHeight;
+        }
+        if (storesModalEl) {
+            storesModalEl.classList.add('d-none');
+            storesModalEl.style.height = '';
+            delete storesModalEl.dataset.lockedHeight;
+        }
+        document.body.style.overflow = '';
+    }
+
+
+    // ── Stores Modal Search ──────────────────────────────────────────────────
+    const storesSearchInput = document.getElementById('stores-search-input');
+    if (storesSearchInput) {
+        storesSearchInput.addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase().trim();
+            document.querySelectorAll('.stores-item-card').forEach(card => {
+                const name = card.getAttribute('data-store-name').toLowerCase().trim();
+                if (name.includes(term)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+        
+        storesSearchInput.addEventListener('focus', function() {
+            this.value = '';
+            document.querySelectorAll('.stores-item-card').forEach(card => {
+                card.style.display = 'block';
+            });
+        });
+        
+        storesSearchInput.addEventListener('touchstart', function() {
+            this.value = '';
+            document.querySelectorAll('.stores-item-card').forEach(card => {
+                card.style.display = 'block';
+            });
+        });
+    }
 });
 
-// Tracks whether a hide.bs.modal was triggered by our popstate handler (not the user)
-let qbHistoryManaged = false;
+function closeQuickBillModal() {
+    // Always just go back one step — popstate handles the rest
+    history.back();
+}
+
+function openStoresModal() {
+    const modalEl = document.getElementById('storesModal');
+    if (!modalEl) return;
+    // If already open, don't push another state
+    if (!modalEl.classList.contains('d-none')) return;
+    modalEl.classList.remove('d-none');
+    document.body.style.overflow = 'hidden';
+    const isMobile = window.innerWidth < 575.98;
+    if (isMobile) {
+        const initialHeight = window.innerHeight;
+        modalEl.style.height = initialHeight + 'px';
+        modalEl.dataset.lockedHeight = initialHeight;
+    } else {
+        modalEl.style.height = '';
+        delete modalEl.dataset.lockedHeight;
+    }
+    window._modalNavStack = ['stores'];
+    history.pushState({ modalOpen: true }, '');
+}
+
+function closeStoresModal() {
+    history.back();
+}
 
 function selectStoreSuggestion(e, element) {
     e.preventDefault();
@@ -746,6 +1256,7 @@ function selectStoreSuggestion(e, element) {
     const suggestionsContainer = document.getElementById('qb-store-suggestions');
     if (storeInput) {
         storeInput.value = element.textContent;
+        checkStoreBalance();
     }
     if (suggestionsContainer) {
         suggestionsContainer.style.display = 'none';
@@ -835,7 +1346,12 @@ function openQuickBillModal() {
     });
     // Reset old balance
     const oldBalInput = document.getElementById('qb-old-balance');
-    if (oldBalInput) oldBalInput.value = '0';
+    if (oldBalInput) {
+        oldBalInput.value = '0';
+        oldBalInput.readOnly = false;
+        oldBalInput.dataset.wasReadonly = 'false';
+        oldBalInput.style.backgroundColor = '';
+    }
     const oldBalRow = document.getElementById('qb-old-balance-row');
     if (oldBalRow) oldBalRow.style.setProperty('display', 'none', 'important');
 
@@ -851,13 +1367,22 @@ function openQuickBillModal() {
     updateQBCartTotals();
 
     const modalEl = document.getElementById('quickBillModal');
-    let modal = bootstrap.Modal.getInstance(modalEl);
-    if (!modal) {
-        modal = new bootstrap.Modal(modalEl);
+    modalEl.classList.remove('d-none');
+    document.body.style.overflow = 'hidden';
+
+    const isMobile = window.innerWidth < 575.98;
+    if (isMobile) {
+        const initialHeight = window.innerHeight;
+        modalEl.style.height = initialHeight + 'px';
+        modalEl.dataset.lockedHeight = initialHeight;
+    } else {
+        modalEl.style.height = '';
+        delete modalEl.dataset.lockedHeight;
     }
-    modal.show();
-    // Push a history state so the back button closes the modal
-    history.pushState({ modalOpen: true, qbView: 'menu' }, '');
+
+    // Push one history entry for the entire QB session
+    window._modalNavStack = ['qb-menu'];
+    history.pushState({ modalOpen: true }, '');
 }
 
 function addQBProduct(productId) {
@@ -982,7 +1507,7 @@ function renderQBCartSummaryList() {
             
             if (qty > 0) {
                 html += `
-                <div class="list-group-item d-flex justify-content-between align-items-center px-3 py-2.5">
+                <div class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
                     <div class="d-flex align-items-center">
                         <span class="d-inline-flex align-items-center justify-content-center me-2 flex-shrink-0" style="width: 14px; height: 14px; border: 1.5px solid #198754; padding: 2px; border-radius: 3px;">
                             <span style="width: 5px; height: 5px; background-color: #198754; border-radius: 50%;"></span>
@@ -1007,13 +1532,15 @@ function showQBCartView() {
     renderQBCartSummaryList();
     document.getElementById('qb-menu-view').classList.add('d-none');
     document.getElementById('qb-cart-view').classList.remove('d-none');
-    // Push cart state so back button returns to menu
-    history.pushState({ modalOpen: true, qbView: 'cart' }, '');
+    // Track cart layer in our internal stack (no extra pushState)
+    if (window._modalNavStack[window._modalNavStack.length - 1] !== 'qb-cart') {
+        window._modalNavStack.push('qb-cart');
+        history.pushState({ modalOpen: true }, '');
+    }
 }
 
 function showQBMenuView(goBackHistory = true) {
     if (goBackHistory) {
-        // Use history.back() so back button pops the cart state naturally
         history.back();
     } else {
         document.getElementById('qb-cart-view').classList.add('d-none');
@@ -1368,7 +1895,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const term = e.target.value.toLowerCase().trim();
             document.querySelectorAll('.qb-product-item').forEach(item => {
                 const name = item.getAttribute('data-name').toLowerCase().trim();
-                if (name.startsWith(term)) {
+                if (name.includes(term)) {
                     item.style.display = 'block';
                 } else {
                     item.style.display = 'none';
@@ -1378,33 +1905,189 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function togglePaymentStatus(orderId, url, csrfToken) {
-    const badge = document.getElementById('payment-badge-' + orderId);
-    if (!badge) return;
+function openOrderPaymentModal(orderId, grandTotal, remainingBalance, url, csrfToken) {
+    document.getElementById('pay-modal-order-id').value = orderId;
+    document.getElementById('pay-modal-url').value = url;
+    document.getElementById('pay-modal-csrf').value = csrfToken;
+    
+    document.getElementById('pay-modal-total-due-display').textContent = '₹' + remainingBalance.toFixed(0);
+    
+    const input = document.getElementById('pay-modal-amount-input');
+    input.value = remainingBalance.toFixed(2);
+    input.max = remainingBalance;
+    
+    updatePaymentModalRemaining();
+    
+    const modalEl = document.getElementById('orderPaymentModal');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+}
+
+function updatePaymentModalRemaining() {
+    const totalDueText = document.getElementById('pay-modal-total-due-display').textContent.replace('₹', '');
+    const totalDue = parseFloat(totalDueText) || 0;
+    
+    const amountPaid = parseFloat(document.getElementById('pay-modal-amount-input').value) || 0;
+    
+    let remaining = totalDue - amountPaid;
+    if (remaining < 0) remaining = 0;
+    
+    const remainingEl = document.getElementById('pay-modal-remaining-display');
+    if (remainingEl) {
+        remainingEl.textContent = '₹' + remaining.toFixed(0);
+        if (remaining === 0) {
+            remainingEl.className = 'fw-bold text-success';
+        } else {
+            remainingEl.className = 'fw-bold text-danger';
+        }
+    }
+}
+
+function saveOrderPayment() {
+    const orderId = document.getElementById('pay-modal-order-id').value;
+    const url = document.getElementById('pay-modal-url').value;
+    const csrfToken = document.getElementById('pay-modal-csrf').value;
+    const amountPaid = parseFloat(document.getElementById('pay-modal-amount-input').value) || 0;
+    
+    const btn = document.querySelector('#orderPaymentModal button[onclick="saveOrderPayment()"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+    }
+    
+    const formData = new FormData();
+    formData.append('amount_paid', amountPaid);
     
     fetch(url, {
         method: 'POST',
-        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
     })
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            if (data.payment_status === 'paid') {
-                badge.className = 'badge rounded-pill ms-2 text-bg-success';
-                badge.innerHTML = '<i class="bi bi-currency-rupee me-1"></i> Paid';
-            } else {
-                badge.className = 'badge rounded-pill ms-2 text-bg-danger';
-                badge.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i> Unpaid';
+            showToast('Payment updated successfully!', true);
+            const modalEl = document.getElementById('orderPaymentModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
             }
-            showToast('Payment status updated!', true);
+            setTimeout(() => { window.location.reload(); }, 600);
         } else {
-            showToast(data.error || 'Failed to update payment status.', false);
+            showToast(data.error || 'Failed to save payment.', false);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Save Payment';
+            }
         }
     })
     .catch(() => {
         showToast('Network error.', false);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = 'Save Payment';
+        }
     });
 }
+
+function openStorePaymentModal(storeName, balance, csrfToken) {
+    document.getElementById('store-pay-name').value = storeName;
+    document.getElementById('store-pay-csrf').value = csrfToken;
+    document.getElementById('store-pay-name-display').textContent = storeName;
+    document.getElementById('store-pay-total-due-display').textContent = '₹' + balance.toFixed(0);
+    
+    const input = document.getElementById('store-pay-amount-input');
+    input.value = balance.toFixed(2);
+    input.max = balance;
+    
+    updateStorePaymentRemaining();
+    
+    const modalEl = document.getElementById('storePaymentModal');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+        modal.show();
+        // Move backdrop above the stores overlay (z-index: 2000)
+        modalEl.addEventListener('shown.bs.modal', function handler() {
+            const backdrop = document.querySelector('.modal-backdrop:last-of-type');
+            if (backdrop) backdrop.style.zIndex = '2999';
+            modalEl.removeEventListener('shown.bs.modal', handler);
+        });
+    }
+}
+
+function updateStorePaymentRemaining() {
+    const totalDueText = document.getElementById('store-pay-total-due-display').textContent.replace('₹', '');
+    const totalDue = parseFloat(totalDueText) || 0;
+    const amountPaid = parseFloat(document.getElementById('store-pay-amount-input').value) || 0;
+    
+    let remaining = totalDue - amountPaid;
+    if (remaining < 0) remaining = 0;
+    
+    const remainingEl = document.getElementById('store-pay-remaining-display');
+    if (remainingEl) {
+        remainingEl.textContent = '₹' + remaining.toFixed(0);
+        if (remaining === 0) {
+            remainingEl.className = 'fw-bold text-success';
+        } else {
+            remainingEl.className = 'fw-bold text-danger';
+        }
+    }
+}
+
+function closeStorePaymentModal() {
+    const modalEl = document.getElementById('storePaymentModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
+}
+
+function saveStorePayment() {
+    const storeName = document.getElementById('store-pay-name').value;
+    const csrfToken = document.getElementById('store-pay-csrf').value;
+    const amountPaid = parseFloat(document.getElementById('store-pay-amount-input').value) || 0;
+    const url = "{% url 'pay_store_balance' %}";
+    
+    const btn = document.querySelector('#storePaymentModal button[onclick="saveStorePayment()"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+    }
+    
+    const formData = new FormData();
+    formData.append('store_name', storeName);
+    formData.append('amount_paid', amountPaid);
+    
+    fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Store payment updated successfully!', true);
+            closeStorePaymentModal();
+            setTimeout(() => { window.location.reload(); }, 600);
+        } else {
+            showToast(data.error || 'Failed to save payment.', false);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Save Payment';
+            }
+        }
+    })
+    .catch(() => {
+        showToast('Network error.', false);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = 'Save Payment';
+        }
+    });
+}
+
 // ── Custom Price Long Press Logic ───────────────────────────────────────────
 let pressTimer;
 function startLongPress(e, productId) {

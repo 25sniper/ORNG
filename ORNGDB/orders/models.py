@@ -22,6 +22,7 @@ class Order(models.Model):
     )
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     old_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    remaining_balance = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     payment_status = models.CharField(max_length=20, choices=(('paid', 'Paid'), ('unpaid', 'Unpaid')), default='unpaid')
     created_at = models.DateTimeField(auto_now_add=True)
     packed_at = models.DateTimeField(null=True, blank=True)
@@ -61,6 +62,10 @@ class Order(models.Model):
                 delivery_guy = User.objects.filter(role='delivery').first()
             if delivery_guy:
                 self.assigned_delivery_user = delivery_guy
+        
+        if self.remaining_balance is None:
+            self.remaining_balance = self.total_amount + self.old_balance
+            
         super().save(*args, **kwargs)
 
 

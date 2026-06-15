@@ -302,12 +302,21 @@ def quick_bill_create(request):
             
             customer = User.objects.filter(role='customer', store_name__iexact=store_name).first()
             
-            if customer:
-                status = 'delivered'
-                target_tab = '#delivery-tab'
-            else:
-                status = 'received'
-                target_tab = '#completed-tab'
+            # If old_balance > 0, all previous unpaid orders for this store
+            # are now settled — their balance is carried into this new bill.
+            if old_balance > 0 and store_name != '-':
+                from decimal import Decimal
+                prior_unpaid = Order.objects.filter(
+                    store_name__iexact=store_name,
+                    payment_status='unpaid'
+                ).exclude(status='cancelled')
+                prior_unpaid.update(
+                    payment_status='paid',
+                    remaining_balance=Decimal('0.00')
+                )
+            
+            status = 'received'
+            target_tab = '#completed-tab'
                 
             order = Order.objects.create(
                 customer=customer,
@@ -343,11 +352,111 @@ def toggle_order_payment_status(request, order_id):
         return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
         
     order = get_object_or_404(Order, id=order_id)
+    
+    amount_paid_str = request.POST.get('amount_paid')
+    if amount_paid_str is not None:
+        from decimal import Decimal
+        try:
+            amount_paid = Decimal(amount_paid_str)
+        except Exception:
+            return JsonResponse({'success': False, 'error': 'Invalid amount'}, status=400)
+            
+        # Use the current remaining balance as the base; fall back to grand total only if unset
+        if order.remaining_balance is not None:
+            current_due = order.remaining_balance
+        else:
+            current_due = order.total_amount + order.old_balance
+            
+        remaining = current_due - amount_paid
+        if remaining < 0:
+            remaining = Decimal('0.00')
+            
+        order.remaining_balance = remaining
+        
+        if remaining == Decimal('0.00'):
+            order.payment_status = 'paid'
+        else:
+            order.payment_status = 'unpaid'
+            
+        order.save()
+        
+        return JsonResponse({
+            'success': True, 
+            'payment_status': order.payment_status,
+            'remaining_balance': float(order.remaining_balance)
+        })
+        
     new_status = 'paid' if order.payment_status == 'unpaid' else 'unpaid'
     order.payment_status = new_status
+    if new_status == 'paid':
+        from decimal import Decimal
+        order.remaining_balance = Decimal('0.00')
+    else:
+        order.remaining_balance = order.total_amount + order.old_balance
     order.save()
     
-    return JsonResponse({'success': True, 'payment_status': new_status})
+    return JsonResponse({
+        'success': True, 
+        'payment_status': new_status,
+        'remaining_balance': float(order.remaining_balance)
+    })
+
+@login_required
+@require_POST
+def pay_store_balance(request):
+    if request.user.role != 'delivery':
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+        
+    store_name = request.POST.get('store_name')
+    amount_paid_str = request.POST.get('amount_paid')
+    
+    if not store_name or amount_paid_str is None:
+        return JsonResponse({'success': False, 'error': 'Missing parameters'}, status=400)
+        
+    from decimal import Decimal
+    try:
+        amount_paid = Decimal(amount_paid_str)
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'Invalid amount'}, status=400)
+        
+    if amount_paid <= 0:
+        return JsonResponse({'success': False, 'error': 'Amount must be greater than zero'}, status=400)
+        
+    unpaid_orders = Order.objects.filter(
+        store_name__iexact=store_name,
+        payment_status='unpaid'
+    ).exclude(
+        status='cancelled'
+    ).order_by('id')
+    
+    remaining_to_distribute = amount_paid
+    
+    for order in unpaid_orders:
+        if remaining_to_distribute <= 0:
+            break
+            
+        order_balance = order.remaining_balance
+        if order_balance is None:
+            order_balance = order.total_amount + order.old_balance
+            
+        if order_balance <= 0:
+            continue
+            
+        if remaining_to_distribute >= order_balance:
+            remaining_to_distribute -= order_balance
+            order.remaining_balance = Decimal('0.00')
+            order.payment_status = 'paid'
+        else:
+            order.remaining_balance = order_balance - remaining_to_distribute
+            remaining_to_distribute = Decimal('0.00')
+            order.payment_status = 'unpaid'
+            
+        order.save()
+        
+    return JsonResponse({
+        'success': True,
+        'message': f'Successfully paid ₹{amount_paid:.2f} towards store balance.'
+    })
 
 @login_required
 def share_order_bill(request, order_id):
