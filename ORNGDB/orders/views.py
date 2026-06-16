@@ -626,3 +626,45 @@ def draft_bill_clear(request):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     DraftBill.objects.filter(delivery_user=request.user).delete()
     return JsonResponse({'cleared': True})
+
+@login_required
+def store_orders_api(request):
+    if request.user.role != 'delivery':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+    store_name = request.GET.get('store_name', '').strip()
+    if not store_name:
+        return JsonResponse({'error': 'Store name is required'}, status=400)
+        
+    orders = Order.objects.filter(store_name__iexact=store_name).order_by('-created_at')
+    
+    orders_data = []
+    for order in orders:
+        items = []
+        for item in order.items.all().select_related('product'):
+            items.append({
+                'product_name': item.product.name,
+                'quantity': item.quantity,
+                'price': float(item.price_at_time),
+                'total': float(item.row_total)
+            })
+            
+        # Format dates nicely
+        created_at_str = order.created_at.strftime('%b %d, %Y • %I:%M %p') if order.created_at else ''
+        
+        orders_data.append({
+            'id': order.id,
+            'created_at': created_at_str,
+            'status': order.get_status_display(),
+            'payment_status': order.payment_status,
+            'total_amount': float(order.total_amount),
+            'old_balance': float(order.old_balance),
+            'grand_total': float(order.grand_total),
+            'remaining_balance': float(order.remaining_balance) if order.remaining_balance is not None else float(order.grand_total),
+            'items': items
+        })
+        
+    return JsonResponse({
+        'store_name': store_name,
+        'orders': orders_data
+    })

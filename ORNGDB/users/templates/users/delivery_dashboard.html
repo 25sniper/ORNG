@@ -793,13 +793,13 @@
                   <div class="card-body px-4 py-2.5 text-start">
                       <div class="d-flex justify-content-between align-items-center">
                           <div>
-                              <h6 class="fw-bold mb-0 text-dark" style="font-family: 'Outfit', sans-serif; font-size: 0.95rem;">{{ store.name }}</h6>
+                              <h6 class="fw-bold mb-0 text-dark store-name-click" style="font-family: 'Outfit', sans-serif; font-size: 0.95rem; cursor: pointer;">{{ store.name }}</h6>
                               {% if store.phone %}
                               <small class="text-muted" style="font-size: 0.8rem;"><i class="bi bi-telephone me-1"></i> <a href="tel:{{ store.phone }}" class="text-decoration-none text-muted">{{ store.phone }}</a></small>
                               {% endif %}
                           </div>
                           <div class="text-end d-flex align-items-center gap-2">
-                              <span class="badge rounded-pill {% if store.balance > 0 %}text-bg-warning text-dark{% else %}text-bg-success{% endif %} fw-bold px-3 py-1.5 border-0 shadow-sm" style="font-size: 0.85rem;">
+                              <span class="badge rounded-pill {% if store.balance > 0 %}text-bg-warning text-dark{% else %}text-bg-success{% endif %} fw-bold px-3 py-1.5 border-0 shadow-sm store-balance-click" style="font-size: 0.85rem; cursor: pointer;">
                                   ₹{{ store.balance|floatformat:0 }}
                               </span>
                               {% if store.balance > 0 %}
@@ -906,6 +906,81 @@
             </div>
             <div class="modal-footer border-0 px-4 pb-4 pt-0">
                 <button type="button" class="btn w-100 fw-bold text-white rounded-pill shadow-sm" style="background-color: #28a745;" onclick="saveStorePayment()">Save Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Store Orders Modal -->
+<div class="modal fade" id="storeOrdersModal" tabindex="-1" aria-labelledby="storeOrdersModalLabel" aria-hidden="true" style="z-index: 3000;">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4 position-relative">
+                <h5 class="modal-title fw-bold text-dark" id="storeOrdersModalLabel" style="font-family: 'Outfit', sans-serif;">All Orders</h5>
+                <button type="button" class="btn-close position-absolute end-0 top-0 mt-4 me-4" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <div class="fw-bold text-muted mb-3 fs-6" id="store-orders-modal-title" style="font-family: 'Outfit', sans-serif;">Store Name</div>
+                <div id="store-orders-loading" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <span class="ms-2 text-muted small">Loading orders...</span>
+                </div>
+                <div id="store-orders-list" class="d-none">
+                    <!-- Orders rendered here -->
+                </div>
+                <div id="store-orders-empty" class="alert alert-light border-0 shadow-sm rounded-4 py-4 text-center text-muted d-none">
+                    <h6 class="mb-0">No orders found for this store.</h6>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dynamic Receipt Modal -->
+<div class="modal fade" id="dynamicReceiptModal" tabindex="-1" aria-labelledby="dynamicReceiptModalLabel" aria-hidden="true" style="z-index: 3100;">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4 text-center d-block position-relative">
+                <button type="button" class="btn-close position-absolute end-0 top-0 mt-4 me-4" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="text-center mb-2">
+                    <i class="bi bi-receipt fs-1 text-secondary opacity-50"></i>
+                </div>
+                <h5 class="modal-title fw-bold mb-1" id="dynamicReceiptModalLabel" style="font-family: 'Outfit', sans-serif;">Invoice #<span id="dyn-receipt-id"></span></h5>
+                <p class="text-muted small mb-0" id="dyn-receipt-store-name"></p>
+                <p class="text-muted" id="dyn-receipt-date" style="font-size: 0.75rem;"></p>
+            </div>
+            <div class="modal-body px-4 pt-2 pb-2">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-sm mb-0">
+                        <thead class="border-bottom border-2">
+                            <tr>
+                                <th class="text-muted small fw-bold pb-2" style="width:24px;">#</th>
+                                <th class="text-muted small fw-bold pb-2">Item</th>
+                                <th class="text-muted small fw-bold text-center pb-2">Qty</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Unit</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dyn-receipt-items-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0 d-block">
+                <div class="bg-light rounded-4 p-3 mt-2 shadow-sm border border-secondary border-opacity-10">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Items Total:</span>
+                        <span class="text-dark fw-bold small" id="dyn-receipt-total-amount">₹0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2" id="dyn-receipt-old-balance-row">
+                        <span class="text-muted small">Old Balance:</span>
+                        <span class="text-warning fw-bold small" id="dyn-receipt-old-balance">₹0</span>
+                    </div>
+                    <hr class="my-2 border-secondary opacity-25">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-dark fw-bold">Grand Total:</span>
+                        <span class="text-dark fw-bold fs-5" id="dyn-receipt-grand-total">₹0</span>
+                    </div>
+                </div>
+                <div class="text-center mt-3" id="dyn-receipt-payment-status-container"></div>
             </div>
         </div>
     </div>
@@ -1274,6 +1349,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (top === 'qb-menu') {
             // Back from menu → close QB modal
             window._modalNavStack = [];
+            saveDraftBill();
             if (qbModalEl) {
                 qbModalEl.classList.add('d-none');
                 qbModalEl.style.height = '';
@@ -1544,8 +1620,25 @@ function collectDraftData() {
     };
 }
 
+function updateQuickBillMainButton() {
+    const data = collectDraftData();
+    const hasItems = data && data.items && Object.values(data.items).some(qty => parseInt(qty) > 0);
+    _hasDraft = hasItems;
+    const btn = document.getElementById('qb-main-btn');
+    if (btn) {
+        if (_hasDraft) {
+            btn.style.backgroundColor = '#e65c00';
+            btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i> Continue Bill';
+        } else {
+            btn.style.backgroundColor = '#ff6600';
+            btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i> Quick Bill';
+        }
+    }
+}
+
 function saveDraftBill() {
     const data = collectDraftData();
+    updateQuickBillMainButton();
     fetch(DRAFT_SAVE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': QB_CSRF },
@@ -2713,6 +2806,191 @@ function applySavedProductOrder() {
         if (el) list.appendChild(el);
     });
 }
+
+function openDynamicReceiptModal(order) {
+    document.getElementById('dyn-receipt-id').textContent = order.id;
+    document.getElementById('dyn-receipt-store-name').textContent = order.store_name || order.display_store_name;
+    document.getElementById('dyn-receipt-date').textContent = order.created_at;
+    
+    // Items
+    const tbody = document.getElementById('dyn-receipt-items-body');
+    tbody.innerHTML = '';
+    if (order.items) {
+        order.items.forEach((item, idx) => {
+            const tr = document.createElement('tr');
+            tr.className = 'border-bottom';
+            tr.innerHTML = `
+                <td class="py-2 text-muted small">${idx + 1}</td>
+                <td class="py-2 text-dark fw-medium">${item.product_name}</td>
+                <td class="py-2 text-dark text-center">${item.quantity}</td>
+                <td class="py-2 text-muted text-end" style="font-size:0.82rem;">₹${item.price.toFixed(0)}</td>
+                <td class="py-2 text-dark text-end fw-bold">₹${item.total.toFixed(0)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+    
+    // Totals
+    document.getElementById('dyn-receipt-total-amount').textContent = '₹' + order.total_amount.toFixed(0);
+    const oldBalRow = document.getElementById('dyn-receipt-old-balance-row');
+    if (order.old_balance > 0) {
+        oldBalRow.classList.remove('d-none');
+        document.getElementById('dyn-receipt-old-balance').textContent = '₹' + order.old_balance.toFixed(0);
+    } else {
+        oldBalRow.classList.add('d-none');
+    }
+    document.getElementById('dyn-receipt-grand-total').textContent = '₹' + order.grand_total.toFixed(0);
+    
+    // Payment status
+    const statusContainer = document.getElementById('dyn-receipt-payment-status-container');
+    if (order.payment_status === 'paid') {
+        statusContainer.innerHTML = `
+            <span class="badge rounded-pill text-bg-success py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                <i class="bi bi-check-circle-fill me-1"></i> Payment Received
+            </span>
+        `;
+    } else {
+        statusContainer.innerHTML = `
+            <span class="badge rounded-pill text-bg-danger py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                <i class="bi bi-exclamation-circle-fill me-1"></i> Due: ₹${order.remaining_balance.toFixed(0)}
+            </span>
+        `;
+    }
+    
+    // Show modal
+    const modalEl = document.getElementById('dynamicReceiptModal');
+    if (modalEl) {
+        new bootstrap.Modal(modalEl).show();
+    }
+}
+
+function openStoreOrdersModal(storeName) {
+    const modalEl = document.getElementById('storeOrdersModal');
+    if (!modalEl) return;
+    
+    document.getElementById('store-orders-modal-title').textContent = storeName;
+    document.getElementById('store-orders-loading').classList.remove('d-none');
+    document.getElementById('store-orders-list').classList.add('d-none');
+    document.getElementById('store-orders-empty').classList.add('d-none');
+    
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    
+    const url = `/orders/store/orders/?store_name=${encodeURIComponent(storeName)}`;
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('store-orders-loading').classList.add('d-none');
+        if (data.orders && data.orders.length > 0) {
+            const listContainer = document.getElementById('store-orders-list');
+            listContainer.innerHTML = '';
+            
+            data.orders.forEach(order => {
+                const card = document.createElement('div');
+                card.className = 'card border-0 shadow-sm rounded-4 mb-2 border-start border-4 ' + 
+                                 (order.payment_status === 'paid' ? 'border-success' : 'border-warning');
+                
+                let statusBadgeClass = 'bg-secondary';
+                if (order.status.toLowerCase() === 'pending') statusBadgeClass = 'text-bg-warning';
+                else if (order.status.toLowerCase() === 'packed') statusBadgeClass = 'text-bg-primary';
+                else if (order.status.toLowerCase() === 'delivered') statusBadgeClass = 'text-bg-info text-white';
+                else if (order.status.toLowerCase() === 'received') statusBadgeClass = 'text-bg-success';
+                else if (order.status.toLowerCase() === 'cancelled') statusBadgeClass = 'text-bg-danger';
+
+                card.innerHTML = `
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <span class="fw-bold text-dark">#${order.id}</span>
+                                <span class="badge ${statusBadgeClass} ms-2 fw-semibold" style="font-size:0.75rem;">${order.status}</span>
+                            </div>
+                            <span class="fw-bold text-dark">₹${order.grand_total.toFixed(0)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted" style="font-size:0.75rem;">${order.created_at}</small>
+                            <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 py-1 rounded-pill shadow-sm view-bill-btn" style="font-size:0.75rem;">
+                                <i class="bi bi-receipt me-1"></i> Bill
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                card.querySelector('.view-bill-btn').addEventListener('click', () => {
+                    openDynamicReceiptModal(order);
+                });
+                
+                listContainer.appendChild(card);
+            });
+            listContainer.classList.remove('d-none');
+        } else {
+            document.getElementById('store-orders-empty').classList.remove('d-none');
+        }
+    })
+    .catch(() => {
+        document.getElementById('store-orders-loading').classList.add('d-none');
+        document.getElementById('store-orders-empty').classList.remove('d-none');
+    });
+}
+
+function openStoreLastBill(storeName) {
+    const url = `/orders/store/orders/?store_name=${encodeURIComponent(storeName)}`;
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(data => {
+        if (data.orders && data.orders.length > 0) {
+            openDynamicReceiptModal(data.orders[0]);
+        } else {
+            showToast('No bills found for this store.', false);
+        }
+    })
+    .catch(() => {
+        showToast('Error fetching store bill.', false);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Double tap listeners for store names
+    document.querySelectorAll('.store-name-click').forEach(elem => {
+        const storeCard = elem.closest('.stores-item-card');
+        if (!storeCard) return;
+        const storeName = storeCard.getAttribute('data-store-name');
+        
+        let lastTap = 0;
+        elem.addEventListener('touchend', function(e) {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 300 && tapLength > 0) {
+                e.preventDefault();
+                openStoreOrdersModal(storeName);
+            }
+            lastTap = currentTime;
+        });
+        elem.addEventListener('dblclick', function(e) {
+            openStoreOrdersModal(storeName);
+        });
+    });
+
+    // Double tap listeners for store balance badges
+    document.querySelectorAll('.store-balance-click').forEach(elem => {
+        const storeCard = elem.closest('.stores-item-card');
+        if (!storeCard) return;
+        const storeName = storeCard.getAttribute('data-store-name');
+        
+        let lastTap = 0;
+        elem.addEventListener('touchend', function(e) {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 300 && tapLength > 0) {
+                e.preventDefault();
+                openStoreLastBill(storeName);
+            }
+            lastTap = currentTime;
+        });
+        elem.addEventListener('dblclick', function(e) {
+            openStoreLastBill(storeName);
+        });
+    });
+});
 </script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 {% endblock %}
