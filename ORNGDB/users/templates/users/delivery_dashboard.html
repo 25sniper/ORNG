@@ -140,6 +140,18 @@
       -webkit-overflow-scrolling: touch;
   }
 
+  /* Product list uses flex so CSS order property works for ranked search */
+  #qb-product-list {
+      display: flex;
+      flex-direction: column;
+  }
+
+  /* Stores list uses flex so CSS order property works for ranked search */
+  #stores-list-container {
+      display: flex;
+      flex-direction: column;
+  }
+
   /* Footer container */
   .qb-footer {
       flex-shrink: 0;
@@ -277,6 +289,65 @@
           font-size: 0.95rem !important;
       }
   }
+
+  /* Floating back button — right middle of screen */
+  .qb-float-back {
+      position: fixed;
+      right: 16px;
+      top: calc(50% - 22px);
+      z-index: 2100;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255,102,0,0.92);
+      color: #fff;
+      border: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      cursor: grab;
+      transition: background 0.15s, transform 0.15s, opacity 0.2s;
+      opacity: 0;
+      pointer-events: none;
+  }
+  .qb-float-back.visible {
+      opacity: 1;
+      pointer-events: auto;
+  }
+  .qb-float-back:active {
+      transform: scale(0.9);
+  }
+  .qb-float-back.dragging {
+      cursor: grabbing;
+      transform: scale(1.05);
+      transition: opacity 0.2s; /* disable position/transform transitions while dragging */
+  }
+
+  /* Continue Bill popup */
+  .continue-bill-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 4000;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+  }
+  .continue-bill-sheet {
+      background: #fff;
+      border-radius: 24px 24px 0 0;
+      padding: 28px 24px 32px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 -4px 32px rgba(0,0,0,0.14);
+      animation: slideUp 0.22s ease;
+  }
+  @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+  }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-2 mt-2 px-1">
@@ -285,8 +356,14 @@
     <button class="btn btn-sm btn-light border fw-bold px-3 rounded-pill shadow-sm text-dark d-inline-flex align-items-center" onclick="openStoresModal()">
       <i class="bi bi-shop me-1 text-secondary"></i> Stores
     </button>
-    <button class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center" style="background-color: #ff6600;" onclick="openQuickBillModal()">
-      <i class="bi bi-plus-circle me-1"></i> Quick Bill
+    <button class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center" id="qb-main-btn"
+      style="background-color: {% if has_draft %}#e65c00{% else %}#ff6600{% endif %};"
+      onclick="handleQuickBillBtnClick()">
+      {% if has_draft %}
+        <i class="bi bi-arrow-clockwise me-1"></i> Continue Bill
+      {% else %}
+        <i class="bi bi-plus-circle me-1"></i> Quick Bill
+      {% endif %}
     </button>
   </div>
 </div>
@@ -547,6 +624,29 @@
 
 </div>
 
+<!-- Floating back button (right-mid, visible inside QB screens) -->
+<button class="qb-float-back" id="qb-float-back-btn" onclick="closeQuickBillModal()" title="Back">
+    <i class="bi bi-arrow-left"></i>
+</button>
+
+<!-- Continue Bill Popup (bottom sheet) -->
+<div class="continue-bill-overlay d-none" id="continueBillOverlay">
+    <div class="continue-bill-sheet">
+        <h6 class="fw-bold mb-1 text-dark" style="font-family:'Outfit',sans-serif;font-size:1.05rem;">
+            <i class="bi bi-arrow-clockwise text-warning me-2"></i>You have an unfinished bill
+        </h6>
+        <p class="text-muted small mb-4">Would you like to continue your previous bill or start a new one?</p>
+        <div class="d-flex gap-3">
+            <button class="btn btn-light fw-bold rounded-pill flex-grow-1 border" onclick="startNewBill()">
+                <i class="bi bi-plus-circle me-1"></i> New Bill
+            </button>
+            <button class="btn text-white fw-bold rounded-pill flex-grow-1" style="background-color:#ff6600;" onclick="continueDraftBill()">
+                <i class="bi bi-arrow-clockwise me-1"></i> Continue
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Quick Bill Full Screen Container -->
 <div id="quickBillModal" class="d-none">
   <form id="quickBillForm" onsubmit="event.preventDefault();">
@@ -607,7 +707,7 @@
           </div>
       </div>
 
-      <!-- Screen 2: Cart View -->
+          <!-- Screen 2: Cart View -->
       <div id="qb-cart-view" class="d-none bg-white">
           <div class="qb-header shadow-sm">
               <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm me-3" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;" onclick="history.back()">
@@ -617,6 +717,16 @@
           </div>
           
           <div class="qb-content-scroll pt-2">
+
+              <!-- Store Name Selection Field — TOP of cart -->
+              <div class="mb-2 position-relative">
+                  <label class="form-label small fw-bold text-muted">Select Store/Customer <span class="text-muted">(Optional)</span></label>
+                  <input type="text" class="form-control rounded-3" id="qb-store-name" name="store_name" placeholder="Type name or select from list..." autocomplete="off" style="box-shadow: none; border-color: #dee2e6;">
+                  <div id="qb-store-suggestions" class="shadow rounded-3 border-0 mt-1 bg-white" style="max-height: 200px; overflow-y: auto; display: none; z-index: 3500; position: absolute; left: 0; right: 0; border: 1px solid #dee2e6;">
+                      <!-- Suggestions will be populated dynamically -->
+                  </div>
+              </div>
+
               <!-- Selected items summary list -->
               <div class="mb-2">
                   <label class="form-label small fw-bold text-muted mb-1">Selected Items</label>
@@ -634,14 +744,6 @@
                   </div>
               </div>
 
-              <!-- Store Name Selection Field -->
-              <div class="mb-2 position-relative">
-                  <label class="form-label small fw-bold text-muted">Select Store/Customer <span class="text-muted">(Optional)</span></label>
-                  <input type="text" class="form-control rounded-3" id="qb-store-name" name="store_name" placeholder="Type name or select from list..." autocomplete="off" style="box-shadow: none; border-color: #dee2e6;">
-                  <div id="qb-store-suggestions" class="dropdown-menu w-100 shadow rounded-3 border-0 mt-1" style="max-height: 200px; overflow-y: auto; display: none; z-index: 1050;">
-                      <!-- Suggestions will be populated dynamically -->
-                  </div>
-              </div>
           </div>
           
           <div class="qb-footer">
@@ -869,17 +971,21 @@
                     <table class="table table-borderless table-sm mb-0">
                         <thead class="border-bottom border-2">
                             <tr>
-                                <th class="text-muted small fw-bold pb-2" style="width: 50%;">Item</th>
-                                <th class="text-muted small fw-bold text-center pb-2" style="width: 20%;">Qty</th>
-                                <th class="text-muted small fw-bold text-end pb-2" style="width: 30%;">Total</th>
+                                <th class="text-muted small fw-bold pb-2" style="width:24px;">#</th>
+                                <th class="text-muted small fw-bold pb-2">Item</th>
+                                <th class="text-muted small fw-bold text-center pb-2">Qty</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Unit</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Total</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in order.items.all %}
                             <tr class="border-bottom">
-                                <td class="py-2 text-dark">{{ item.product.name }}</td>
+                                <td class="py-2 text-muted small">{{ forloop.counter }}</td>
+                                <td class="py-2 text-dark fw-medium">{{ item.product.name }}</td>
                                 <td class="py-2 text-dark text-center">{{ item.quantity }}</td>
-                                <td class="py-2 text-dark text-end fw-medium">₹{{ item.price_at_time|floatformat:0 }}</td>
+                                <td class="py-2 text-muted text-end" style="font-size:0.82rem;">₹{{ item.price_at_time|floatformat:0 }}</td>
+                                <td class="py-2 text-dark text-end fw-bold">₹{{ item.row_total|floatformat:0 }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -1024,6 +1130,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             updateQBCartTotals();
+            scheduleDraftSave();
             if (document.getElementById('qb-cart-view').classList.contains('d-none') === false) {
                 renderQBCartSummaryList();
             }
@@ -1043,7 +1150,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Autocomplete for store suggestions starting with typed letters
+    // Autocomplete for store suggestions with 3-tier ranked search
     const storeInput = document.getElementById('qb-store-name');
     const suggestionsContainer = document.getElementById('qb-store-suggestions');
 
@@ -1056,14 +1163,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Filter stores that contain the query string (case-insensitive)
-            const matches = EXISTING_STORES.filter(store => 
-                store.toLowerCase().includes(query)
-            );
+            // 3-tier ranked search
+            const tier1 = [], tier2 = [], tier3 = [];
+            EXISTING_STORES.forEach(store => {
+                const s = store.toLowerCase();
+                const words = s.split(/\s+/);
+                if (s.startsWith(query)) {
+                    tier1.push(store);
+                } else if (words.slice(1).some(w => w.startsWith(query))) {
+                    tier2.push(store);
+                } else if (s.includes(query)) {
+                    tier3.push(store);
+                }
+            });
+            const ranked = [...tier1, ...tier2, ...tier3];
 
-            if (matches.length > 0) {
+            if (ranked.length > 0) {
                 let html = '';
-                matches.forEach(store => {
+                ranked.forEach(store => {
                     html += `<a class="dropdown-item py-2" href="#" onclick="selectStoreSuggestion(event, this)">${store}</a>`;
                 });
                 suggestionsContainer.innerHTML = html;
@@ -1125,6 +1242,15 @@ document.addEventListener('DOMContentLoaded', function() {
     window._modalNavStack = [];  // e.g. ['qb-menu'] | ['qb-menu','qb-cart'] | ['stores']
 
     window.addEventListener('popstate', function(e) {
+        // If an input is focused, just blur it (hide keyboard) instead of closing the modal
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+            activeEl.blur();
+            // Restore the state that was just popped so the user stays on the current view
+            history.pushState({ modalOpen: true }, '');
+            return;
+        }
+
         const qbModalEl = document.getElementById('quickBillModal');
         const storesModalEl = document.getElementById('storesModal');
 
@@ -1154,6 +1280,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 delete qbModalEl.dataset.lockedHeight;
             }
             document.body.style.overflow = '';
+            _onQBModalClose();
             return;
         }
 
@@ -1187,41 +1314,73 @@ document.addEventListener('DOMContentLoaded', function() {
             delete storesModalEl.dataset.lockedHeight;
         }
         document.body.style.overflow = '';
+        if (typeof _onQBModalClose === 'function') _onQBModalClose();
     }
 
 
-    // ── Stores Modal Search ──────────────────────────────────────────────────
+    // ── Stores Modal Search (3-tier ranked) ─────────────────────────────────
     const storesSearchInput = document.getElementById('stores-search-input');
     if (storesSearchInput) {
         storesSearchInput.addEventListener('input', function(e) {
             const term = e.target.value.toLowerCase().trim();
-            document.querySelectorAll('.stores-item-card').forEach(card => {
+            if (!term) {
+                document.querySelectorAll('.stores-item-card').forEach(card => { card.style.display = 'block'; card.style.order = ''; });
+                return;
+            }
+            const cards = Array.from(document.querySelectorAll('.stores-item-card'));
+            const tier1 = [], tier2 = [], tier3 = [], hidden = [];
+            cards.forEach(card => {
                 const name = card.getAttribute('data-store-name').toLowerCase().trim();
-                if (name.includes(term)) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
+                const words = name.split(/\s+/);
+                if (name.startsWith(term)) tier1.push(card);
+                else if (words.slice(1).some(w => w.startsWith(term))) tier2.push(card);
+                else if (name.includes(term)) tier3.push(card);
+                else hidden.push(card);
             });
+            const ranked = [...tier1, ...tier2, ...tier3];
+            hidden.forEach(c => { c.style.display = 'none'; });
+            ranked.forEach((c, i) => { c.style.display = 'block'; c.style.order = i; });
         });
         
         storesSearchInput.addEventListener('focus', function() {
             this.value = '';
             document.querySelectorAll('.stores-item-card').forEach(card => {
-                card.style.display = 'block';
+                card.style.display = 'block'; card.style.order = '';
             });
         });
         
         storesSearchInput.addEventListener('touchstart', function() {
             this.value = '';
             document.querySelectorAll('.stores-item-card').forEach(card => {
-                card.style.display = 'block';
+                card.style.display = 'block'; card.style.order = '';
             });
         });
     }
 });
 
+// Track when an input was last blurred to prevent buttons from firing immediately after keyboard dismiss
+let _lastInputBlurTime = 0;
+document.addEventListener('focusout', function(e) {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+        _lastInputBlurTime = Date.now();
+    }
+}, { capture: true });
+
 function closeQuickBillModal() {
+    // If an input was just blurred (e.g., user tapped this button while keyboard was open),
+    // treat the tap as 'dismiss keyboard' and don't close the modal.
+    if (Date.now() - _lastInputBlurTime < 300) {
+        return;
+    }
+    // Also check active element just in case
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        activeEl.blur();
+        return;
+    }
+
+    // Save draft before closing
+    saveDraftBill();
     // Always just go back one step — popstate handles the rest
     history.back();
 }
@@ -1333,8 +1492,155 @@ function clearProductSearch() {
         search.value = '';
         document.querySelectorAll('.qb-product-item').forEach(item => {
             item.style.display = 'block';
+            item.style.order = '';
         });
     }
+}
+
+// ── 3-tier ranked product search helper ──────────────────────────────────────
+function rankedProductSearch(term) {
+    const items = Array.from(document.querySelectorAll('.qb-product-item'));
+    if (!term) {
+        items.forEach(item => { item.style.display = 'block'; item.style.order = ''; });
+        return;
+    }
+    const tier1 = [], tier2 = [], tier3 = [], hidden = [];
+    items.forEach(item => {
+        const name = item.getAttribute('data-name').toLowerCase().trim();
+        const words = name.split(/\s+/);
+        if (name.startsWith(term)) tier1.push(item);
+        else if (words.slice(1).some(w => w.startsWith(term))) tier2.push(item);
+        else if (name.includes(term)) tier3.push(item);
+        else hidden.push(item);
+    });
+    hidden.forEach(i => { i.style.display = 'none'; i.style.order = ''; });
+    [...tier1, ...tier2, ...tier3].forEach((i, idx) => {
+        i.style.display = 'block';
+        i.style.order = idx;
+    });
+}
+
+// ── Draft Bill — auto-save ────────────────────────────────────────────────────
+let _draftSaveTimer = null;
+const DRAFT_SAVE_URL = '{% url "draft_bill_save" %}';
+const DRAFT_CLEAR_URL = '{% url "draft_bill_clear" %}';
+const DRAFT_GET_URL  = '{% url "draft_bill_get" %}';
+const QB_CSRF = '{{ csrf_token }}';
+
+function collectDraftData() {
+    const items = {};
+    document.querySelectorAll('.qb-product-item').forEach(item => {
+        const pid = item.dataset.productId;
+        const inp = document.getElementById('qb-qty-' + pid);
+        const qty = inp ? (parseInt(inp.value) || 0) : 0;
+        if (qty > 0) items[pid] = qty;
+    });
+    const storeInput = document.getElementById('qb-store-name');
+    const oldBalInput = document.getElementById('qb-old-balance');
+    return {
+        items,
+        store_name: storeInput ? storeInput.value.trim() : '',
+        old_balance: oldBalInput ? (parseFloat(oldBalInput.value) || 0) : 0
+    };
+}
+
+function saveDraftBill() {
+    const data = collectDraftData();
+    fetch(DRAFT_SAVE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': QB_CSRF },
+        body: JSON.stringify(data)
+    }).catch(() => {});
+}
+
+function scheduleDraftSave() {
+    clearTimeout(_draftSaveTimer);
+    _draftSaveTimer = setTimeout(saveDraftBill, 1500);
+}
+
+// Save draft when page/tab is about to be hidden (app close, tab switch)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        const qbOpen = !document.getElementById('quickBillModal').classList.contains('d-none');
+        if (qbOpen) saveDraftBill();
+    }
+});
+window.addEventListener('pagehide', () => {
+    const qbOpen = !document.getElementById('quickBillModal').classList.contains('d-none');
+    if (qbOpen) saveDraftBill();
+});
+
+// ── Handle Quick Bill button click (Continue Bill or New Bill) ────────────────
+const HAS_DRAFT_INITIAL = {{ has_draft|yesno:'true,false' }};
+let _hasDraft = HAS_DRAFT_INITIAL;
+
+function handleQuickBillBtnClick() {
+    if (_hasDraft) {
+        // Show bottom sheet
+        document.getElementById('continueBillOverlay').classList.remove('d-none');
+        document.body.style.overflow = 'hidden';
+    } else {
+        openQuickBillModal();
+    }
+}
+
+function closeContinueBillOverlay() {
+    document.getElementById('continueBillOverlay').classList.add('d-none');
+    document.body.style.overflow = '';
+}
+
+function startNewBill() {
+    closeContinueBillOverlay();
+    // Clear server-side draft
+    fetch(DRAFT_CLEAR_URL, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': QB_CSRF }
+    }).catch(() => {});
+    _hasDraft = false;
+    // Update button appearance
+    const btn = document.getElementById('qb-main-btn');
+    if (btn) {
+        btn.style.backgroundColor = '#ff6600';
+        btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i> Quick Bill';
+    }
+    openQuickBillModal();
+}
+
+function continueDraftBill() {
+    closeContinueBillOverlay();
+    // Fetch draft from server and load it
+    fetch(DRAFT_GET_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(data => {
+        openQuickBillModal();  // opens fresh, then we load draft on top
+        if (data.has_draft) {
+            // Restore items
+            const items = data.items || {};
+            Object.entries(items).forEach(([pid, qty]) => {
+                qty = parseInt(qty) || 0;
+                if (qty <= 0) return;
+                const inp = document.getElementById('qb-qty-' + pid);
+                if (!inp) return;
+                inp.value = qty;
+                const container = inp.closest('.qb-qty-container');
+                if (container) {
+                    container.querySelector('.qb-add-btn')?.classList.add('d-none');
+                    const ctrl = container.querySelector('.qb-qty-controls');
+                    if (ctrl) { ctrl.classList.remove('d-none'); ctrl.style.display = 'inline-flex'; }
+                }
+            });
+            // Restore store name
+            const storeInp = document.getElementById('qb-store-name');
+            if (storeInp && data.store_name) { storeInp.value = data.store_name; checkStoreBalance(); }
+            // Restore old balance
+            const oldBalInp = document.getElementById('qb-old-balance');
+            if (oldBalInp && parseFloat(data.old_balance) > 0) {
+                oldBalInp.value = parseFloat(data.old_balance).toFixed(2);
+            }
+            updateQBCartTotals();
+        }
+    })
+    .catch(() => { openQuickBillModal(); });
 }
 
 // ── Quick Bill Logic ──────────────────────────────────────────────────────────
@@ -1370,6 +1676,10 @@ function openQuickBillModal() {
     modalEl.classList.remove('d-none');
     document.body.style.overflow = 'hidden';
 
+    // Show floating back button
+    const floatBtn = document.getElementById('qb-float-back-btn');
+    if (floatBtn) floatBtn.classList.add('visible');
+
     const isMobile = window.innerWidth < 575.98;
     if (isMobile) {
         const initialHeight = window.innerHeight;
@@ -1401,6 +1711,7 @@ function addQBProduct(productId) {
             }
         }
         updateQBCartTotals();
+        scheduleDraftSave();
     }
 }
 
@@ -1425,6 +1736,7 @@ function changeQBProductQty(productId, delta) {
         }
         input.value = val;
         updateQBCartTotals();
+        scheduleDraftSave();
         
         // If we are currently looking at the Cart View, we should dynamically update it
         if (document.getElementById('qb-cart-view').classList.contains('d-none') === false) {
@@ -1439,6 +1751,7 @@ function updateQBCartTotals() {
     
     qbCartOrder = [];
     
+    // Iterate product items in DOM order (= admin position order) to always use admin ordering
     document.querySelectorAll('.qb-product-item').forEach(item => {
         const productId = String(item.dataset.productId);
         const price = parseFloat(item.dataset.price) || 0;
@@ -1540,6 +1853,18 @@ function showQBCartView() {
 }
 
 function showQBMenuView(goBackHistory = true) {
+    // If an input was just blurred (e.g., user tapped this button while keyboard was open),
+    // treat the tap as 'dismiss keyboard' and don't close.
+    if (Date.now() - _lastInputBlurTime < 300) {
+        return;
+    }
+    // Also check active element just in case
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        activeEl.blur();
+        return;
+    }
+
     if (goBackHistory) {
         history.back();
     } else {
@@ -1547,6 +1872,130 @@ function showQBMenuView(goBackHistory = true) {
         document.getElementById('qb-menu-view').classList.remove('d-none');
     }
 }
+
+// Hide floating back button when QB modal is fully closed
+function _onQBModalClose() {
+    const floatBtn = document.getElementById('qb-float-back-btn');
+    if (floatBtn) floatBtn.classList.remove('visible');
+}
+
+// Draggable floating back button logic
+(function() {
+    const btn = document.getElementById('qb-float-back-btn');
+    if (!btn) return;
+
+    const BTN_TOP_KEY = 'qb_float_btn_top_pct';
+
+    function restorePosition() {
+        const savedPct = localStorage.getItem(BTN_TOP_KEY);
+        if (savedPct) {
+            const pct = parseFloat(savedPct);
+            let topPx = (pct / 100) * window.innerHeight;
+            const maxTop = window.innerHeight - 60;
+            const minTop = 16;
+            topPx = Math.max(minTop, Math.min(maxTop, topPx));
+            btn.style.top = topPx + 'px';
+        }
+    }
+    
+    // Initial restore
+    restorePosition();
+
+    let isPointerDown = false;
+    let isDragging = false;
+    let wasDragged = false;
+    let startY = 0;
+    let startTop = 0;
+
+    function getBtnTopPx() {
+        return parseInt(btn.style.top) || (window.innerHeight / 2 - 22);
+    }
+
+    function onPointerDown(clientY) {
+        isPointerDown = true;
+        wasDragged = false;
+        isDragging = false;
+        startY = clientY;
+        startTop = getBtnTopPx();
+    }
+
+    function onPointerMove(clientY) {
+        if (!isPointerDown) return;
+        
+        const deltaY = clientY - startY;
+        if (!isDragging && Math.abs(deltaY) > 5) {
+            isDragging = true;
+            btn.classList.add('dragging');
+        }
+        
+        if (isDragging) {
+            let newTop = startTop + deltaY;
+            const maxTop = window.innerHeight - 60;
+            const minTop = 16;
+            newTop = Math.max(minTop, Math.min(maxTop, newTop));
+            btn.style.top = newTop + 'px';
+            wasDragged = true;
+        }
+    }
+
+    function onPointerUp() {
+        if (!isPointerDown) return;
+        isPointerDown = false;
+        
+        if (isDragging) {
+            isDragging = false;
+            btn.classList.remove('dragging');
+            const currentTop = getBtnTopPx();
+            const percentage = (currentTop / window.innerHeight) * 100;
+            localStorage.setItem(BTN_TOP_KEY, percentage);
+        }
+    }
+
+    // Touch events
+    btn.addEventListener('touchstart', function(e) {
+        onPointerDown(e.touches[0].clientY);
+    }, { passive: true });
+
+    btn.addEventListener('touchmove', function(e) {
+        if (!isPointerDown) return;
+        if (Math.abs(e.touches[0].clientY - startY) > 5) {
+            e.preventDefault(); 
+        }
+        onPointerMove(e.touches[0].clientY);
+    }, { passive: false });
+
+    btn.addEventListener('touchend', function(e) {
+        onPointerUp();
+    });
+
+    btn.addEventListener('touchcancel', function(e) {
+        onPointerUp();
+    });
+
+    // Mouse events
+    btn.addEventListener('mousedown', function(e) {
+        onPointerDown(e.clientY);
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        onPointerMove(e.clientY);
+    });
+
+    document.addEventListener('mouseup', function(e) {
+        onPointerUp();
+    });
+
+    // Capture click to prevent modal close if dragged
+    btn.addEventListener('click', function(e) {
+        if (wasDragged) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    }, true);
+    
+    // Update on resize
+    window.addEventListener('resize', restorePosition);
+})();
 
 function submitQuickBill(url, csrfToken) {
     const form = document.getElementById('quickBillForm');
@@ -1893,14 +2342,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         qbProductSearch.addEventListener('input', function(e) {
             const term = e.target.value.toLowerCase().trim();
-            document.querySelectorAll('.qb-product-item').forEach(item => {
-                const name = item.getAttribute('data-name').toLowerCase().trim();
-                if (name.includes(term)) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
+            rankedProductSearch(term);
         });
     }
 });

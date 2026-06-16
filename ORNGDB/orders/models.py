@@ -75,6 +75,10 @@ class OrderItem(models.Model):
     quantity = models.PositiveIntegerField(default=1)
     price_at_time = models.DecimalField(max_digits=10, decimal_places=2)
 
+    @property
+    def row_total(self):
+        return self.price_at_time * self.quantity
+
     def __str__(self):
         return f"{self.quantity} x {self.product.name}"
 
@@ -85,3 +89,18 @@ class CartItem(models.Model):
 
     def __str__(self):
         return f"Cart: {self.quantity} x {self.product.name} for {self.customer.username}"
+
+class DraftBill(models.Model):
+    """Persists an in-progress quick bill for a delivery user so they can resume after closing the app."""
+    delivery_user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='draft_bill'
+    )
+    items_json = models.JSONField(default=dict)   # {product_id: qty}
+    store_name = models.CharField(max_length=255, blank=True, default='')
+    old_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Draft bill for {self.delivery_user.username}"

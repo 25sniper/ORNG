@@ -6,7 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.http import JsonResponse
 from django.template.loader import render_to_string
-from .models import CartItem, Order, OrderItem
+from .models import CartItem, Order, OrderItem, DraftBill
 from products.models import Product
 
 @login_required
@@ -341,6 +341,8 @@ def quick_bill_create(request):
                 )
                 
         msg = f"✓ Quick Bill #{order.id} placed successfully!"
+        # Clear the draft bill for this delivery user
+        DraftBill.objects.filter(delivery_user=request.user).delete()
         return JsonResponse({'success': True, 'message': msg, 'target_tab': target_tab})
     except Exception as e:
         return JsonResponse({'success': False, 'error': 'An error occurred while placing the bill.'})
@@ -552,11 +554,75 @@ def share_order_bill(request, order_id):
     footer = [
         divider_single,
         *totals_lines,
+        " " * 32,
+        " " * 32,
         payment_line,
         " " * 32,
         "Thank you for your business!".center(32),
         divider_double
     ]
     
-    bill_text = "\n".join(header + details + items_lines + footer)
+    bill_text = "\n".join(header + details + items_lines + [" " * 32, " " * 32] + footer)
     return JsonResponse({'success': True, 'bill_text': bill_text})
+
+
+# ── Draft Bill Views ─────────────────────────────────────────────────────────
+@login_required
+def draft_bill_get(request):
+    """Return current draft bill for the logged-in delivery user."""
+    if request.user.role != 'delivery':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    try:
+        draft = DraftBill.objects.get(delivery_user=request.user)
+        return JsonResponse({
+            'has_draft': True,
+            'items': draft.items_json,
+            'store_name': draft.store_name,
+            'old_balance': str(draft.old_balance),
+        })
+    except DraftBill.DoesNotExist:
+        return JsonResponse({'has_draft': False})
+
+
+@login_required
+@require_POST
+def draft_bill_save(request):
+    """Save or update the current draft bill for the logged-in delivery user."""
+    if request.user.role != 'delivery':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    import json as _json
+    try:
+        data = _json.loads(request.body)
+    except Exception:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    items = data.get('items', {})
+    store_name = data.get('store_name', '')
+    old_balance = data.get('old_balance', 0)
+
+    # Only save if there is at least one item
+    has_items = any(int(v) > 0 for v in items.values() if str(v).isdigit() or isinstance(v, int))
+    if not has_items:
+        # Nothing to save — clear any existing draft
+        DraftBill.objects.filter(delivery_user=request.user).delete()
+        return JsonResponse({'saved': False, 'cleared': True})
+
+    DraftBill.objects.update_or_create(
+        delivery_user=request.user,
+        defaults={
+            'items_json': items,
+            'store_name': store_name,
+            'old_balance': old_balance,
+        }
+    )
+    return JsonResponse({'saved': True})
+
+
+@login_required
+@require_POST
+def draft_bill_clear(request):
+    """Delete the current draft bill for the logged-in delivery user."""
+    if request.user.role != 'delivery':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    DraftBill.objects.filter(delivery_user=request.user).delete()
+    return JsonResponse({'cleared': True})

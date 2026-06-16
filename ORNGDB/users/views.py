@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.utils import timezone
 from .models import User
-from orders.models import Order, CartItem
+from orders.models import Order, CartItem, DraftBill
 from products.models import Product
 from django.db.models import Sum
 
@@ -311,6 +311,8 @@ def delivery_dashboard(request):
             
     stores_list = sorted(stores_list, key=lambda x: x['name'].lower())
 
+    has_draft = DraftBill.objects.filter(delivery_user=request.user).exists()
+
     context = {
         'packing_orders': packing_orders,
         'delivery_orders': delivery_orders,
@@ -318,6 +320,7 @@ def delivery_dashboard(request):
         'products': Product.objects.filter(available=True).order_by('position', 'name'),
         'existing_stores': User.objects.filter(role='customer').values_list('store_name', flat=True).distinct().order_by('store_name'),
         'stores_list': stores_list,
+        'has_draft': has_draft,
     }
     return render(request, 'users/delivery_dashboard.html', context)
 @login_required
