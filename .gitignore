@@ -24,3 +24,6 @@ env/
 *.njsproj
 *.sln
 *.sw?
+
+# Project specifics
+ORNGDB_rework/
