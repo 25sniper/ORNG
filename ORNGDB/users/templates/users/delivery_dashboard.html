@@ -295,7 +295,7 @@
       position: fixed;
       right: 16px;
       top: calc(50% - 22px);
-      z-index: 2100;
+      z-index: 4000;
       width: 44px;
       height: 44px;
       border-radius: 50%;
@@ -434,7 +434,7 @@
 
 <ul class="nav nav-pills mb-4 border-0 mt-2 flex-nowrap w-100 justify-content-between" id="deliveryTabs" role="tablist" style="background-color: #f1f5f9; padding: 4px; border-radius: 50px;">
   <li class="nav-item flex-grow-1" role="presentation">
-    <button class="nav-link active rounded-pill fw-bold py-2 px-1 w-100 text-center" id="packing-tab" data-bs-toggle="pill" data-bs-target="#packing" type="button" role="tab">
+    <button class="nav-link rounded-pill fw-bold py-2 px-1 w-100 text-center" id="packing-tab" data-bs-toggle="pill" data-bs-target="#packing" type="button" role="tab">
       Packing <span class="badge rounded-pill ms-1" id="packing-count">{{ packing_orders|length }}</span>
     </button>
   </li>
@@ -444,7 +444,7 @@
     </button>
   </li>
   <li class="nav-item flex-grow-1" role="presentation">
-    <button class="nav-link rounded-pill fw-bold py-2 px-1 w-100 text-center" id="completed-tab" data-bs-toggle="pill" data-bs-target="#completed" type="button" role="tab">
+    <button class="nav-link active rounded-pill fw-bold py-2 px-1 w-100 text-center" id="completed-tab" data-bs-toggle="pill" data-bs-target="#completed" type="button" role="tab">
       Completed <span class="badge rounded-pill ms-1" id="completed-count">{{ completed_orders|length }}</span>
     </button>
   </li>
@@ -453,7 +453,7 @@
 <div class="tab-content" id="deliveryTabsContent">
 
   <!-- PACKING TAB -->
-  <div class="tab-pane fade show active" id="packing" role="tabpanel">
+  <div class="tab-pane fade" id="packing" role="tabpanel">
       {% if not packing_orders %}
           <div class="alert alert-light border-0 shadow-sm rounded-4 py-5 text-center text-muted mt-2" id="packing-empty">
               <h5 class="mb-0">No orders to pack.</h5>
@@ -690,7 +690,7 @@
   </div>
 
   <!-- COMPLETED TAB -->
-  <div class="tab-pane fade" id="completed" role="tabpanel">
+  <div class="tab-pane fade show active" id="completed" role="tabpanel">
       {% if not completed_orders %}
           <div class="alert alert-light border-0 shadow-sm rounded-4 py-5 text-center text-muted mt-2">
               <h5 class="mb-0">No completed deliveries yet.</h5>
@@ -737,13 +737,13 @@
                                       <div class="text-success small fw-bold mt-1" id="card-balance-status-{{ order.id }}"><i class="bi bi-check-circle-fill"></i> Paid</div>
                                   {% else %}
                                       <div class="text-danger small fw-bold mt-1" id="card-balance-status-{{ order.id }}">
-                                          Due: ₹{% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:0 }}{% else %}{{ order.grand_total|floatformat:0 }}{% endif %}
+                                          Balance: ₹{% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:0 }}{% else %}{{ order.grand_total|floatformat:0 }}{% endif %}
                                       </div>
                                   {% endif %}
                               </div>
                           </div>
                           <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
-                              <button type="button" id="pay-btn-{{ order.id }}" class="btn btn-sm {% if order.status == 'cancelled' %}btn-secondary{% elif order.payment_status == 'paid' %}btn-success{% elif order.id not in latest_order_ids %}btn-secondary{% else %}btn-outline-success{% endif %} fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center" style="font-size: 0.75rem;" {% if order.status == 'cancelled' or order.payment_status == 'paid' or order.id not in latest_order_ids %}disabled{% else %}onclick="openOrderPaymentModal({{ order.id }}, {{ order.total_amount|floatformat:2 }}, {{ order.old_balance|floatformat:2 }}, {{ order.grand_total|floatformat:2 }}, {% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:2 }}{% else %}{{ order.grand_total|floatformat:2 }}{% endif %}, '{% url 'toggle_order_payment_status' order.id %}', '{{ csrf_token }}')"{% endif %}>
+                              <button type="button" id="pay-btn-{{ order.id }}" class="btn btn-sm {% if order.status == 'cancelled' %}btn-secondary{% elif order.payment_status == 'paid' %}btn-success{% elif order.id not in latest_order_ids %}btn-secondary{% else %}btn-outline-success{% endif %} fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center" style="font-size: 0.75rem;" {% if order.status == 'cancelled' or order.payment_status == 'paid' or order.id not in latest_order_ids %}disabled{% else %}onclick="openOrderPaymentModal({{ order.id }}, {{ order.total_amount|floatformat:2 }}, {{ order.old_balance|floatformat:2 }}, {{ order.grand_total|floatformat:2 }}, {% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:2 }}{% else %}{{ order.grand_total|floatformat:2 }}{% endif %}, '{% url 'toggle_order_payment_status' order.id %}', '{{ csrf_token }}', '{{ order.display_store_name|escapejs }}')"{% endif %}>
                                   <i class="bi bi-cash-coin me-1"></i> Payment
                               </button>
                                   <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center me-2" style="font-size: 0.75rem;" {% if order.status == 'cancelled' %}disabled{% else %}onclick="openItemsModal({{ order.id }})"{% endif %}>
@@ -769,7 +769,7 @@
 </div>
 
 <!-- Floating back button (right-mid, visible inside QB screens) -->
-<button class="qb-float-back" id="qb-float-back-btn" onclick="closeQuickBillModal()" title="Back">
+<button class="qb-float-back" id="qb-float-back-btn" onclick="handleFloatBack()" title="Back">
     <i class="bi bi-arrow-left"></i>
 </button>
 
@@ -905,7 +905,7 @@
                       <span class="fw-bold text-warning" id="qb-cart-old-balance-display">₹0</span>
                   </div>
                   <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
-                      <span class="fw-bold text-dark">Grand Total</span>
+                      <span class="fw-bold text-dark">New Balance</span>
                       <span class="fw-bold fs-5 text-dark" id="qb-cart-grand-total-display">₹0</span>
                   </div>
               </div>
@@ -936,7 +936,7 @@
       <div class="qb-content-scroll pt-2" id="stores-list-container">
           {% for store in stores_list %}
               {% if store.is_registered %}
-              <div class="card border-0 shadow-sm rounded-4 border-start border-4 {% if store.balance > 0 %}border-warning{% else %}border-success{% endif %} mb-2 stores-item-card" data-store-name="{{ store.name }}">
+              <div class="card border-0 shadow-sm rounded-4 border-start border-4 {% if store.balance > 0 %}border-warning{% else %}border-success{% endif %} mb-2 stores-item-card" data-store-name="{{ store.name }}" data-store-balance="{{ store.balance|floatformat:2 }}">
                   <div class="card-body px-4 py-2.5 text-start">
                       <div class="d-flex justify-content-between align-items-center">
                           <div>
@@ -1029,7 +1029,7 @@
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content border-0 shadow rounded-4">
             <div class="modal-header border-0 pb-0 px-4 pt-4">
-                <h6 class="modal-title fw-bold text-dark" id="orderPaymentModalLabel">Record Payment</h6>
+                <h6 class="modal-title fw-bold text-dark" id="orderPaymentModalLabel">Bill Payment</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body px-4 py-3">
@@ -1037,11 +1037,15 @@
                 <input type="hidden" id="pay-modal-url">
                 <input type="hidden" id="pay-modal-csrf">
                 
-                <div class="mb-2 text-start">
-                    <span class="text-muted small">Total Due:</span>
-                    <span class="fw-bold text-dark ms-1 fs-5" id="pay-modal-total-due-display">₹0</span>
+                <div class="mb-3 text-start">
+                    <label class="form-label small fw-bold text-muted mb-1">Store Name:</label>
+                    <div class="fw-bold text-dark fs-5" id="pay-modal-store-name-display"></div>
                 </div>
                 
+                <div class="mb-2 text-start">
+                    <span class="text-muted small">Balance:</span>
+                    <span class="fw-bold text-dark ms-1 fs-5" id="pay-modal-total-due-display">₹0</span>
+                </div>
                 <div class="mb-3 text-start" id="pay-modal-options-container" style="display: none;">
                     <label class="form-label small fw-bold text-muted mb-2">Payment Type</label>
                     <div class="d-flex gap-3">
@@ -1051,7 +1055,7 @@
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="paymentOption" id="payOptOldBalance" value="old_balance" onchange="handlePaymentOptionChange()">
-                            <label class="form-check-label text-dark fw-medium" for="payOptOldBalance">Balance</label>
+                            <label class="form-check-label text-dark fw-medium" for="payOptOldBalance">Old Balance</label>
                         </div>
                     </div>
                 </div>
@@ -1091,7 +1095,7 @@
                 </div>
                 
                 <div class="mb-2 text-start">
-                    <span class="text-muted small">Total Due:</span>
+                    <span class="text-muted small">Balance:</span>
                     <span class="fw-bold text-dark ms-1" id="store-pay-total-due-display">₹0</span>
                 </div>
                 
@@ -1177,15 +1181,15 @@
                     </div>
                     <div class="d-flex justify-content-between mb-2 d-none" id="dyn-receipt-cash-row">
                         <span class="text-muted small">Cash (Paid):</span>
-                        <span class="text-success fw-bold small" id="dyn-receipt-cash">₹0</span>
+                        <span class="text-success fw-bold small" id="dyn-receipt-cash">-₹0</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2 d-none" id="dyn-receipt-due-row">
-                        <span class="text-muted small">Due (Remaining):</span>
+                        <span class="text-muted small">New Balance:</span>
                         <span class="text-danger fw-bold small" id="dyn-receipt-due">₹0</span>
                     </div>
                     <hr class="my-2 border-secondary opacity-25" id="dyn-receipt-divider-hr">
                     <div class="d-flex justify-content-between align-items-center" id="dyn-receipt-grand-total-row">
-                        <span class="text-dark fw-bold">Grand Total:</span>
+                        <span class="text-dark fw-bold">New Balance:</span>
                         <span class="text-dark fw-bold fs-5" id="dyn-receipt-grand-total">₹0</span>
                     </div>
                 </div>
@@ -1196,6 +1200,7 @@
 </div>
 
 <!-- Order Items Modals -->
+<div id="order-items-modals-container">
 {% for order in delivery_orders %}
 <div class="modal fade" id="itemsModal-{{ order.id }}" tabindex="-1" aria-labelledby="itemsModalLabel-{{ order.id }}" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -1250,17 +1255,17 @@
                     {% if order.cash_paid > 0 and order.remaining_due > 0 %}
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted small">Cash (Paid):</span>
-                        <span class="text-success fw-bold small">₹{{ order.cash_paid|floatformat:0 }}</span>
+                        <span class="text-success fw-bold small">-₹{{ order.cash_paid|floatformat:0 }}</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted small">Due (Remaining):</span>
+                        <span class="text-muted small">New Balance:</span>
                         <span class="text-danger fw-bold small">₹{{ order.remaining_due|floatformat:0 }}</span>
                     </div>
                     {% endif %}
                     {% if order.old_balance > 0 %}
                     <hr class="my-2 border-secondary opacity-25">
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-dark fw-bold">Grand Total:</span>
+                        <span class="text-dark fw-bold">New Balance:</span>
                         <span class="text-dark fw-bold fs-5">₹{{ order.grand_total|floatformat:0 }}</span>
                     </div>
                     {% endif %}
@@ -1273,7 +1278,7 @@
                     </span>
                     {% else %}
                     <span class="badge rounded-pill text-bg-danger py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
-                        <i class="bi bi-clock-history me-1"></i> Due: ₹{{ order.remaining_due|floatformat:0 }}
+                        <i class="bi bi-clock-history me-1"></i> Balance: ₹{{ order.remaining_due|floatformat:0 }}
                     </span>
                     {% endif %}
                 </div>
@@ -1337,17 +1342,17 @@
                     {% if order.cash_paid > 0 and order.remaining_due > 0 %}
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted small">Cash (Paid):</span>
-                        <span class="text-success fw-bold small">₹{{ order.cash_paid|floatformat:0 }}</span>
+                        <span class="text-success fw-bold small">-₹{{ order.cash_paid|floatformat:0 }}</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted small">Due (Remaining):</span>
+                        <span class="text-muted small">New Balance:</span>
                         <span class="text-danger fw-bold small">₹{{ order.remaining_due|floatformat:0 }}</span>
                     </div>
                     {% endif %}
                     {% if order.old_balance > 0 %}
                     <hr class="my-2 border-secondary opacity-25">
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-dark fw-bold">Grand Total:</span>
+                        <span class="text-dark fw-bold">New Balance:</span>
                         <span class="text-dark fw-bold fs-5">₹{{ order.grand_total|floatformat:0 }}</span>
                     </div>
                     {% endif %}
@@ -1360,7 +1365,7 @@
                     </span>
                     {% else %}
                     <span class="badge rounded-pill text-bg-danger py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
-                        <i class="bi bi-clock-history me-1"></i> Due: ₹{{ order.remaining_due|floatformat:0 }}
+                        <i class="bi bi-clock-history me-1"></i> Balance: ₹{{ order.remaining_due|floatformat:0 }}
                     </span>
                     {% endif %}
                 </div>
@@ -1369,6 +1374,7 @@
     </div>
 </div>
 {% endfor %}
+</div>
 
 <!-- Toast notification -->
 <div class="position-fixed bottom-0 start-50 translate-middle-x mb-4" style="z-index: 9999; min-width: 260px;" id="toastWrapper">
@@ -1380,6 +1386,129 @@
 </div>
 
 <script>
+// ── Utilities ────────────────────────────────────────────────────────────────
+function fetchWithTimeout(resource, options = {}) {
+    const { timeout = 10000 } = options;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    return fetch(resource, {
+        ...options,
+        signal: controller.signal
+    }).then(response => {
+        clearTimeout(id);
+        return response;
+    }).catch(error => {
+        clearTimeout(id);
+        throw error;
+    });
+}
+
+// ── Navigation Stack & Silent Reload ───────────────────────────────────────────
+window._modalNavStack = [];
+
+function updateFloatBackButton() {
+    const floatBtn = document.getElementById('qb-float-back-btn');
+    if (floatBtn) {
+        if (window._modalNavStack.length > 0) {
+            floatBtn.classList.add('visible');
+        } else {
+            floatBtn.classList.remove('visible');
+        }
+    }
+}
+
+function handleFloatBack() {
+    window.history.back();
+}
+
+document.addEventListener('show.bs.modal', function (event) {
+    const modalId = event.target.id;
+    if (modalId && !window._modalNavStack.includes(modalId)) {
+        window._modalNavStack.push(modalId);
+        window.history.pushState({ modalOpen: true, modalId: modalId }, '');
+        updateFloatBackButton();
+    }
+});
+
+document.addEventListener('hidden.bs.modal', function (event) {
+    const modalId = event.target.id;
+    if (modalId) {
+        const index = window._modalNavStack.indexOf(modalId);
+        if (index > -1) {
+            window._modalNavStack.splice(index, 1);
+            if (history.state && history.state.modalOpen && history.state.modalId === modalId) {
+                window._ignoreNextPopState = true;
+                window.history.back();
+            }
+        }
+        updateFloatBackButton();
+        
+        // Global nested modal scroll fix
+        if (document.querySelectorAll('.modal.show').length > 0) {
+            document.body.classList.add('modal-open');
+        }
+    }
+});
+
+// Removed first popstate listener to consolidate in one unified router
+
+function silentReloadDashboard() {
+    const activeTabLink = document.querySelector('#deliveryTabs .nav-link.active');
+    const activeTabId = activeTabLink ? activeTabLink.id : null;
+
+    fetchWithTimeout(window.location.href, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        const updateElement = (selector) => {
+            const el = document.querySelector(selector);
+            const newEl = doc.querySelector(selector);
+            if (el && newEl) {
+                el.innerHTML = newEl.innerHTML;
+            }
+        };
+        
+        updateElement('#deliveryTabsContent');
+        updateElement('#stores-list-container');
+        
+        // Dynamically update STORE_BALANCES cache from the new DOM elements
+        document.querySelectorAll('.stores-item-card').forEach(card => {
+            const name = card.dataset.storeName;
+            const balance = parseFloat(card.dataset.storeBalance);
+            if (name && !isNaN(balance)) {
+                STORE_BALANCES[name.toLowerCase().trim()] = balance;
+            }
+        });
+        updateElement('#packing-count');
+        updateElement('#delivery-count');
+        updateElement('#completed-count');
+        updateElement('#order-items-modals-container');
+
+        const serverActiveTabLink = doc.querySelector('#deliveryTabs .nav-link.active');
+        const serverActiveTabId = serverActiveTabLink ? serverActiveTabLink.id : 'packing-tab';
+        document.querySelectorAll('#deliveryTabs .nav-link').forEach(btn => {
+            if (btn.id === serverActiveTabId) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        if (activeTabId) {
+            const tabBtn = document.getElementById(activeTabId);
+            if (tabBtn) {
+                const bsTab = new bootstrap.Tab(tabBtn);
+                bsTab.show();
+            }
+        }
+    })
+    .catch(err => console.error("Silent reload failed:", err));
+}
+
 // ── Tab Persistence ───────────────────────────────────────────────────────────
 const TAB_KEY = 'deliveryActiveTab';
 let _skipDraftSaveOnce = false;
@@ -1403,15 +1532,26 @@ function checkStoreBalance() {
     const val = storeInput.value.toLowerCase().trim();
     if (val in STORE_BALANCES) {
         const bal = parseFloat(STORE_BALANCES[val]) || 0;
-        oldBalInput.value = bal.toFixed(2);
+        
+        const oldBalSpan = oldBalInput.previousElementSibling;
         if (bal > 0) {
+            oldBalInput.value = bal.toFixed(2);
             oldBalInput.readOnly = true;
             oldBalInput.dataset.wasReadonly = 'true';
             oldBalInput.style.backgroundColor = '#e9ecef';
+            if (oldBalSpan && oldBalSpan.classList.contains('input-group-text')) {
+                oldBalSpan.style.backgroundColor = '#e9ecef';
+            }
         } else {
+            if (oldBalInput.readOnly) {
+                oldBalInput.value = '0';
+            }
             oldBalInput.readOnly = false;
             oldBalInput.dataset.wasReadonly = 'false';
             oldBalInput.style.backgroundColor = '';
+            if (oldBalSpan && oldBalSpan.classList.contains('input-group-text')) {
+                oldBalSpan.style.backgroundColor = '';
+            }
         }
     } else {
         if (oldBalInput.readOnly) {
@@ -1482,13 +1622,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Clear quantity selection field on focus/touchstart to allow typed quantity selection
     document.addEventListener('focus', function(e) {
-        if (e.target && e.target.classList.contains('qb-qty-input')) {
+        if (e.target && (e.target.classList.contains('qb-qty-input') || e.target.id === 'pay-modal-amount-input' || e.target.id === 'store-pay-amount-input')) {
             e.target.value = '';
         }
     }, true); // Capture phase required since focus does not bubble
 
     document.addEventListener('touchstart', function(e) {
-        if (e.target && e.target.classList.contains('qb-qty-input')) {
+        if (e.target && (e.target.classList.contains('qb-qty-input') || e.target.id === 'pay-modal-amount-input' || e.target.id === 'store-pay-amount-input')) {
             e.target.value = '';
         }
     });
@@ -1585,6 +1725,11 @@ document.addEventListener('DOMContentLoaded', function() {
     window._modalNavStack = [];  // e.g. ['qb-menu'] | ['qb-menu','qb-cart'] | ['stores']
 
     window.addEventListener('popstate', function(e) {
+        if (window._ignoreNextPopState) {
+            window._ignoreNextPopState = false;
+            return;
+        }
+
         // If an input is focused, just blur it (hide keyboard) instead of closing the modal
         const activeEl = document.activeElement;
         if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
@@ -1594,57 +1739,61 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const qbModalEl = document.getElementById('quickBillModal');
-        const storesModalEl = document.getElementById('storesModal');
-
         if (window._modalNavStack.length === 0) {
-            // Nothing open — ensure both are hidden
+            // Nothing open — ensure all custom modals are hidden
             _hideAllModals();
             return;
         }
 
-        const top = window._modalNavStack[window._modalNavStack.length - 1];
+        const top = window._modalNavStack.pop();
 
         if (top === 'qb-cart') {
             // Back from cart → go to menu
-            window._modalNavStack.pop();
             history.pushState({ modalOpen: true }, '');
             document.getElementById('qb-cart-view').classList.add('d-none');
             document.getElementById('qb-menu-view').classList.remove('d-none');
-            return;
-        }
-
-        if (top === 'qb-menu') {
+        } else if (top === 'qb-menu') {
             // Back from menu → close QB modal
-            window._modalNavStack = [];
-            if (_skipDraftSaveOnce) {
+            if (typeof _skipDraftSaveOnce !== 'undefined' && _skipDraftSaveOnce) {
                 _skipDraftSaveOnce = false;
-            } else {
+            } else if (typeof saveDraftBill === 'function') {
                 saveDraftBill();
             }
+            const qbModalEl = document.getElementById('quickBillModal');
             if (qbModalEl) {
                 qbModalEl.classList.add('d-none');
                 qbModalEl.style.height = '';
                 delete qbModalEl.dataset.lockedHeight;
             }
             document.body.style.overflow = '';
-            _onQBModalClose();
-            return;
-        }
-
-        if (top === 'stores') {
+            if (typeof _onQBModalClose === 'function') _onQBModalClose();
+        } else if (top === 'continueBillOverlay') {
+            const overlay = document.getElementById('continueBillOverlay');
+            if (overlay) overlay.classList.add('d-none');
+            document.body.style.overflow = '';
+        } else if (top === 'storesModal') {
             // Back from stores → close stores modal
-            window._modalNavStack = [];
+            const storesModalEl = document.getElementById('storesModal');
             if (storesModalEl) {
                 storesModalEl.classList.add('d-none');
                 storesModalEl.style.height = '';
                 delete storesModalEl.dataset.lockedHeight;
             }
             document.body.style.overflow = '';
-            return;
+        } else {
+            // It's a standard Bootstrap modal
+            const bsModalEl = document.getElementById(top);
+            if (bsModalEl && bsModalEl.classList.contains('modal')) {
+                const bsModal = bootstrap.Modal.getInstance(bsModalEl);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+            }
         }
-
-        _hideAllModals();
+        
+        if (typeof updateFloatBackButton === 'function') {
+            updateFloatBackButton();
+        }
     });
 
     function _hideAllModals() {
@@ -1664,6 +1813,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.style.overflow = '';
         if (typeof _onQBModalClose === 'function') _onQBModalClose();
     }
+    window._hideAllModals = _hideAllModals;
 
 
     // ── Stores Modal Search (3-tier ranked) ─────────────────────────────────
@@ -1750,12 +1900,24 @@ function openStoresModal() {
         modalEl.style.height = '';
         delete modalEl.dataset.lockedHeight;
     }
-    window._modalNavStack = ['stores'];
-    history.pushState({ modalOpen: true }, '');
+    
+    if (!window._modalNavStack.includes('storesModal')) {
+        window._modalNavStack.push('storesModal');
+        history.pushState({ modalOpen: true, modalId: 'storesModal' }, '');
+        updateFloatBackButton();
+    }
 }
 
 function closeStoresModal() {
-    history.back();
+    if (window._modalNavStack.includes('storesModal')) {
+        history.back();
+    } else {
+        const modalEl = document.getElementById('storesModal');
+        if (modalEl) {
+            modalEl.classList.add('d-none');
+            document.body.style.overflow = '';
+        }
+    }
 }
 
 function selectStoreSuggestion(e, element) {
@@ -1918,7 +2080,7 @@ function updateQuickBillMainButton() {
 function saveDraftBill() {
     const data = collectDraftData();
     updateQuickBillMainButton();
-    fetch(DRAFT_SAVE_URL, {
+    fetchWithTimeout(DRAFT_SAVE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': QB_CSRF },
         body: JSON.stringify(data)
@@ -1951,6 +2113,10 @@ function handleQuickBillBtnClick() {
         // Show bottom sheet
         document.getElementById('continueBillOverlay').classList.remove('d-none');
         document.body.style.overflow = 'hidden';
+        
+        window._modalNavStack.push('continueBillOverlay');
+        history.pushState({ modalOpen: true }, '');
+        if (typeof updateFloatBackButton === 'function') updateFloatBackButton();
     } else {
         openQuickBillModal();
     }
@@ -1964,7 +2130,7 @@ function closeContinueBillOverlay() {
 function startNewBill() {
     closeContinueBillOverlay();
     // Clear server-side draft
-    fetch(DRAFT_CLEAR_URL, {
+    fetchWithTimeout(DRAFT_CLEAR_URL, {
         method: 'POST',
         headers: { 'X-CSRFToken': QB_CSRF }
     }).catch(() => {});
@@ -1981,7 +2147,7 @@ function startNewBill() {
 function continueDraftBill() {
     closeContinueBillOverlay();
     // Fetch draft from server and load it
-    fetch(DRAFT_GET_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    fetchWithTimeout(DRAFT_GET_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(r => r.json())
     .then(data => {
         openQuickBillModal();  // opens fresh, then we load draft on top
@@ -2413,61 +2579,98 @@ function _onQBModalClose() {
 })();
 
 function submitQuickBill(url, csrfToken) {
-    const form = document.getElementById('quickBillForm');
-    if (!form.reportValidity()) return;
-    
-    let hasItems = false;
-    document.querySelectorAll('.qb-qty').forEach(input => {
-        if (parseInt(input.value) > 0) hasItems = true;
-    });
-    
-    if (!hasItems) {
-        showToast('Please select at least one item.', false);
-        return;
-    }
-    
-    const btn = document.getElementById('submitQuickBillBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-    
-    const formData = new FormData(form);
-    
-    // update hidden input to submit to backend
-    let orderInput = document.getElementById('qb-item-order');
-    if(!orderInput) {
-        orderInput = document.createElement('input');
-        orderInput.type = 'hidden';
-        orderInput.id = 'qb-item-order';
-        orderInput.name = 'item_order';
-        document.getElementById('quickBillForm').appendChild(orderInput);
-    }
-    orderInput.value = qbCartOrder.join(',');
-    formData.append('item_order', orderInput.value);
-    
-    fetch(url, {
-        method: 'POST',
-        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
-        body: formData
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast(data.message, true);
-            const modal = bootstrap.Modal.getInstance(document.getElementById('quickBillModal'));
-            if(modal) modal.hide();
-            if(data.target_tab) sessionStorage.setItem(TAB_KEY, data.target_tab);
-            setTimeout(() => { window.location.reload(); }, 1000);
-        } else {
-            showToast(data.error, false);
+    try {
+        const form = document.getElementById('quickBillForm');
+        if (!form.reportValidity()) {
+            const invalidEl = form.querySelector(':invalid');
+            if (invalidEl) {
+                showToast('Validation failed: ' + (invalidEl.name || invalidEl.id) + ' - ' + invalidEl.validationMessage, false);
+            }
+            return;
+        }
+        
+        let hasItems = false;
+        document.querySelectorAll('.qb-qty').forEach(input => {
+            if (parseInt(input.value) > 0) hasItems = true;
+        });
+        
+        if (!hasItems) {
+            showToast('Please select at least one item.', false);
+            return;
+        }
+        
+        const btn = document.getElementById('submitQuickBillBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        
+        const formData = new FormData(form);
+        
+        // update hidden input to submit to backend
+        let orderInput = document.getElementById('qb-item-order');
+        if(!orderInput) {
+            orderInput = document.createElement('input');
+            orderInput.type = 'hidden';
+            orderInput.id = 'qb-item-order';
+            orderInput.name = 'item_order';
+            document.getElementById('quickBillForm').appendChild(orderInput);
+        }
+        orderInput.value = qbCartOrder.join(',');
+        formData.append('item_order', orderInput.value);
+        
+        fetchWithTimeout(url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, true);
+                
+                // Clear draft state so it shows "New Bill" instead of "Continue Bill"
+                _hasDraft = false;
+                fetchWithTimeout(DRAFT_CLEAR_URL, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+                }).catch(() => {});
+                
+                // Aggressively clear the UI so it doesn't leave ghost quantities
+                clearQuickBillState();
+                updateQuickBillMainButton();
+                
+                // Clean up history stack and close Quick Bill fullscreen overlay
+                const steps = window._modalNavStack.length;
+                window._modalNavStack = [];
+                _skipDraftSaveOnce = true;
+                if (steps > 0) {
+                    history.go(-steps);
+                }
+                if (typeof window._hideAllModals === 'function') {
+                    window._hideAllModals();
+                }
+
+                if(data.target_tab) sessionStorage.setItem(TAB_KEY, data.target_tab);
+                
+                // Reset submit button state for the next time it's opened
+                btn.disabled = false;
+                btn.innerHTML = 'Place Order';
+                
+                silentReloadDashboard();
+            } else {
+                showToast(data.error, false);
+                btn.disabled = false;
+                btn.innerHTML = 'Place Order';
+            }
+        })
+        .catch(() => {
+            showToast('Network error.', false);
             btn.disabled = false;
             btn.innerHTML = 'Place Order';
-        }
-    })
-    .catch(() => {
-        showToast('Network error.', false);
-        btn.disabled = false;
-        btn.innerHTML = 'Place Order';
-    });
+        });
+    } catch (e) {
+        showToast('Execution error: ' + e.message, false);
+        console.error(e);
+    }
 }
 
 // ── Share Bill Logic ──────────────────────────────────────────────────────────
@@ -2479,7 +2682,7 @@ function shareOrderBill(orderId, url) {
         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     }
     
-    fetch(url, {
+    fetchWithTimeout(url, {
         method: 'GET',
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
@@ -2572,7 +2775,7 @@ function ajaxPackOrder(orderId, url, csrfToken) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Packing...';
 
-    fetch(url, {
+    fetchWithTimeout(url, {
         method: 'POST',
         headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
     })
@@ -2658,7 +2861,7 @@ function ajaxDeliverOrder(orderId, url, csrfToken) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Updating...';
 
-    fetch(url, {
+    fetchWithTimeout(url, {
         method: 'POST',
         headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
     })
@@ -2741,7 +2944,7 @@ function togglePackButton(orderId) {
 // ── Open Items Modal ─────────────────────────────────────────────────────────
 function openItemsModal(orderId) {
     const modalEl = document.getElementById('itemsModal-' + orderId);
-    if (modalEl) new bootstrap.Modal(modalEl).show();
+    if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }
 
 // ── Quick Bill Product Search ──────────────────────────────────────────────
@@ -2762,10 +2965,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function openOrderPaymentModal(orderId, totalAmount, oldBalance, grandTotal, remainingBalance, url, csrfToken) {
+function openOrderPaymentModal(orderId, totalAmount, oldBalance, grandTotal, remainingBalance, url, csrfToken, storeName) {
     document.getElementById('pay-modal-order-id').value = orderId;
     document.getElementById('pay-modal-url').value = url;
     document.getElementById('pay-modal-csrf').value = csrfToken;
+    
+    const storeDisplay = document.getElementById('pay-modal-store-name-display');
+    if (storeDisplay) storeDisplay.textContent = storeName;
     
     const customOpt = document.getElementById('payOptCustom');
     const oldBalOpt = document.getElementById('payOptOldBalance');
@@ -2792,7 +2998,7 @@ function openOrderPaymentModal(orderId, totalAmount, oldBalance, grandTotal, rem
     
     const modalEl = document.getElementById('orderPaymentModal');
     if (modalEl) {
-        const modal = new bootstrap.Modal(modalEl);
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         modal.show();
     }
 }
@@ -2816,7 +3022,13 @@ function updatePaymentModalRemaining() {
     const totalDueText = document.getElementById('pay-modal-total-due-display').textContent.replace('₹', '');
     const totalDue = parseFloat(totalDueText) || 0;
     
-    const amountPaid = parseFloat(document.getElementById('pay-modal-amount-input').value) || 0;
+    const inputEl = document.getElementById('pay-modal-amount-input');
+    let amountPaid = parseFloat(inputEl.value) || 0;
+    
+    if (amountPaid > totalDue) {
+        amountPaid = totalDue;
+        inputEl.value = amountPaid;
+    }
     
     let remaining = totalDue - amountPaid;
     if (remaining < 0) remaining = 0;
@@ -2830,6 +3042,11 @@ function updatePaymentModalRemaining() {
             remainingEl.className = 'fw-bold text-danger';
         }
     }
+    
+    const saveBtn = document.querySelector('button[onclick="saveOrderPayment()"]');
+    if (saveBtn) {
+        saveBtn.disabled = (amountPaid <= 0 || isNaN(amountPaid));
+    }
 }
 
 function saveOrderPayment() {
@@ -2837,6 +3054,11 @@ function saveOrderPayment() {
     const url = document.getElementById('pay-modal-url').value;
     const csrfToken = document.getElementById('pay-modal-csrf').value;
     const amountPaid = parseFloat(document.getElementById('pay-modal-amount-input').value) || 0;
+    
+    if (amountPaid <= 0) {
+        showToast('Amount must be greater than zero', false);
+        return;
+    }
     
     let payOldBalanceOnly = false;
     const opt = document.querySelector('input[name="paymentOption"]:checked');
@@ -2847,14 +3069,13 @@ function saveOrderPayment() {
     const btn = document.querySelector('#orderPaymentModal button[onclick="saveOrderPayment()"]');
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
     }
     
     const formData = new FormData();
     formData.append('amount_paid', amountPaid);
     if (payOldBalanceOnly) formData.append('pay_old_balance_only', 'true');
     
-    fetch(url, {
+    fetchWithTimeout(url, {
         method: 'POST',
         headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
         body: formData
@@ -2868,7 +3089,8 @@ function saveOrderPayment() {
                 const modal = bootstrap.Modal.getInstance(modalEl);
                 if (modal) modal.hide();
             }
-            setTimeout(() => { window.location.reload(); }, 600);
+            if (btn) btn.disabled = false;
+            silentReloadDashboard();
         } else {
             showToast(data.error || 'Failed to save payment.', false);
             if (btn) {
@@ -2900,7 +3122,7 @@ function openStorePaymentModal(storeName, balance, csrfToken) {
     
     const modalEl = document.getElementById('storePaymentModal');
     if (modalEl) {
-        const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: false });
         modal.show();
         // Move backdrop above the stores overlay (z-index: 2000)
         modalEl.addEventListener('shown.bs.modal', function handler() {
@@ -2914,7 +3136,14 @@ function openStorePaymentModal(storeName, balance, csrfToken) {
 function updateStorePaymentRemaining() {
     const totalDueText = document.getElementById('store-pay-total-due-display').textContent.replace('₹', '');
     const totalDue = parseFloat(totalDueText) || 0;
-    const amountPaid = parseFloat(document.getElementById('store-pay-amount-input').value) || 0;
+    
+    const inputEl = document.getElementById('store-pay-amount-input');
+    let amountPaid = parseFloat(inputEl.value) || 0;
+    
+    if (amountPaid > totalDue) {
+        amountPaid = totalDue;
+        inputEl.value = amountPaid;
+    }
     
     let remaining = totalDue - amountPaid;
     if (remaining < 0) remaining = 0;
@@ -2927,6 +3156,11 @@ function updateStorePaymentRemaining() {
         } else {
             remainingEl.className = 'fw-bold text-danger';
         }
+    }
+    
+    const saveBtn = document.querySelector('button[onclick="saveStorePayment()"]');
+    if (saveBtn) {
+        saveBtn.disabled = (amountPaid <= 0 || isNaN(amountPaid));
     }
 }
 
@@ -2944,17 +3178,21 @@ function saveStorePayment() {
     const amountPaid = parseFloat(document.getElementById('store-pay-amount-input').value) || 0;
     const url = "{% url 'pay_store_balance' %}";
     
+    if (amountPaid <= 0) {
+        showToast('Amount must be greater than zero', false);
+        return;
+    }
+    
     const btn = document.querySelector('#storePaymentModal button[onclick="saveStorePayment()"]');
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
     }
     
     const formData = new FormData();
     formData.append('store_name', storeName);
     formData.append('amount_paid', amountPaid);
     
-    fetch(url, {
+    fetchWithTimeout(url, {
         method: 'POST',
         headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
         body: formData
@@ -2964,7 +3202,8 @@ function saveStorePayment() {
         if (data.success) {
             showToast('Store payment updated successfully!', true);
             closeStorePaymentModal();
-            setTimeout(() => { window.location.reload(); }, 600);
+            if (btn) btn.disabled = false;
+            silentReloadDashboard();
         } else {
             showToast(data.error || 'Failed to save payment.', false);
             if (btn) {
@@ -3009,7 +3248,7 @@ function openCustomPriceModal(productId) {
     
     const modalEl = document.getElementById('customPriceModal');
     if (modalEl) {
-        const modal = new bootstrap.Modal(modalEl);
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         modal.show();
         modalEl.addEventListener('shown.bs.modal', function handler() {
             const backdrop = document.querySelector('.modal-backdrop:last-of-type');
@@ -3164,6 +3403,10 @@ function clearQuickBillState() {
         oldBalInput.readOnly = false;
         oldBalInput.dataset.wasReadonly = 'false';
         oldBalInput.style.backgroundColor = '';
+        const oldBalSpan = oldBalInput.previousElementSibling;
+        if (oldBalSpan && oldBalSpan.classList.contains('input-group-text')) {
+            oldBalSpan.style.backgroundColor = '';
+        }
     }
     const oldBalRow = document.getElementById('qb-old-balance-row');
     if (oldBalRow) oldBalRow.style.setProperty('display', 'none', 'important');
@@ -3201,6 +3444,22 @@ function clearQuickBillState() {
     document.querySelectorAll('.qb-product-item').forEach(item => {
         item.style.display = '';
     });
+    
+    // 11. Clear edit state
+    isEditingOrder = false;
+    const existingHiddenId = document.getElementById('qb-edit-order-id');
+    if (existingHiddenId) existingHiddenId.remove();
+    
+    const submitBtn = document.getElementById('submitQuickBillBtn');
+    if (submitBtn) {
+        submitBtn.innerHTML = 'Place Order';
+        submitBtn.style.backgroundColor = '#ff6600';
+    }
+    
+    const modalLabel = document.getElementById('quickBillModalLabel');
+    if (modalLabel) {
+        modalLabel.textContent = 'Quick Bill Menu';
+    }
 }
 
 // ── Order Editing Logic ───────────────────────────────────────────────────────
@@ -3213,7 +3472,7 @@ function editOrder(orderId) {
         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     }
     
-    fetch(`/orders/order/${orderId}/edit-details/`)
+    fetchWithTimeout(`/orders/order/${orderId}/edit-details/`)
     .then(r => r.json())
     .then(data => {
         if(data.error) {
@@ -3286,10 +3545,28 @@ function editOrder(orderId) {
         // Recalculate totals
         updateQBCartTotals();
         
-        // Open Modal
-        const modal = new bootstrap.Modal(document.getElementById('quickBillModal'));
-        modal.show();
+        // Open Modal exactly like openQuickBillModal
+        const modalEl = document.getElementById('quickBillModal');
+        modalEl.classList.remove('d-none');
+        document.body.style.overflow = 'hidden';
         
+        // Show floating back button
+        const floatBtn = document.getElementById('qb-float-back-btn');
+        if (floatBtn) floatBtn.classList.add('visible');
+        
+        const isMobile = window.innerWidth < 575.98;
+        if (isMobile) {
+            const initialHeight = window.innerHeight;
+            modalEl.style.height = initialHeight + 'px';
+            modalEl.dataset.lockedHeight = initialHeight;
+        } else {
+            modalEl.style.height = '';
+            delete modalEl.dataset.lockedHeight;
+        }
+        
+        // Push one history entry for the entire QB session
+        window._modalNavStack = ['qb-menu'];
+        history.pushState({ modalOpen: true }, '');
         if(btn) btn.innerHTML = '<i class="bi bi-pencil-square fs-2 d-block mb-1"></i><span style="font-size: 0.85rem;">Edit</span>';
     })
     .catch(() => {
@@ -3307,11 +3584,18 @@ let editOrderModalInstance = null;
 
 function cancelOrder(event, orderId) {
     if (event) {
+        const container = event.currentTarget.closest('.position-relative');
+        if (container) {
+            const card = container.querySelector('.swipeable-card');
+            if (card && !card.style.transform.includes('-160px')) {
+                return;
+            }
+        }
         event.stopPropagation();
         event.preventDefault();
     }
     if (!cancelOrderModalInstance) {
-        cancelOrderModalInstance = new bootstrap.Modal(document.getElementById('cancelOrderModal'));
+        cancelOrderModalInstance = bootstrap.Modal.getOrCreateInstance(document.getElementById('cancelOrderModal'));
     }
     document.getElementById('cancelOrderIdInput').value = orderId;
     cancelOrderModalInstance.show();
@@ -3320,7 +3604,7 @@ function cancelOrder(event, orderId) {
 function confirmCancelOrder() {
     const orderId = document.getElementById('cancelOrderIdInput').value;
     const csrfToken = '{{ csrf_token }}';
-    fetch(`/order/${orderId}/cancel/`, {
+    fetchWithTimeout(`/order/${orderId}/cancel/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': csrfToken,
@@ -3330,7 +3614,8 @@ function confirmCancelOrder() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            window.location.reload();
+            if (cancelOrderModalInstance) cancelOrderModalInstance.hide();
+            silentReloadDashboard();
         } else {
             alert(data.error || 'Failed to cancel order.');
             if (cancelOrderModalInstance) cancelOrderModalInstance.hide();
@@ -3345,11 +3630,18 @@ function confirmCancelOrder() {
 
 function editOrderToDraft(event, orderId) {
     if (event) {
+        const container = event.currentTarget.closest('.position-relative');
+        if (container) {
+            const card = container.querySelector('.swipeable-card');
+            if (card && !card.style.transform.includes('-160px')) {
+                return;
+            }
+        }
         event.stopPropagation();
         event.preventDefault();
     }
     if (!editOrderModalInstance) {
-        editOrderModalInstance = new bootstrap.Modal(document.getElementById('editOrderModal'));
+        editOrderModalInstance = bootstrap.Modal.getOrCreateInstance(document.getElementById('editOrderModal'));
     }
     document.getElementById('editOrderIdInput').value = orderId;
     editOrderModalInstance.show();
@@ -3358,7 +3650,7 @@ function editOrderToDraft(event, orderId) {
 function confirmEditOrder() {
     const orderId = document.getElementById('editOrderIdInput').value;
     const csrfToken = '{{ csrf_token }}';
-    fetch(`/order/${orderId}/edit-to-draft/`, {
+    fetchWithTimeout(`/order/${orderId}/edit-to-draft/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': csrfToken,
@@ -3368,8 +3660,10 @@ function confirmEditOrder() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            if (editOrderModalInstance) editOrderModalInstance.hide();
             sessionStorage.setItem('open_draft_on_load', 'true');
-            window.location.reload();
+            silentReloadDashboard();
+            if (typeof continueDraftBill === 'function') continueDraftBill();
         } else {
             alert(data.error || 'Failed to prepare order for editing.');
             if (editOrderModalInstance) editOrderModalInstance.hide();
@@ -3525,7 +3819,7 @@ function openDynamicReceiptModal(order) {
     if (cash > 0 && remaining > 0) {
         if (cashRow) {
             cashRow.classList.remove('d-none');
-            document.getElementById('dyn-receipt-cash').textContent = '₹' + cash.toFixed(0);
+            document.getElementById('dyn-receipt-cash').textContent = '-₹' + cash.toFixed(0);
         }
         if (dueRow) {
             dueRow.classList.remove('d-none');
@@ -3547,7 +3841,7 @@ function openDynamicReceiptModal(order) {
     } else {
         statusContainer.innerHTML = `
             <span class="badge rounded-pill text-bg-danger py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
-                <i class="bi bi-exclamation-circle-fill me-1"></i> Due: ₹${order.remaining_balance.toFixed(0)}
+                <i class="bi bi-exclamation-circle-fill me-1"></i> Balance: ₹${order.remaining_balance.toFixed(0)}
             </span>
         `;
     }
@@ -3555,7 +3849,7 @@ function openDynamicReceiptModal(order) {
     // Show modal
     const modalEl = document.getElementById('dynamicReceiptModal');
     if (modalEl) {
-        new bootstrap.Modal(modalEl).show();
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
 }
 
@@ -3568,11 +3862,11 @@ function openStoreOrdersModal(storeName) {
     document.getElementById('store-orders-list').classList.add('d-none');
     document.getElementById('store-orders-empty').classList.add('d-none');
     
-    const modal = new bootstrap.Modal(modalEl);
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     modal.show();
     
     const url = `/orders/store/orders/?store_name=${encodeURIComponent(storeName)}`;
-    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    fetchWithTimeout(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(r => r.json())
     .then(data => {
         document.getElementById('store-orders-loading').classList.add('d-none');
@@ -3629,7 +3923,7 @@ function openStoreOrdersModal(storeName) {
 
 function openStoreLastBill(storeName) {
     const url = `/orders/store/orders/?store_name=${encodeURIComponent(storeName)}`;
-    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    fetchWithTimeout(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(r => r.json())
     .then(data => {
         if (data.orders && data.orders.length > 0) {
@@ -3650,46 +3944,60 @@ function openStoreLastBill(storeName) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Double tap listeners for store names
-    document.querySelectorAll('.store-name-click').forEach(elem => {
-        const storeCard = elem.closest('.stores-item-card');
-        if (!storeCard) return;
-        const storeName = storeCard.getAttribute('data-store-name');
-        
-        let lastTap = 0;
-        elem.addEventListener('touchend', function(e) {
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTap;
-            if (tapLength < 300 && tapLength > 0) {
-                e.preventDefault();
-                openStoreOrdersModal(storeName);
+    // Global event delegation for double tap on store names and balance badges
+    let storeNameLastTap = 0;
+    let storeBalanceLastTap = 0;
+
+    document.body.addEventListener('touchend', function(e) {
+        const storeNameElem = e.target.closest('.store-name-click');
+        if (storeNameElem) {
+            const storeCard = storeNameElem.closest('.stores-item-card');
+            if (storeCard) {
+                const storeName = storeCard.getAttribute('data-store-name');
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - storeNameLastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    e.preventDefault();
+                    openStoreOrdersModal(storeName);
+                }
+                storeNameLastTap = currentTime;
             }
-            lastTap = currentTime;
-        });
-        elem.addEventListener('dblclick', function(e) {
-            openStoreOrdersModal(storeName);
-        });
+        }
+
+        const storeBalanceElem = e.target.closest('.store-balance-click');
+        if (storeBalanceElem) {
+            const storeCard = storeBalanceElem.closest('.stores-item-card');
+            if (storeCard) {
+                const storeName = storeCard.getAttribute('data-store-name');
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - storeBalanceLastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    e.preventDefault();
+                    openStoreLastBill(storeName);
+                }
+                storeBalanceLastTap = currentTime;
+            }
+        }
     });
 
-    // Double tap listeners for store balance badges
-    document.querySelectorAll('.store-balance-click').forEach(elem => {
-        const storeCard = elem.closest('.stores-item-card');
-        if (!storeCard) return;
-        const storeName = storeCard.getAttribute('data-store-name');
-        
-        let lastTap = 0;
-        elem.addEventListener('touchend', function(e) {
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTap;
-            if (tapLength < 300 && tapLength > 0) {
-                e.preventDefault();
+    document.body.addEventListener('dblclick', function(e) {
+        const storeNameElem = e.target.closest('.store-name-click');
+        if (storeNameElem) {
+            const storeCard = storeNameElem.closest('.stores-item-card');
+            if (storeCard) {
+                const storeName = storeCard.getAttribute('data-store-name');
+                openStoreOrdersModal(storeName);
+            }
+        }
+
+        const storeBalanceElem = e.target.closest('.store-balance-click');
+        if (storeBalanceElem) {
+            const storeCard = storeBalanceElem.closest('.stores-item-card');
+            if (storeCard) {
+                const storeName = storeCard.getAttribute('data-store-name');
                 openStoreLastBill(storeName);
             }
-            lastTap = currentTime;
-        });
-        elem.addEventListener('dblclick', function(e) {
-            openStoreLastBill(storeName);
-        });
+        }
     });
 
     // Check if we need to automatically continue/open an edited draft

@@ -452,24 +452,17 @@ def toggle_order_payment_status(request, order_id):
         except Exception:
             return JsonResponse({'success': False, 'error': 'Invalid amount'}, status=400)
             
-        # check if they paid exactly the pending balance alone implicitly
-        if amount_paid == order.total_amount and order.old_balance > 0:
-            order.old_balance = Decimal('0.00')
-            order.remaining_balance = Decimal('0.00')
-            order.payment_status = 'paid'
-            order.save()
-            return JsonResponse({
-                'success': True, 
-                'payment_status': order.payment_status,
-                'remaining_balance': float(order.remaining_balance)
-            })
-            
+
         # Use the current remaining balance as the base; fall back to grand total only if unset
         if order.remaining_balance is not None:
             current_due = order.remaining_balance
         else:
             current_due = order.total_amount + order.old_balance
             
+        # Deduct old balance first
+        old_bal_payment = min(amount_paid, order.old_balance)
+        order.old_balance -= old_bal_payment
+        
         remaining = current_due - amount_paid
         if remaining < 0:
             remaining = Decimal('0.00')
@@ -478,11 +471,8 @@ def toggle_order_payment_status(request, order_id):
         
         if remaining == Decimal('0.00'):
             order.payment_status = 'paid'
-            order.old_balance = Decimal('0.00')
         else:
             order.payment_status = 'unpaid'
-            if order.old_balance > 0 and amount_paid >= order.old_balance:
-                order.old_balance = Decimal('0.00')
             
         order.save()
         
@@ -534,6 +524,7 @@ def pay_store_balance(request):
     ).order_by('id')
     
     remaining_to_distribute = amount_paid
+    orders_to_update = []
     
     for order in unpaid_orders:
         if remaining_to_distribute <= 0:
@@ -547,15 +538,23 @@ def pay_store_balance(request):
             continue
             
         if remaining_to_distribute >= order_balance:
+            paid_amount_on_order = order_balance
             remaining_to_distribute -= order_balance
             order.remaining_balance = Decimal('0.00')
             order.payment_status = 'paid'
         else:
+            paid_amount_on_order = remaining_to_distribute
             order.remaining_balance = order_balance - remaining_to_distribute
             remaining_to_distribute = Decimal('0.00')
             order.payment_status = 'unpaid'
             
-        order.save()
+        old_bal_payment = min(paid_amount_on_order, order.old_balance)
+        order.old_balance -= old_bal_payment
+            
+        orders_to_update.append(order)
+        
+    if orders_to_update:
+        Order.objects.bulk_update(orders_to_update, ['remaining_balance', 'payment_status', 'old_balance'])
         
     return JsonResponse({
         'success': True,
@@ -589,8 +588,6 @@ def share_order_bill(request, order_id):
     details = [
         f"ORDER NO: {order_num}".ljust(32),
         f"DATE: {date_str} | TIME: {time_str}".ljust(32),
-        " " * 32,
-        "STORE DETAILS:".ljust(32),
         f"Store: {store_name}".ljust(32),
         divider_single,
         "NO ITEM          QTY       TOTAL",
@@ -647,11 +644,11 @@ def share_order_bill(request, order_id):
 
     if cash > 0 and remaining > 0:
         cash_label = "CASH:"
-        cash_str = f"₹{cash:.2f}"
+        cash_str = f"-₹{cash:.2f}"
         sp_cash = 32 - len(cash_label) - len(cash_str)
         cash_line = f"{cash_label}{' ' * max(1, sp_cash)}{cash_str}"
 
-        due_label = "DUE:"
+        due_label = "NEW BALANCE:"
         due_str = f"₹{remaining:.2f}"
         sp_due = 32 - len(due_label) - len(due_str)
         due_line = f"{due_label}{' ' * max(1, sp_due)}{due_str}"
@@ -659,7 +656,7 @@ def share_order_bill(request, order_id):
         totals_lines.extend([cash_line, due_line])
 
     if old_bal > 0:
-        grand_label = "GRAND TOTAL:"
+        grand_label = "NEW BALANCE:"
         grand_str = f"₹{grand:.2f}"
         sp2 = 32 - len(grand_label) - len(grand_str)
         grand_line = f"{grand_label}{' ' * max(1, sp2)}{grand_str}"
