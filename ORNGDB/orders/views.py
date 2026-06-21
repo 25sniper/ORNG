@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.template.loader import render_to_string
 from .models import CartItem, Order, OrderItem, DraftBill
 from products.models import Product
+from decimal import Decimal
 
 @login_required
 def cart_view(request):
@@ -252,8 +253,8 @@ def quick_bill_create(request):
         return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
         
     store_name = request.POST.get('store_name', '').strip()
-    if not store_name:
-        store_name = '-'
+    if not store_name or store_name == '-':
+        return JsonResponse({'success': False, 'error': 'Store selection is compulsory.'})
 
     from django.contrib.auth import get_user_model
     User = get_user_model()
@@ -270,9 +271,9 @@ def quick_bill_create(request):
                     if product:
                         custom_price_str = request.POST.get(f'price_{product_id}')
                         if custom_price_str is not None and custom_price_str.strip() != '':
-                            price = float(custom_price_str)
+                            price = Decimal(str(custom_price_str))
                         else:
-                            price = float(product.price)
+                            price = Decimal(str(product.price))
                         items.append((product, qty, price))
             except (ValueError, IndexError):
                 continue
@@ -288,13 +289,13 @@ def quick_bill_create(request):
         except ValueError:
             pass
 
-    old_balance = 0.00
+    old_balance = Decimal('0.00')
     try:
-        old_balance = float(request.POST.get('old_balance', 0) or 0)
-        if old_balance < 0:
-            old_balance = 0.00
-    except (ValueError, TypeError):
-        old_balance = 0.00
+        old_balance = Decimal(str(request.POST.get('old_balance', 0) or 0))
+        if old_balance < Decimal('0.00'):
+            old_balance = Decimal('0.00')
+    except (ValueError, TypeError, ArithmeticError):
+        old_balance = Decimal('0.00')
 
     try:
         with transaction.atomic():
@@ -302,49 +303,105 @@ def quick_bill_create(request):
             
             customer = User.objects.filter(role='customer', store_name__iexact=store_name).first()
             
-            # If old_balance > 0, all previous unpaid orders for this store
-            # are now settled — their balance is carried into this new bill.
-            if old_balance > 0 and store_name != '-':
-                from decimal import Decimal
-                prior_unpaid = Order.objects.filter(
-                    store_name__iexact=store_name,
-                    payment_status='unpaid'
-                ).exclude(status='cancelled')
-                prior_unpaid.update(
-                    payment_status='paid',
-                    remaining_balance=Decimal('0.00')
-                )
+            edit_order_id = request.POST.get('order_id')
             
-            status = 'received'
-            target_tab = '#completed-tab'
+            if edit_order_id:
+                order = get_object_or_404(Order, id=edit_order_id)
                 
-            order = Order.objects.create(
-                customer=customer,
-                store_name=customer.store_name if customer else store_name,
-                status=status,
-                total_amount=total_amount,
-                old_balance=old_balance,
-                assigned_delivery_user=request.user,
-                packed_at=timezone.now(),
-                delivered_at=timezone.now()
-            )
-            if status == 'received':
+                # Get the original grand total and amount paid before updating
+                orig_total = order.total_amount
+                orig_old_balance = order.old_balance
+                orig_grand_total = orig_total + orig_old_balance
+                if order.remaining_balance is not None:
+                    amount_paid_previously = orig_grand_total - order.remaining_balance
+                else:
+                    amount_paid_previously = Decimal('0.00')
+                
+                order.customer = customer
+                order.store_name = customer.store_name if customer else store_name
+                order.total_amount = total_amount
+                order.old_balance = old_balance
+                
+                # Recalculate remaining balance
+                grand_total = total_amount + old_balance
+                new_remaining_balance = Decimal(str(grand_total)) - amount_paid_previously
+                if new_remaining_balance < Decimal('0.00'):
+                    new_remaining_balance = Decimal('0.00')
+                    
+                order.remaining_balance = new_remaining_balance
+                if new_remaining_balance == Decimal('0.00'):
+                    order.payment_status = 'paid'
+                else:
+                    order.payment_status = 'unpaid'
+                order.status = 'received'
                 order.received_at = timezone.now()
                 order.save()
                 
-            for product, qty, price in items:
-                OrderItem.objects.create(
-                    order=order,
-                    product=product,
-                    quantity=qty,
-                    price_at_time=price
-                )
+                # Remove existing items and recreate
+                order.items.all().delete()
+                for product, qty, price in items:
+                    OrderItem.objects.create(
+                        order=order,
+                        product=product,
+                        quantity=qty,
+                        price_at_time=price
+                    )
                 
-        msg = f"✓ Quick Bill #{order.id} placed successfully!"
+                msg = f"✓ Order #{order.id} updated successfully!"
+                target_tab = None
+                
+            else:
+                # If old_balance > 0, all previous unpaid orders for this store
+                # are now settled — their balance is carried into this new bill.
+                if old_balance > 0 and store_name != '-':
+                    prior_unpaid = Order.objects.filter(
+                        store_name__iexact=store_name,
+                        payment_status='unpaid'
+                    ).exclude(status='cancelled')
+                    prior_unpaid.update(
+                        payment_status='paid',
+                        remaining_balance=Decimal('0.00')
+                    )
+                
+                status = 'received'
+                target_tab = '#completed-tab'
+                    
+                order = Order.objects.create(
+                    customer=customer,
+                    store_name=customer.store_name if customer else store_name,
+                    status=status,
+                    total_amount=total_amount,
+                    old_balance=old_balance,
+                    assigned_delivery_user=request.user,
+                    packed_at=timezone.now(),
+                    delivered_at=timezone.now()
+                )
+                if status == 'received':
+                    order.received_at = timezone.now()
+                    order.save()
+                    
+                for product, qty, price in items:
+                    OrderItem.objects.create(
+                        order=order,
+                        product=product,
+                        quantity=qty,
+                        price_at_time=price
+                    )
+                    
+                msg = f"✓ Quick Bill #{order.id} placed successfully!"
+                
         # Clear the draft bill for this delivery user
         DraftBill.objects.filter(delivery_user=request.user).delete()
-        return JsonResponse({'success': True, 'message': msg, 'target_tab': target_tab})
+        
+        # Determine target tab only for new creations
+        return JsonResponse({
+            'success': True, 
+            'message': msg, 
+            'target_tab': target_tab if not edit_order_id else None
+        })
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'success': False, 'error': 'An error occurred while placing the bill.'})
 
 @login_required
@@ -356,12 +413,56 @@ def toggle_order_payment_status(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     
     amount_paid_str = request.POST.get('amount_paid')
+    pay_pending_only = request.POST.get('pay_pending_only') == 'true'
+    pay_old_balance_only = request.POST.get('pay_old_balance_only') == 'true'
+    
+    if pay_old_balance_only:
+        paid_amt = order.old_balance
+        order.old_balance = Decimal('0.00')
+        if order.remaining_balance is not None:
+            order.remaining_balance = max(Decimal('0.00'), order.remaining_balance - paid_amt)
+        else:
+            order.remaining_balance = order.total_amount
+            
+        if order.remaining_balance == Decimal('0.00'):
+            order.payment_status = 'paid'
+        else:
+            order.payment_status = 'unpaid'
+        order.save()
+        return JsonResponse({
+            'success': True, 
+            'payment_status': order.payment_status,
+            'remaining_balance': float(order.remaining_balance)
+        })
+        
+    if pay_pending_only:
+        order.old_balance = Decimal('0.00')
+        order.remaining_balance = Decimal('0.00')
+        order.payment_status = 'paid'
+        order.save()
+        return JsonResponse({
+            'success': True, 
+            'payment_status': order.payment_status,
+            'remaining_balance': float(order.remaining_balance)
+        })
+        
     if amount_paid_str is not None:
-        from decimal import Decimal
         try:
             amount_paid = Decimal(amount_paid_str)
         except Exception:
             return JsonResponse({'success': False, 'error': 'Invalid amount'}, status=400)
+            
+        # check if they paid exactly the pending balance alone implicitly
+        if amount_paid == order.total_amount and order.old_balance > 0:
+            order.old_balance = Decimal('0.00')
+            order.remaining_balance = Decimal('0.00')
+            order.payment_status = 'paid'
+            order.save()
+            return JsonResponse({
+                'success': True, 
+                'payment_status': order.payment_status,
+                'remaining_balance': float(order.remaining_balance)
+            })
             
         # Use the current remaining balance as the base; fall back to grand total only if unset
         if order.remaining_balance is not None:
@@ -377,8 +478,11 @@ def toggle_order_payment_status(request, order_id):
         
         if remaining == Decimal('0.00'):
             order.payment_status = 'paid'
+            order.old_balance = Decimal('0.00')
         else:
             order.payment_status = 'unpaid'
+            if order.old_balance > 0 and amount_paid >= order.old_balance:
+                order.old_balance = Decimal('0.00')
             
         order.save()
         
@@ -391,7 +495,6 @@ def toggle_order_payment_status(request, order_id):
     new_status = 'paid' if order.payment_status == 'unpaid' else 'unpaid'
     order.payment_status = new_status
     if new_status == 'paid':
-        from decimal import Decimal
         order.remaining_balance = Decimal('0.00')
     else:
         order.remaining_balance = order.total_amount + order.old_balance
@@ -415,7 +518,6 @@ def pay_store_balance(request):
     if not store_name or amount_paid_str is None:
         return JsonResponse({'success': False, 'error': 'Missing parameters'}, status=400)
         
-    from decimal import Decimal
     try:
         amount_paid = Decimal(amount_paid_str)
     except Exception:
@@ -482,14 +584,14 @@ def share_order_bill(request, order_id):
     time_str = local_dt.strftime('%H:%M')
     order_num = f"#{order.id:05d}"
     
-    customer_name = order.display_customer_name
+    store_name = order.display_store_name
     
     details = [
         f"ORDER NO: {order_num}".ljust(32),
         f"DATE: {date_str} | TIME: {time_str}".ljust(32),
         " " * 32,
-        "CUSTOMER DETAILS:".ljust(32),
-        f"Name: {customer_name}".ljust(32),
+        "STORE DETAILS:".ljust(32),
+        f"Store: {store_name}".ljust(32),
         divider_single,
         "NO ITEM          QTY       TOTAL",
         divider_single
@@ -532,21 +634,36 @@ def share_order_bill(request, order_id):
 
     old_bal = order.old_balance
     grand = order.grand_total
+    remaining = order.remaining_balance if order.remaining_balance is not None else grand
+    cash = grand - remaining
 
+    totals_lines = [total_line]
     if old_bal > 0:
         old_bal_label = "OLD BALANCE:"
         old_bal_str = f"₹{old_bal:.2f}"
         sp = 32 - len(old_bal_label) - len(old_bal_str)
         old_bal_line = f"{old_bal_label}{' ' * max(1, sp)}{old_bal_str}"
+        totals_lines.append(old_bal_line)
 
+    if cash > 0 and remaining > 0:
+        cash_label = "CASH:"
+        cash_str = f"₹{cash:.2f}"
+        sp_cash = 32 - len(cash_label) - len(cash_str)
+        cash_line = f"{cash_label}{' ' * max(1, sp_cash)}{cash_str}"
+
+        due_label = "DUE:"
+        due_str = f"₹{remaining:.2f}"
+        sp_due = 32 - len(due_label) - len(due_str)
+        due_line = f"{due_label}{' ' * max(1, sp_due)}{due_str}"
+
+        totals_lines.extend([cash_line, due_line])
+
+    if old_bal > 0:
         grand_label = "GRAND TOTAL:"
         grand_str = f"₹{grand:.2f}"
         sp2 = 32 - len(grand_label) - len(grand_str)
         grand_line = f"{grand_label}{' ' * max(1, sp2)}{grand_str}"
-
-        totals_lines = [total_line, old_bal_line, grand_line]
-    else:
-        totals_lines = [total_line]
+        totals_lines.append(grand_line)
 
     payment_status_text = f"PAYMENT STATUS: {order.payment_status.upper()}"
     payment_line = payment_status_text.ljust(32)
@@ -656,6 +773,7 @@ def store_orders_api(request):
             'id': order.id,
             'created_at': created_at_str,
             'status': order.get_status_display(),
+            'raw_status': order.status,
             'payment_status': order.payment_status,
             'total_amount': float(order.total_amount),
             'old_balance': float(order.old_balance),
@@ -667,4 +785,29 @@ def store_orders_api(request):
     return JsonResponse({
         'store_name': store_name,
         'orders': orders_data
+    })
+
+@login_required
+def order_edit_details_api(request, order_id):
+    if request.user.role != 'delivery':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+    try:
+        order = Order.objects.get(id=order_id)
+    except Order.DoesNotExist:
+        return JsonResponse({'error': 'Order not found'}, status=404)
+        
+    items = []
+    for item in order.items.all():
+        items.append({
+            'product_id': item.product_id,
+            'quantity': item.quantity,
+            'price': float(item.price_at_time)
+        })
+        
+    return JsonResponse({
+        'id': order.id,
+        'store_name': order.store_name,
+        'old_balance': float(order.old_balance),
+        'items': items
     })

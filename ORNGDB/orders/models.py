@@ -34,6 +34,14 @@ class Order(models.Model):
         return self.total_amount + self.old_balance
 
     @property
+    def remaining_due(self):
+        return self.remaining_balance if self.remaining_balance is not None else self.grand_total
+
+    @property
+    def cash_paid(self):
+        return self.grand_total - self.remaining_due
+
+    @property
     def display_customer_name(self):
         if self.customer:
             return self.customer.name or self.customer.store_name

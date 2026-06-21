@@ -20,4 +20,5 @@ urlpatterns = [
     path('draft-bill/get/', views.draft_bill_get, name='draft_bill_get'),
     path('draft-bill/save/', views.draft_bill_save, name='draft_bill_save'),
     path('draft-bill/clear/', views.draft_bill_clear, name='draft_bill_clear'),
+    path('order/<int:order_id>/edit-details/', views.order_edit_details_api, name='order_edit_details_api'),
 ]

@@ -27,5 +27,7 @@ urlpatterns = [
     path('manage/products/reorder/', views.admin_reorder_products, name='admin_reorder_products'),
     path('order/<int:order_id>/pack/', views.pack_order, name='pack_order'),
     path('order/<int:order_id>/deliver/', views.deliver_order, name='deliver_order'),
+    path('order/<int:order_id>/cancel/', views.delivery_cancel_order, name='delivery_cancel_order'),
+    path('order/<int:order_id>/edit-to-draft/', views.delivery_edit_order_to_draft, name='edit_order_to_draft'),
     path('delivery/order/<int:order_id>/pack/', views.delivery_pack_order, name='delivery_pack_order'),
 ]

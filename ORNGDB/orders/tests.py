@@ -192,14 +192,8 @@ class QuickBillOptionalStoreTests(TestCase):
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 200)
         res_data = response.json()
-        self.assertTrue(res_data['success'])
-        
-        # Verify the created order
-        from orders.models import Order
-        order = Order.objects.latest('id')
-        self.assertEqual(order.store_name, '-')
-        self.assertIsNone(order.customer)
-        self.assertEqual(order.total_amount, 160.00)
+        self.assertFalse(res_data['success'])
+        self.assertEqual(res_data['error'], 'Store selection is compulsory.')
 
 
 class PayStoreBalanceTests(TestCase):
