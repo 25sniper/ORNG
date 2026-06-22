@@ -1531,7 +1531,10 @@ function checkStoreBalance() {
 
     const val = storeInput.value.toLowerCase().trim();
     if (val in STORE_BALANCES) {
-        const bal = parseFloat(STORE_BALANCES[val]) || 0;
+        let bal = parseFloat(STORE_BALANCES[val]) || 0;
+        if (isEditingOrder && editingOrderStoreName && val === editingOrderStoreName.toLowerCase().trim()) {
+            bal = Math.max(0, bal - editingOrderUnpaidBalance) + editingOrderOldBalance;
+        }
         
         const oldBalSpan = oldBalInput.previousElementSibling;
         if (bal > 0) {
@@ -2158,6 +2161,10 @@ function continueDraftBill() {
             const editOrderId = items['_edit_order_id'];
             if (editOrderId) {
                 isEditingOrder = true;
+                editingOrderUnpaidBalance = data.editing_order_unpaid_balance || 0;
+                editingOrderOldBalance = data.editing_order_old_balance || 0;
+                editingOrderStoreName = data.editing_order_store_name || '';
+                
                 document.getElementById('quickBillModalLabel').textContent = 'Edit Order #' + editOrderId;
                 const submitBtn = document.getElementById('submitQuickBillBtn');
                 if (submitBtn) {
@@ -2224,6 +2231,10 @@ function openQuickBillModal() {
         oldBalInput.readOnly = false;
         oldBalInput.dataset.wasReadonly = 'false';
         oldBalInput.style.backgroundColor = '';
+        const oldBalSpan = oldBalInput.previousElementSibling;
+        if (oldBalSpan && oldBalSpan.classList.contains('input-group-text')) {
+            oldBalSpan.style.backgroundColor = '';
+        }
     }
     const oldBalRow = document.getElementById('qb-old-balance-row');
     if (oldBalRow) oldBalRow.style.setProperty('display', 'none', 'important');
@@ -2347,6 +2358,7 @@ function updateQBCartTotals() {
     // Compute old balance and grand total
     const oldBalInput = document.getElementById('qb-old-balance');
     const oldBalance = oldBalInput ? (parseFloat(oldBalInput.value) || 0) : 0;
+    
     const grandTotal = totalAmount + oldBalance;
 
     // Update items total display
@@ -3429,6 +3441,11 @@ function clearQuickBillState() {
     // 7. Reset the qbCartOrder list
     qbCartOrder = [];
     
+    isEditingOrder = false;
+    editingOrderUnpaidBalance = 0;
+    editingOrderOldBalance = 0;
+    editingOrderStoreName = '';
+    
     // 8. Update cart totals UI
     updateQBCartTotals();
     
@@ -3464,6 +3481,9 @@ function clearQuickBillState() {
 
 // ── Order Editing Logic ───────────────────────────────────────────────────────
 let isEditingOrder = false;
+let editingOrderUnpaidBalance = 0;
+let editingOrderOldBalance = 0;
+let editingOrderStoreName = '';
 
 function editOrder(orderId) {
     // Show spinner or feedback on the button
@@ -3482,6 +3502,9 @@ function editOrder(orderId) {
         }
         
         isEditingOrder = true;
+        editingOrderUnpaidBalance = data.remaining_balance || 0;
+        editingOrderOldBalance = data.old_balance || 0;
+        editingOrderStoreName = data.store_name || '';
         
         // Reset and clear Quick Bill UI first
         clearQuickBillState();
@@ -3796,38 +3819,36 @@ function openDynamicReceiptModal(order) {
     const dividerHr = document.getElementById('dyn-receipt-divider-hr');
     const grandTotalRow = document.getElementById('dyn-receipt-grand-total-row');
     
+    if (grandTotalRow) grandTotalRow.classList.add('d-none');
+    if (dividerHr) dividerHr.classList.add('d-none');
+    
     if (order.old_balance > 0) {
         oldBalRow.classList.remove('d-none');
-        dividerHr.classList.remove('d-none');
-        grandTotalRow.classList.remove('d-none');
         document.getElementById('dyn-receipt-old-balance').textContent = '₹' + order.old_balance.toFixed(0);
-        document.getElementById('dyn-receipt-grand-total').textContent = '₹' + order.grand_total.toFixed(0);
     } else {
         oldBalRow.classList.add('d-none');
-        dividerHr.classList.add('d-none');
-        grandTotalRow.classList.add('d-none');
     }
     
     // Cash and Due
-    const grand = order.grand_total;
-    const remaining = order.remaining_balance !== undefined && order.remaining_balance !== null ? order.remaining_balance : grand;
-    const cash = grand - remaining;
+    const remaining = order.remaining_balance !== undefined && order.remaining_balance !== null ? order.remaining_balance : order.grand_total;
+    const product_remaining = Math.max(0, remaining - order.old_balance);
+    const product_payment = order.total_amount - product_remaining;
 
     const cashRow = document.getElementById('dyn-receipt-cash-row');
     const dueRow = document.getElementById('dyn-receipt-due-row');
 
-    if (cash > 0 && remaining > 0) {
+    if (product_payment > 0) {
         if (cashRow) {
             cashRow.classList.remove('d-none');
-            document.getElementById('dyn-receipt-cash').textContent = '-₹' + cash.toFixed(0);
-        }
-        if (dueRow) {
-            dueRow.classList.remove('d-none');
-            document.getElementById('dyn-receipt-due').textContent = '₹' + remaining.toFixed(0);
+            document.getElementById('dyn-receipt-cash').textContent = '-₹' + product_payment.toFixed(0);
         }
     } else {
         if (cashRow) cashRow.classList.add('d-none');
-        if (dueRow) dueRow.classList.add('d-none');
+    }
+    
+    if (dueRow) {
+        dueRow.classList.remove('d-none');
+        document.getElementById('dyn-receipt-due').textContent = '₹' + remaining.toFixed(0);
     }
     
     // Payment status

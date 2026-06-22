@@ -463,6 +463,33 @@ def toggle_order_payment_status(request, order_id):
         old_bal_payment = min(amount_paid, order.old_balance)
         order.old_balance -= old_bal_payment
         
+        # Synchronize previous unpaid orders
+        if old_bal_payment > 0 and order.store_name:
+            prior_unpaid = Order.objects.filter(
+                store_name__iexact=order.store_name,
+                payment_status='unpaid',
+                created_at__lt=order.created_at
+            ).exclude(status='cancelled').order_by('id')
+            
+            rem_to_dist = old_bal_payment
+            for prior_order in prior_unpaid:
+                if rem_to_dist <= 0:
+                    break
+                prior_bal = prior_order.remaining_balance
+                if prior_bal is None:
+                    prior_bal = prior_order.total_amount + prior_order.old_balance
+                if prior_bal <= 0:
+                    continue
+                if rem_to_dist >= prior_bal:
+                    rem_to_dist -= prior_bal
+                    prior_order.remaining_balance = Decimal('0.00')
+                    prior_order.payment_status = 'paid'
+                else:
+                    prior_order.remaining_balance = prior_bal - rem_to_dist
+                    rem_to_dist = Decimal('0.00')
+                    prior_order.payment_status = 'unpaid'
+                prior_order.save()
+        
         remaining = current_due - amount_paid
         if remaining < 0:
             remaining = Decimal('0.00')
@@ -486,6 +513,18 @@ def toggle_order_payment_status(request, order_id):
     order.payment_status = new_status
     if new_status == 'paid':
         order.remaining_balance = Decimal('0.00')
+        # Mark all prior unpaid orders as paid
+        if order.old_balance > 0 and order.store_name:
+            prior_unpaid = Order.objects.filter(
+                store_name__iexact=order.store_name,
+                payment_status='unpaid',
+                created_at__lt=order.created_at
+            ).exclude(status='cancelled')
+            prior_unpaid.update(
+                payment_status='paid',
+                remaining_balance=Decimal('0.00')
+            )
+        order.old_balance = Decimal('0.00')
     else:
         order.remaining_balance = order.total_amount + order.old_balance
     order.save()
@@ -632,7 +671,6 @@ def share_order_bill(request, order_id):
     old_bal = order.old_balance
     grand = order.grand_total
     remaining = order.remaining_balance if order.remaining_balance is not None else grand
-    cash = grand - remaining
 
     totals_lines = [total_line]
     if old_bal > 0:
@@ -642,25 +680,21 @@ def share_order_bill(request, order_id):
         old_bal_line = f"{old_bal_label}{' ' * max(1, sp)}{old_bal_str}"
         totals_lines.append(old_bal_line)
 
-    if cash > 0 and remaining > 0:
+    product_remaining = max(Decimal('0.00'), remaining - old_bal)
+    product_payment = order.total_amount - product_remaining
+
+    if product_payment > 0:
         cash_label = "CASH:"
-        cash_str = f"-₹{cash:.2f}"
+        cash_str = f"-₹{product_payment:.2f}"
         sp_cash = 32 - len(cash_label) - len(cash_str)
         cash_line = f"{cash_label}{' ' * max(1, sp_cash)}{cash_str}"
+        totals_lines.append(cash_line)
 
-        due_label = "NEW BALANCE:"
-        due_str = f"₹{remaining:.2f}"
-        sp_due = 32 - len(due_label) - len(due_str)
-        due_line = f"{due_label}{' ' * max(1, sp_due)}{due_str}"
-
-        totals_lines.extend([cash_line, due_line])
-
-    if old_bal > 0:
-        grand_label = "NEW BALANCE:"
-        grand_str = f"₹{grand:.2f}"
-        sp2 = 32 - len(grand_label) - len(grand_str)
-        grand_line = f"{grand_label}{' ' * max(1, sp2)}{grand_str}"
-        totals_lines.append(grand_line)
+    due_label = "NEW BALANCE:"
+    due_str = f"₹{remaining:.2f}"
+    sp_due = 32 - len(due_label) - len(due_str)
+    due_line = f"{due_label}{' ' * max(1, sp_due)}{due_str}"
+    totals_lines.append(due_line)
 
     payment_status_text = f"PAYMENT STATUS: {order.payment_status.upper()}"
     payment_line = payment_status_text.ljust(32)
@@ -688,12 +722,22 @@ def draft_bill_get(request):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     try:
         draft = DraftBill.objects.get(delivery_user=request.user)
-        return JsonResponse({
+        res = {
             'has_draft': True,
             'items': draft.items_json,
             'store_name': draft.store_name,
             'old_balance': str(draft.old_balance),
-        })
+        }
+        edit_order_id = draft.items_json.get('_edit_order_id')
+        if edit_order_id:
+            try:
+                order = Order.objects.get(id=edit_order_id)
+                res['editing_order_unpaid_balance'] = float(order.remaining_balance) if order.remaining_balance is not None else float(order.grand_total)
+                res['editing_order_old_balance'] = float(order.old_balance)
+                res['editing_order_store_name'] = order.store_name
+            except Order.DoesNotExist:
+                pass
+        return JsonResponse(res)
     except DraftBill.DoesNotExist:
         return JsonResponse({'has_draft': False})
 
@@ -806,5 +850,6 @@ def order_edit_details_api(request, order_id):
         'id': order.id,
         'store_name': order.store_name,
         'old_balance': float(order.old_balance),
+        'remaining_balance': float(order.remaining_balance) if order.remaining_balance is not None else float(order.grand_total),
         'items': items
     })

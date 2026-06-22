@@ -16,34 +16,45 @@
                     {% csrf_token %}
                     
                     <h5 class="fw-bold mb-3 border-bottom pb-2">Account Details</h5>
-                    <div class="mb-3">
-                        <label class="form-label text-muted small fw-bold">Username / Phone</label>
-                        <input type="text" name="username" class="form-control rounded-3" value="{{ user.username }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted small fw-bold">Full Name</label>
-                        <input type="text" name="name" class="form-control rounded-3" value="{{ user.name }}">
-                    </div>
                     
-                    {% if user.role == 'customer' or user.role == 'admin' %}
-                    <div class="mb-3">
-                        <label class="form-label text-muted small fw-bold">Store Name</label>
-                        <input type="text" name="store_name" class="form-control rounded-3" value="{{ user.store_name }}">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted small fw-bold">Delivery Location</label>
-                        <input type="text" name="location" class="form-control rounded-3" value="{{ user.location }}" placeholder="City, Area, or exact address">
-                        {% if user.google_maps_url %}
-                            <small class="text-muted mt-1 d-block"><i class="bi bi-geo-alt-fill text-danger"></i> <a href="{{ user.google_maps_url }}" target="_blank" class="text-decoration-none">View current map location</a></small>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    
-                    {% if user.role == 'delivery' %}
-                    <div class="mb-3">
-                        <label class="form-label text-muted small fw-bold">Mobile Number</label>
-                        <input type="text" name="phone" class="form-control rounded-3" value="{{ user.phone|default:'' }}" required>
-                    </div>
+                    {% if user.role == 'admin' %}
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Username</label>
+                            <input type="text" name="username" class="form-control rounded-3" value="{{ user.username }}" required>
+                        </div>
+                    {% elif user.role == 'delivery' %}
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Username</label>
+                            <input type="text" name="username" class="form-control rounded-3" value="{{ user.username }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Full Name</label>
+                            <input type="text" name="name" class="form-control rounded-3" value="{{ user.name|default:'' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Mobile Number</label>
+                            <input type="text" name="phone" class="form-control rounded-3" value="{{ user.phone|default:'' }}" required>
+                        </div>
+                    {% elif user.role == 'customer' %}
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Username (Mobile Number)</label>
+                            <input type="text" name="username" class="form-control rounded-3" value="{{ user.username }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Full Name</label>
+                            <input type="text" name="name" class="form-control rounded-3" value="{{ user.name|default:'' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Store Name</label>
+                            <input type="text" name="store_name" class="form-control rounded-3" value="{{ user.store_name|default:'' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Delivery Location</label>
+                            <input type="text" name="location" class="form-control rounded-3" value="{{ user.location|default:'' }}" placeholder="City, Area, or exact address">
+                            {% if user.google_maps_url %}
+                                <small class="text-muted mt-1 d-block"><i class="bi bi-geo-alt-fill text-danger"></i> <a href="{{ user.google_maps_url }}" target="_blank" class="text-decoration-none">View current map location</a></small>
+                            {% endif %}
+                        </div>
                     {% endif %}
                     
                     <h5 class="fw-bold mb-3 border-bottom pb-2">Security</h5>

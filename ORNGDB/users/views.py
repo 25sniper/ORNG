@@ -541,11 +541,8 @@ def admin_order_detail_view(request, order_id):
 def profile_view(request):
     if request.method == 'POST':
         user = request.user
+        role = user.role
         username = request.POST.get('username')
-        name = request.POST.get('name')
-        store_name = request.POST.get('store_name')
-        location = request.POST.get('location')
-        phone = request.POST.get('phone')
         password = request.POST.get('password')
         
         if username and username != user.username:
@@ -553,27 +550,36 @@ def profile_view(request):
                 messages.error(request, 'Username already exists.')
                 return redirect('profile_view')
             user.username = username
-            if user.role == 'customer':
+            if role == 'customer':
                 user.phone = username
                 
-        if user.role == 'delivery' and phone:
-            if User.objects.filter(phone=phone).exclude(id=user.id).exists():
-                messages.error(request, 'Mobile number already in use by another account.')
-                return redirect('profile_view')
-            user.phone = phone
+        if role == 'delivery':
+            name = request.POST.get('name')
+            phone = request.POST.get('phone')
+            if phone:
+                if User.objects.filter(phone=phone).exclude(id=user.id).exists():
+                    messages.error(request, 'Mobile number already in use by another account.')
+                    return redirect('profile_view')
+                user.phone = phone
+            if name is not None:
+                user.name = name
                 
-        if name is not None:
-            user.name = name
-        if store_name is not None:
-            user.store_name = store_name
+        elif role == 'customer':
+            name = request.POST.get('name')
+            store_name = request.POST.get('store_name')
+            location = request.POST.get('location')
             
-        if location is not None and location != user.location:
-            user.location = location
-            if location:
-                user.google_maps_url = f"https://www.google.com/maps/search/?api=1&query={location.replace(' ', '+')}"
-            else:
-                user.google_maps_url = ''
-                
+            if name is not None:
+                user.name = name
+            if store_name is not None:
+                user.store_name = store_name
+            if location is not None and location != user.location:
+                user.location = location
+                if location:
+                    user.google_maps_url = f"https://www.google.com/maps/search/?api=1&query={location.replace(' ', '+')}"
+                else:
+                    user.google_maps_url = ''
+                    
         if password:
             user.set_password(password)
             
