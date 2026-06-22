@@ -1625,14 +1625,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Clear quantity selection field on focus/touchstart to allow typed quantity selection
     document.addEventListener('focus', function(e) {
-        if (e.target && (e.target.classList.contains('qb-qty-input') || e.target.id === 'pay-modal-amount-input' || e.target.id === 'store-pay-amount-input')) {
+        if (e.target && (e.target.classList.contains('qb-qty-input') || e.target.id === 'pay-modal-amount-input' || e.target.id === 'store-pay-amount-input' || e.target.id === 'custom-price-input')) {
             e.target.value = '';
+            if (e.target.id === 'pay-modal-amount-input') {
+                if (typeof updatePaymentModalRemaining === 'function') updatePaymentModalRemaining();
+            } else if (e.target.id === 'store-pay-amount-input') {
+                if (typeof updateStorePaymentRemaining === 'function') updateStorePaymentRemaining();
+            }
         }
     }, true); // Capture phase required since focus does not bubble
 
     document.addEventListener('touchstart', function(e) {
-        if (e.target && (e.target.classList.contains('qb-qty-input') || e.target.id === 'pay-modal-amount-input' || e.target.id === 'store-pay-amount-input')) {
+        if (e.target && (e.target.classList.contains('qb-qty-input') || e.target.id === 'pay-modal-amount-input' || e.target.id === 'store-pay-amount-input' || e.target.id === 'custom-price-input')) {
             e.target.value = '';
+            if (e.target.id === 'pay-modal-amount-input') {
+                if (typeof updatePaymentModalRemaining === 'function') updatePaymentModalRemaining();
+            } else if (e.target.id === 'store-pay-amount-input') {
+                if (typeof updateStorePaymentRemaining === 'function') updateStorePaymentRemaining();
+            }
         }
     });
 
@@ -1715,6 +1725,44 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.value === '' || isNaN(parseFloat(this.value))) {
                 this.value = '0';
                 updateQBCartTotals();
+            }
+        });
+    }
+
+    // Restore previous values for custom price and payment inputs when left empty on blur
+    const customPriceInput = document.getElementById('custom-price-input');
+    if (customPriceInput) {
+        customPriceInput.addEventListener('blur', function() {
+            if (this.value === '' || isNaN(parseFloat(this.value))) {
+                const productId = document.getElementById('custom-price-product-id').value;
+                const item = document.querySelector(`.qb-product-item[data-product-id="${productId}"]`);
+                if (item) {
+                    this.value = item.dataset.price;
+                }
+            }
+        });
+    }
+
+    const payModalAmountInput = document.getElementById('pay-modal-amount-input');
+    if (payModalAmountInput) {
+        payModalAmountInput.addEventListener('blur', function() {
+            if (this.value === '' || isNaN(parseFloat(this.value))) {
+                const totalDueText = document.getElementById('pay-modal-total-due-display').textContent.replace('₹', '');
+                const totalDue = parseFloat(totalDueText) || 0;
+                this.value = totalDue.toFixed(2);
+                if (typeof updatePaymentModalRemaining === 'function') updatePaymentModalRemaining();
+            }
+        });
+    }
+
+    const storePayAmountInput = document.getElementById('store-pay-amount-input');
+    if (storePayAmountInput) {
+        storePayAmountInput.addEventListener('blur', function() {
+            if (this.value === '' || isNaN(parseFloat(this.value))) {
+                const totalDueText = document.getElementById('store-pay-total-due-display').textContent.replace('₹', '');
+                const totalDue = parseFloat(totalDueText) || 0;
+                this.value = totalDue.toFixed(2);
+                if (typeof updateStorePaymentRemaining === 'function') updateStorePaymentRemaining();
             }
         });
     }
@@ -2055,6 +2103,17 @@ function collectDraftData() {
         items['_edit_order_id'] = parseInt(editIdInput.value);
     }
 
+    const customPrices = {};
+    document.querySelectorAll('[id^="qb-custom-price-"]').forEach(inp => {
+        if (!inp.disabled) {
+            const pid = inp.id.replace('qb-custom-price-', '');
+            customPrices[pid] = parseFloat(inp.value);
+        }
+    });
+    if (Object.keys(customPrices).length > 0) {
+        items['_custom_prices'] = customPrices;
+    }
+
     const storeInput = document.getElementById('qb-store-name');
     const oldBalInput = document.getElementById('qb-old-balance');
     return {
@@ -2187,7 +2246,7 @@ function continueDraftBill() {
 
             // Restore items
             Object.entries(items).forEach(([pid, qty]) => {
-                if (pid === '_edit_order_id') return;
+                if (pid === '_edit_order_id' || pid === '_custom_prices') return;
                 qty = parseInt(qty) || 0;
                 if (qty <= 0) return;
                 const inp = document.getElementById('qb-qty-' + pid);
@@ -2202,6 +2261,28 @@ function continueDraftBill() {
                 if (!qbCartOrder.includes(pid.toString())) {
                     qbCartOrder.push(pid.toString());
                 }
+            });
+
+            // Restore custom prices
+            const customPrices = items['_custom_prices'] || {};
+            Object.entries(customPrices).forEach(([pid, price]) => {
+                const item = document.querySelector(`.qb-product-item[data-product-id="${pid}"]`);
+                if (item) {
+                    item.dataset.price = price;
+                }
+                const display = document.getElementById('qb-price-display-' + pid);
+                if (display) display.textContent = '₹' + parseFloat(price).toFixed(0);
+                
+                let hiddenInput = document.getElementById('qb-custom-price-' + pid);
+                if (!hiddenInput) {
+                    hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.id = 'qb-custom-price-' + pid;
+                    hiddenInput.name = 'price_' + pid;
+                    document.getElementById('quickBillForm').appendChild(hiddenInput);
+                }
+                hiddenInput.value = price;
+                hiddenInput.disabled = false;
             });
             // Restore store name
             const storeInp = document.getElementById('qb-store-name');
@@ -2220,35 +2301,7 @@ function continueDraftBill() {
 // ── Quick Bill Logic ──────────────────────────────────────────────────────────
 let qbCartOrder = [];
 function openQuickBillModal() {
-    document.getElementById('quickBillForm').reset();
-    document.querySelectorAll('.qb-qty').forEach(input => {
-        input.value = '0';
-    });
-    // Reset old balance
-    const oldBalInput = document.getElementById('qb-old-balance');
-    if (oldBalInput) {
-        oldBalInput.value = '0';
-        oldBalInput.readOnly = false;
-        oldBalInput.dataset.wasReadonly = 'false';
-        oldBalInput.style.backgroundColor = '';
-        const oldBalSpan = oldBalInput.previousElementSibling;
-        if (oldBalSpan && oldBalSpan.classList.contains('input-group-text')) {
-            oldBalSpan.style.backgroundColor = '';
-        }
-    }
-    const oldBalRow = document.getElementById('qb-old-balance-row');
-    if (oldBalRow) oldBalRow.style.setProperty('display', 'none', 'important');
-
-    // Show all ADD buttons and hide all stepper controls
-    document.querySelectorAll('.qb-add-btn').forEach(btn => btn.classList.remove('d-none'));
-    document.querySelectorAll('.qb-qty-controls').forEach(ctrl => {
-        ctrl.classList.add('d-none');
-        ctrl.style.display = 'none';
-    });
-    
-    // Reset view visibility - do NOT push or pop history yet, just show menu view
-    showQBMenuView(false);
-    updateQBCartTotals();
+    clearQuickBillState();
 
     const modalEl = document.getElementById('quickBillModal');
     modalEl.classList.remove('d-none');

@@ -347,6 +347,18 @@ def quick_bill_create(request):
                         price_at_time=price
                     )
                 
+                # If old_balance > 0, all previous unpaid orders for this store
+                # are now settled — their balance is carried into this edited bill.
+                if old_balance > 0 and store_name != '-':
+                    prior_unpaid = Order.objects.filter(
+                        store_name__iexact=store_name,
+                        payment_status='unpaid'
+                    ).exclude(status='cancelled').exclude(id=order.id)
+                    prior_unpaid.update(
+                        payment_status='paid',
+                        remaining_balance=Decimal('0.00')
+                    )
+                
                 msg = f"✓ Order #{order.id} updated successfully!"
                 target_tab = None
                 

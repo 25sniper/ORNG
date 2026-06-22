@@ -306,6 +306,13 @@ def delivery_edit_order_to_draft(request, order_id):
             # 2. Extract items and populate DraftBill
             items_dict = {str(item.product_id): item.quantity for item in order.items.all()}
             items_dict['_edit_order_id'] = order.id
+            
+            custom_prices = {}
+            for item in order.items.all():
+                custom_prices[str(item.product_id)] = float(item.price_at_time)
+            if custom_prices:
+                items_dict['_custom_prices'] = custom_prices
+                
             DraftBill.objects.update_or_create(
                 delivery_user=request.user,
                 defaults={
