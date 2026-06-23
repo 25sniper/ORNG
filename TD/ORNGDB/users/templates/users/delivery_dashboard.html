@@ -1,0 +1,4092 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+  #deliveryTabs .nav-link {
+      font-size: 0.85rem !important;
+      border: none !important;
+      background-color: transparent !important;
+      color: #6c757d !important;
+      transition: all 0.2s ease;
+  }
+
+  #deliveryTabs .nav-link.active {
+      background-color: #ff6600 !important;
+      color: #ffffff !important;
+  }
+
+  #deliveryTabs .nav-link .badge {
+      font-size: 0.75rem !important;
+      transition: all 0.2s ease;
+  }
+
+  /* Active tab badge: white background, dark text, border */
+  #deliveryTabs .nav-link.active .badge {
+      background-color: #ffffff !important;
+      color: #212529 !important;
+      border: 1px solid #dee2e6 !important;
+  }
+
+  /* Inactive tab badge: secondary background, white text */
+  #deliveryTabs .nav-link:not(.active) .badge {
+      background-color: #6c757d !important;
+      color: #ffffff !important;
+      border: none !important;
+  }
+
+  /* Drag & Drop repositioning styles */
+  .qb-product-item.dragging {
+      opacity: 0.4;
+      background-color: #f8f9fa;
+      border: 1px dashed #ff6600 !important;
+  }
+  .qb-drag-handle {
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      margin-right: 4px;
+  }
+  .qb-drag-handle:active {
+      cursor: grabbing;
+  }
+
+  /* Quick Bill Modal Premium Responsive Styling */
+  #quickBillModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 3000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: background-color 0.2s ease;
+  }
+
+  #quickBillForm {
+      display: flex;
+      flex-direction: column;
+      margin: 0 !important;
+      background: #ffffff;
+      width: 100%;
+      overflow: hidden;
+  }
+
+  /* Mobile view: full screen */
+  @media (max-width: 575.98px) {
+      #quickBillModal {
+          background-color: #ffffff;
+      }
+      #quickBillForm {
+          height: 100%;
+          max-width: 100%;
+          border-radius: 0;
+          box-shadow: none;
+      }
+  }
+
+  /* Desktop/Tablet view: popup modal card */
+  @media (min-width: 576px) {
+      #quickBillModal {
+          background-color: rgba(0, 0, 0, 0.45); /* Elegant backdrop overlay */
+          padding: 24px;
+      }
+      #quickBillForm {
+          max-width: 500px;
+          height: 90vh; /* modal-like max height */
+          max-height: 800px;
+          border-radius: 20px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05);
+          border: 1px solid rgba(0, 0, 0, 0.08);
+      }
+  }
+
+  /* Inner views styling */
+  #qb-menu-view, #qb-cart-view {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+  }
+
+  /* Header container */
+  .qb-header {
+      flex-shrink: 0;
+      background-color: #ffffff;
+      border-bottom: 1px solid #eef1f6;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+  }
+
+  /* Search bar container */
+  .qb-search-container {
+      flex-shrink: 0;
+      padding: 16px 24px 12px 24px;
+      background-color: #ffffff;
+  }
+
+  /* Content area for scrollable elements */
+  .qb-content-scroll {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 0 24px 24px 24px;
+      -webkit-overflow-scrolling: touch;
+  }
+
+  /* Product list uses flex so CSS order property works for ranked search */
+  #qb-product-list {
+      display: flex;
+      flex-direction: column;
+  }
+
+  /* Stores list uses flex so CSS order property works for ranked search */
+  #stores-list-container {
+      display: flex;
+      flex-direction: column;
+  }
+
+  /* Footer container */
+  .qb-footer {
+      flex-shrink: 0;
+      border-top: 1px solid #eef1f6;
+      padding: 16px 24px 24px 24px;
+      background-color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+  }
+
+  /* Custom product item design */
+  .qb-product-item {
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      border-radius: 12px !important;
+      margin-bottom: 10px;
+      border: 1px solid #f1f3f5 !important;
+      padding: 12px 16px !important;
+  }
+
+  .qb-product-item:hover {
+      background-color: #f8f9fa;
+  }
+
+  .qb-product-item:active {
+      transform: scale(0.99);
+  }
+
+  /* Custom scrollbar styling for premium look */
+  .qb-content-scroll::-webkit-scrollbar {
+      width: 6px;
+  }
+  .qb-content-scroll::-webkit-scrollbar-track {
+      background: transparent;
+  }
+  .qb-content-scroll::-webkit-scrollbar-thumb {
+      background-color: rgba(0,0,0,0.1);
+      border-radius: 10px;
+  }
+
+  /* Stores Modal Styling */
+  #storesModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 3000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: background-color 0.2s ease;
+  }
+
+  #storesModalContent {
+      display: flex;
+      flex-direction: column;
+      margin: 0 !important;
+      background: #ffffff;
+      width: 100%;
+      overflow: hidden;
+  }
+
+  /* Mobile view: full screen */
+  @media (max-width: 575.98px) {
+      #storesModal {
+          background-color: #ffffff;
+      }
+      #storesModalContent {
+          height: 100%;
+          max-width: 100%;
+          border-radius: 0;
+          box-shadow: none;
+      }
+  }
+
+  /* Desktop/Tablet view: popup modal card */
+  @media (min-width: 576px) {
+      #storesModal {
+          background-color: rgba(0, 0, 0, 0.45); /* Elegant backdrop overlay */
+          padding: 24px;
+      }
+      #storesModalContent {
+          max-width: 500px;
+          height: 90vh; /* modal-like max height */
+          max-height: 800px;
+          border-radius: 20px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05);
+          border: 1px solid rgba(0, 0, 0, 0.08);
+      }
+  }
+
+  /* Mobile compact overrides for Quick Bill to fit everything on one screen */
+  @media (max-width: 575.98px) {
+      #quickBillModal .qb-header {
+          padding: 12px 16px !important;
+      }
+      #quickBillModal .qb-search-container {
+          padding: 12px 16px 8px 16px !important;
+      }
+      #quickBillModal .qb-content-scroll {
+          padding: 0 16px 12px 16px !important;
+      }
+      #quickBillModal .qb-footer {
+          padding: 12px 16px 16px 16px !important;
+      }
+      
+      /* Compact form elements in the cart view */
+      #qb-cart-view .mb-2 {
+          margin-bottom: 0.5rem !important;
+      }
+      #qb-cart-view label.form-label {
+          margin-bottom: 0.25rem !important;
+          font-size: 0.75rem !important;
+      }
+      #qb-cart-view .input-group-text, #qb-cart-view .form-control {
+          padding-top: 0.375rem !important;
+          padding-bottom: 0.375rem !important;
+          font-size: 0.875rem !important;
+      }
+      /* Compact totals display in footer */
+      #qb-cart-view .qb-footer .border {
+          padding: 0.375rem 0.75rem !important;
+          margin-bottom: 0.5rem !important;
+      }
+      #qb-cart-view .qb-footer .py-1 {
+          padding-top: 0.15rem !important;
+          padding-bottom: 0.15rem !important;
+      }
+      #qb-cart-view #submitQuickBillBtn {
+          padding-top: 0.5rem !important;
+          padding-bottom: 0.5rem !important;
+          font-size: 0.95rem !important;
+      }
+  }
+
+  /* Floating back button — right middle of screen */
+  .qb-float-back {
+      position: fixed;
+      right: 16px;
+      top: calc(50% - 22px);
+      z-index: 4000;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255,102,0,0.92);
+      color: #fff;
+      border: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      cursor: grab;
+      transition: background 0.15s, transform 0.15s, opacity 0.2s;
+      opacity: 0;
+      pointer-events: none;
+  }
+  .qb-float-back.visible {
+      opacity: 1;
+      pointer-events: auto;
+  }
+  .qb-float-back:active {
+      transform: scale(0.9);
+  }
+  .qb-float-back.dragging {
+      cursor: grabbing;
+      transform: scale(1.05);
+      transition: opacity 0.2s; /* disable position/transform transitions while dragging */
+  }
+
+  /* Continue Bill popup */
+  .continue-bill-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 4000;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+  }
+  .continue-bill-sheet {
+      background: #fff;
+      border-radius: 24px 24px 0 0;
+      padding: 28px 24px 32px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 -4px 32px rgba(0,0,0,0.14);
+      animation: slideUp 0.22s ease;
+  }
+  @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+  }
+
+  /* Premium Interactive Zoom & Scale Effects */
+  .btn, .badge {
+      transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  .btn:hover:not(:disabled), .badge:hover {
+      transform: scale(1.04);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+  }
+  .btn:active:not(:disabled), .badge:active {
+      transform: scale(0.96) !important;
+  }
+
+  .stores-item-card, .tab-pane .card {
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  .stores-item-card:hover, .tab-pane .card:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08) !important;
+  }
+  .stores-item-card:active, .tab-pane .card:active {
+      transform: translateY(0) scale(0.98);
+  }
+
+  .qb-product-item {
+      transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  .qb-product-item:hover {
+      transform: translateY(-1px) scale(1.015);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.04) !important;
+      background-color: #fcfdfe !important;
+  }
+  .qb-product-item:active {
+      transform: translateY(0) scale(0.99) !important;
+  }
+
+  #deliveryTabs .nav-link {
+      transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  #deliveryTabs .nav-link:hover {
+      transform: scale(1.03);
+  }
+  #deliveryTabs .nav-link:active {
+      transform: scale(0.97);
+  }
+
+  #qb-main-btn, .qb-float-back:not(.dragging) {
+      transition: background 0.15s, opacity 0.2s, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  #qb-main-btn:hover, .qb-float-back:hover:not(.dragging) {
+      transform: scale(1.08) !important;
+      box-shadow: 0 8px 24px rgba(255, 102, 0, 0.3) !important;
+  }
+  #qb-main-btn:active, .qb-float-back:active:not(.dragging) {
+      transform: scale(0.92) !important;
+  }
+
+  .form-control, .form-select {
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  .form-control:focus, .form-select:focus {
+      transform: scale(1.015);
+      box-shadow: 0 0 0 0.25rem rgba(255, 102, 0, 0.18) !important;
+  }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-2 mt-2 px-1">
+  <h5 class="fw-bold mb-0 text-dark" style="font-family: 'Outfit', sans-serif;">Dashboard</h5>
+  <!-- Hidden legacy button to support back-compatibility with script selectors -->
+  <button id="qb-main-btn" style="display: none;" onclick="handleQuickBillBtnClick()"></button>
+</div>
+
+<ul class="nav nav-pills mb-4 border-0 mt-2 flex-nowrap w-100 justify-content-between d-none" id="deliveryTabs" role="tablist" style="background-color: #f1f5f9; padding: 4px; border-radius: 50px;">
+  <li class="nav-item flex-grow-1" role="presentation">
+    <button class="nav-link rounded-pill fw-bold py-2 px-1 w-100 text-center" id="packing-tab" data-bs-toggle="pill" data-bs-target="#packing" type="button" role="tab">
+      Packing <span class="badge rounded-pill ms-1" id="packing-count">{{ packing_orders|length }}</span>
+    </button>
+  </li>
+  <li class="nav-item flex-grow-1" role="presentation">
+    <button class="nav-link rounded-pill fw-bold py-2 px-1 w-100 text-center" id="delivery-tab" data-bs-toggle="pill" data-bs-target="#delivery" type="button" role="tab">
+      Delivery <span class="badge rounded-pill ms-1" id="delivery-count">{{ delivery_orders|length }}</span>
+    </button>
+  </li>
+  <li class="nav-item flex-grow-1" role="presentation">
+    <button class="nav-link active rounded-pill fw-bold py-2 px-1 w-100 text-center" id="completed-tab" data-bs-toggle="pill" data-bs-target="#completed" type="button" role="tab">
+      Completed <span class="badge rounded-pill ms-1" id="completed-count">{{ completed_orders|length }}</span>
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content" id="deliveryTabsContent">
+
+  <!-- PACKING TAB -->
+  <div class="tab-pane fade" id="packing" role="tabpanel">
+      {% if not packing_orders %}
+          <div class="alert alert-light border-0 shadow-sm rounded-4 py-5 text-center text-muted mt-2" id="packing-empty">
+              <h5 class="mb-0">No orders to pack.</h5>
+          </div>
+      {% else %}
+          <div class="row row-cols-1 g-3" id="packing-list">
+              {% for order in packing_orders %}
+              <div class="col position-relative overflow-hidden" id="packing-card-{{ order.id }}"
+                   data-order-id="{{ order.id }}"
+                   data-created="{{ order.created_at|date:'M d, Y • h:i A' }}"
+                   data-store="{{ order.display_store_name }}"
+                   data-customer="{{ order.customer.name|default:'Guest' }}"
+                   data-phone="{% if order.customer %}{{ order.customer.phone }}{% endif %}"
+                   data-location="{% if order.customer %}{{ order.customer.location }}{% endif %}"
+                   data-maps="{% if order.customer %}{{ order.customer.google_maps_url }}{% endif %}"
+                   data-total="{{ order.total_amount|floatformat:0 }}"
+                   data-deliver-url="{% url 'deliver_order' order.id %}"
+                   data-share-url="{% url 'share_order_bill' order.id %}">
+                  
+                  {% if order.status != 'cancelled' %}
+                  <div class="d-flex align-items-center justify-content-end position-absolute top-0 end-0 h-100 swipe-actions-container" style="width: 160px; z-index: 0;">
+                      <div class="d-flex h-100 align-items-center justify-content-center text-primary fw-bold text-center edit-btn" style="width: 80px; cursor: pointer; border-right: 1px solid #f0f0f0; background-color: #f5f9ff;" onclick="editOrderToDraft(event, {{ order.id }})">
+                          <div>
+                              <i class="bi bi-pencil-square fs-3 d-block mb-1 text-primary"></i>
+                              <span style="font-size: 0.75rem; color: #0d6efd;">Edit</span>
+                          </div>
+                      </div>
+                      <div class="d-flex h-100 align-items-center justify-content-center text-danger fw-bold text-center cancel-btn" style="width: 80px; cursor: pointer; background-color: #fff5f5;" onclick="cancelOrder(event, {{ order.id }})">
+                          <div>
+                              <i class="bi bi-x-circle fs-3 d-block mb-1 text-danger"></i>
+                              <span style="font-size: 0.75rem; color: #dc3545;">Cancel</span>
+                          </div>
+                      </div>
+                  </div>
+                  {% endif %}
+                  
+                  <div class="card border-0 shadow-sm rounded-4 border-start border-4 {% if order.status == 'cancelled' %}border-secondary{% else %}border-warning{% endif %} {% if order.id in latest_order_ids and order.status != 'cancelled' %}swipeable-card{% endif %} bg-white" style="position: relative; z-index: 1; transition: transform 0.2s ease-out; {% if order.status == 'cancelled' %}filter: grayscale(1) opacity(0.65);{% endif %}">
+                      <!-- Order Header -->
+                      <div class="card-header bg-white border-bottom-0 pt-3 pb-1 px-4 d-flex justify-content-between align-items-start">
+                          <div>
+                              <h6 class="fw-bold mb-0 text-dark" style="font-size: 1.05rem; font-family: 'Outfit', sans-serif;">Order #{{ order.id }}</h6>
+                              <small class="text-muted" style="font-size: 0.8rem;">{{ order.created_at|date:"M d, Y • h:i A" }}</small>
+                          </div>
+                          <div>
+                              {% if order.status == 'cancelled' %}
+                                  <span class="badge rounded-pill text-bg-danger px-2.5 py-1.5 border-0" style="font-size: 0.75rem;"><i class="bi bi-x-circle me-1"></i> Cancelled</span>
+                              {% else %}
+                                  <span class="badge rounded-pill text-bg-warning px-2.5 py-1.5 text-dark border-0" style="font-size: 0.75rem;"><i class="bi bi-box me-1"></i> To Pack</span>
+                              {% endif %}
+                          </div>
+                      </div>
+
+                      <!-- Order Body -->
+                      <div class="card-body px-4 pt-1 pb-3">
+                          <div class="mb-3">
+                              <h5 class="fw-bold text-dark mb-1">{{ order.display_store_name }}</h5>
+                          </div>
+
+                          {% if order.status == 'cancelled' %}
+                          <div class="p-3 bg-light border rounded-3 mb-0 text-center shadow-sm">
+                              <small class="text-muted d-block mb-2"><i class="bi bi-list-ul"></i> Items:</small>
+                              <ul class="list-unstyled mb-0 text-start">
+                                  {% for item in order.items.all %}
+                                  <li class="mb-1 text-dark small">
+                                      <span class="fw-bold me-1">{{ item.quantity }}x</span>{{ item.product.name }}
+                                  </li>
+                                  {% endfor %}
+                              </ul>
+                              <div class="alert alert-secondary py-2 px-3 rounded-3 mb-0 mt-3 text-center small fw-bold">
+                                  <i class="bi bi-info-circle me-1"></i> Order Cancelled
+                              </div>
+                          </div>
+                          {% else %}
+                              {% if order.items.count > 3 %}
+                              <div class="p-3 bg-light border rounded-3 mb-3 shadow-sm">
+                                  <small class="text-muted d-block mb-2"><i class="bi bi-list-ul"></i> Items to pack:</small>
+                                  <ul class="list-unstyled mb-2">
+                                      {% for item in order.items.all|slice:":3" %}
+                                      <li class="mb-1 text-dark small">
+                                          <span class="fw-bold me-1">{{ item.quantity }}x</span>{{ item.product.name }}
+                                      </li>
+                                      {% endfor %}
+                                  </ul>
+                                  <div class="text-center mt-2">
+                                      <span class="badge bg-secondary text-white rounded-pill px-2 py-1" style="font-size: 0.7rem;">+ {{ order.items.count|add:"-3" }} more items</span>
+                                  </div>
+                              </div>
+                              <a href="{% url 'delivery_pack_order' order.id %}" class="btn w-100 fw-bold text-white rounded-pill py-2 shadow-sm" style="background-color: #ff6600;">
+                                  <i class="bi bi-box-arrow-up-right me-1"></i> Pack Order
+                              </a>
+                              {% else %}
+                              <div class="p-3 bg-white border rounded-3 mb-3 shadow-sm">
+                                  <small class="text-muted d-block mb-2"><i class="bi bi-check-circle"></i> Check off items to pack:</small>
+                                  <ul class="list-unstyled mb-0">
+                                      {% for item in order.items.all %}
+                                      <li class="d-flex justify-content-between mb-2 align-items-center">
+                                          <div class="form-check">
+                                              <input class="form-check-input item-check-{{ order.id }}" type="checkbox" value="" id="check-{{ item.id }}" onchange="togglePackButton({{ order.id }})">
+                                              <label class="form-check-label text-dark" for="check-{{ item.id }}" id="label-{{ item.id }}">
+                                                  <span class="fw-bold me-2">{{ item.quantity }}x</span>{{ item.product.name }}
+                                              </label>
+                                          </div>
+                                      </li>
+                                      {% endfor %}
+                                  </ul>
+                              </div>
+                              <button type="button"
+                                  id="pack-btn-{{ order.id }}"
+                                  class="btn w-100 fw-bold text-white rounded-pill py-2 shadow-sm"
+                                  style="background-color: #ff6600;"
+                                  disabled
+                                  onclick="ajaxPackOrder({{ order.id }}, '{% url 'pack_order' order.id %}', '{{ csrf_token }}')">
+                                  <i class="bi bi-box-seam me-1"></i> Mark as Packed
+                              </button>
+                              {% endif %}
+                          {% endif %}
+                      </div>
+                  </div>
+              </div>
+              {% endfor %}
+          </div>
+      {% endif %}
+  </div>
+
+  <!-- DELIVERY TAB -->
+  <div class="tab-pane fade" id="delivery" role="tabpanel">
+      {% if not delivery_orders %}
+          <div class="alert alert-light border-0 shadow-sm rounded-4 py-5 text-center text-muted mt-2" id="delivery-empty">
+              <h5 class="mb-0">No orders to deliver.</h5>
+          </div>
+          <div class="row row-cols-1 g-3 d-none" id="delivery-list"></div>
+      {% else %}
+          <div class="alert alert-light border-0 shadow-sm rounded-4 py-5 text-center text-muted mt-2 d-none" id="delivery-empty">
+              <h5 class="mb-0">No orders to deliver.</h5>
+          </div>
+          <div class="row row-cols-1 g-3" id="delivery-list">
+              {% for order in delivery_orders %}
+              <div class="col position-relative overflow-hidden" id="delivery-card-{{ order.id }}">
+                  {% if order.status != 'cancelled' %}
+                  <div class="d-flex align-items-center justify-content-end position-absolute top-0 end-0 h-100 swipe-actions-container" style="width: 160px; z-index: 0;">
+                      <div class="d-flex h-100 align-items-center justify-content-center text-primary fw-bold text-center edit-btn" style="width: 80px; cursor: pointer; border-right: 1px solid #f0f0f0; background-color: #f5f9ff;" onclick="editOrderToDraft(event, {{ order.id }})">
+                          <div>
+                              <i class="bi bi-pencil-square fs-3 d-block mb-1 text-primary"></i>
+                              <span style="font-size: 0.75rem; color: #0d6efd;">Edit</span>
+                          </div>
+                      </div>
+                      <div class="d-flex h-100 align-items-center justify-content-center text-danger fw-bold text-center cancel-btn" style="width: 80px; cursor: pointer; background-color: #fff5f5;" onclick="cancelOrder(event, {{ order.id }})">
+                          <div>
+                              <i class="bi bi-x-circle fs-3 d-block mb-1 text-danger"></i>
+                              <span style="font-size: 0.75rem; color: #dc3545;">Cancel</span>
+                          </div>
+                      </div>
+                  </div>
+                  {% endif %}
+                  <div class="card border-0 shadow-sm rounded-4 border-start border-4 {% if order.status == 'cancelled' %}border-secondary{% elif order.status == 'packed' %}border-primary{% else %}border-success{% endif %} {% if order.id in latest_order_ids and order.status != 'cancelled' %}swipeable-card{% endif %} bg-white" style="position: relative; z-index: 1; transition: transform 0.2s ease-out; {% if order.status == 'cancelled' %}filter: grayscale(1) opacity(0.65);{% endif %}">
+                      <!-- Order Header -->
+                      <div class="card-header bg-white border-bottom-0 pt-3 pb-1 px-4 d-flex justify-content-between align-items-start">
+                          <div>
+                              <h6 class="fw-bold mb-0 text-dark" style="font-size: 1.05rem; font-family: 'Outfit', sans-serif;">Order #{{ order.id }}</h6>
+                              <small class="text-muted" style="font-size: 0.8rem;">{{ order.created_at|date:"M d, Y • h:i A" }}</small>
+                          </div>
+                          <div>
+                              {% if order.status == 'cancelled' %}
+                                  <span class="badge rounded-pill text-bg-danger px-2.5 py-1.5 border-0" style="font-size: 0.75rem;" id="status-badge-{{ order.id }}"><i class="bi bi-x-circle me-1"></i> Cancelled</span>
+                              {% elif order.status == 'packed' %}
+                                  <span class="badge rounded-pill text-bg-primary px-2.5 py-1.5 border-0" style="font-size: 0.75rem;" id="status-badge-{{ order.id }}"><i class="bi bi-truck me-1"></i> To Deliver</span>
+                              {% elif order.status == 'delivered' %}
+                                  <span class="badge rounded-pill text-bg-success px-2.5 py-1.5 border-0" style="font-size: 0.75rem;" id="status-badge-{{ order.id }}"><i class="bi bi-check-circle me-1"></i> Delivered</span>
+                              {% endif %}
+                          </div>
+                      </div>
+
+                      <!-- Order Body -->
+                      <div class="card-body px-4 pt-1 pb-3">
+                          <div class="mb-3">
+                              <div class="d-flex justify-content-between align-items-center mb-1">
+                                  <h5 class="fw-bold text-dark mb-0">{{ order.display_store_name }}</h5>
+                                  <button type="button"
+                                      class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill d-inline-flex align-items-center"
+                                      style="font-size: 0.78rem;"
+                                      {% if order.status == 'cancelled' %}disabled{% else %}onclick="openItemsModal({{ order.id }})"{% endif %}>
+                                      <i class="bi bi-eye me-1"></i> View Items
+                                  </button>
+                              </div>
+                              <div class="text-muted small mb-2">
+                                  <i class="bi bi-person"></i> {{ order.customer.name|default:'Guest' }} &bull;
+                                  <i class="bi bi-telephone"></i> {% if order.customer %}<a href="tel:{{ order.customer.phone }}" class="text-decoration-none">{{ order.customer.phone }}</a>{% else %}N/A{% endif %}
+                              </div>
+                              {% if order.status != 'delivered' and order.status != 'cancelled' and order.customer %}
+                              <div class="p-3 bg-light rounded-3 d-flex align-items-center mt-2">
+                                  <i class="bi bi-geo-alt-fill text-danger fs-5 me-2"></i>
+                                  <span class="text-dark small">{{ order.customer.location }}</span>
+                                  {% if order.customer.google_maps_url %}
+                                      <a href="{{ order.customer.google_maps_url }}" target="_blank" class="ms-auto btn btn-sm btn-outline-danger rounded-pill px-3 py-1" style="font-size: 0.75rem;"><i class="bi bi-map"></i> Navigate</a>
+                                  {% else %}
+                                      <a href="https://www.google.com/maps/search/?api=1&query={{ order.customer.location|urlencode }}" target="_blank" class="ms-auto btn btn-sm btn-outline-danger rounded-pill px-3 py-1" style="font-size: 0.75rem;"><i class="bi bi-map"></i> Navigate</a>
+                                  {% endif %}
+                              </div>
+                              {% endif %}
+                          </div>
+
+                          <!-- Action area -->
+                          <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-2 flex-nowrap" id="action-bar-{{ order.id }}">
+                              <span class="text-muted small text-nowrap me-2">
+                                  Total:
+                                  <span class="fw-bold text-dark fs-6">₹{{ order.total_amount|floatformat:0 }}</span>
+                              </span>
+                              <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                  {% if order.status == 'cancelled' %}
+                                  <span class="badge rounded-pill text-bg-danger px-3 py-1.5 fw-bold" style="font-size: 0.75rem;">
+                                      <i class="bi bi-x-circle me-1"></i> Cancelled
+                                  </span>
+                                  {% elif order.status == 'packed' %}
+                                  <button type="button"
+                                      class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center deliver-btn-{{ order.id }}"
+                                      style="background-color: #28a745; font-size: 0.8rem; border: none;"
+                                      onclick="ajaxDeliverOrder({{ order.id }}, '{% url 'deliver_order' order.id %}', '{{ csrf_token }}')">
+                                      <i class="bi bi-check2-circle me-1"></i> Mark Delivered
+                                  </button>
+                                  {% elif order.status == 'delivered' %}
+                                  <span class="badge rounded-pill px-3 fw-bold d-inline-flex align-items-center deliver-btn-{{ order.id }}" style="font-size: 0.75rem; color: #e65c00; background-color: #fff5eb; border: 1px solid #ffd1a4; padding-top: 0.4rem; padding-bottom: 0.4rem;">
+                                      <i class="bi bi-hourglass-split me-1"></i> Waiting
+                                  </span>
+                                  {% endif %}
+                              </div>
+                          </div>
+                      </div>
+
+                  </div>
+              </div>
+              {% endfor %}
+          </div>
+      {% endif %}
+  </div>
+
+  <!-- COMPLETED TAB -->
+  <div class="tab-pane fade show active" id="completed" role="tabpanel">
+      {% if not completed_orders %}
+          <div class="alert alert-light border-0 shadow-sm rounded-4 py-5 text-center text-muted mt-2">
+              <h5 class="mb-0">No orders found.</h5>
+          </div>
+      {% else %}
+          <div class="row row-cols-1 g-3">
+              {% for order in completed_orders %}
+              <div class="col position-relative overflow-hidden">
+                  {% if order.status != 'cancelled' %}
+                  <div class="d-flex align-items-center justify-content-end position-absolute top-0 end-0 h-100 swipe-actions-container" style="width: 160px; z-index: 0;">
+                      <div class="d-flex h-100 align-items-center justify-content-center text-primary fw-bold text-center edit-btn" style="width: 80px; cursor: pointer; border-right: 1px solid #f0f0f0; background-color: #f5f9ff;" onclick="editOrderToDraft(event, {{ order.id }})">
+                          <div>
+                              <i class="bi bi-pencil-square fs-3 d-block mb-1 text-primary"></i>
+                              <span style="font-size: 0.75rem; color: #0d6efd;">Edit</span>
+                          </div>
+                      </div>
+                      <div class="d-flex h-100 align-items-center justify-content-center text-danger fw-bold text-center cancel-btn" style="width: 80px; cursor: pointer; background-color: #fff5f5;" onclick="cancelOrder(event, {{ order.id }})">
+                          <div>
+                              <i class="bi bi-x-circle fs-3 d-block mb-1 text-danger"></i>
+                              <span style="font-size: 0.75rem; color: #dc3545;">Cancel</span>
+                          </div>
+                      </div>
+                  </div>
+                  {% endif %}
+                  <div class="card border-0 shadow-sm rounded-4 border-start border-4 {% if order.status == 'cancelled' %}border-danger{% else %}border-secondary{% endif %} {% if order.id in latest_order_ids and order.status != 'cancelled' %}swipeable-card{% endif %} bg-white" style="position: relative; z-index: 1; transition: transform 0.2s ease-out; {% if order.status == 'cancelled' %}filter: grayscale(1) opacity(0.65);{% endif %}">
+                      <div class="card-body px-4 py-3">
+                          <div class="d-flex justify-content-between align-items-center mb-2">
+                              <div>
+                                  <div class="d-flex align-items-center mb-1">
+                                      <h6 class="fw-bold mb-0 text-dark me-2" style="font-family: 'Outfit', sans-serif;">#{{ order.id }}</h6>
+                                      <span class="text-dark fw-medium">{{ order.display_store_name }}</span>
+                                  </div>
+                                  {% if order.status == 'cancelled' %}
+                                      <small class="text-danger fw-bold" style="font-size: 0.8rem;"><i class="bi bi-x-circle-fill me-1"></i> Cancelled</small>
+                                  {% else %}
+                                      <small class="text-success fw-bold" style="font-size: 0.8rem;"><i class="bi bi-check-circle-fill me-1"></i> {{ order.received_at|date:"M d, Y • h:i A" }}</small>
+                                  {% endif %}
+                              </div>
+                              <div class="text-end">
+                                  <span class="fw-bold text-dark fs-5">₹{{ order.grand_total|floatformat:0 }}</span>
+                                  {% if order.status == 'cancelled' %}
+                                      <div class="text-danger small fw-bold mt-1"><i class="bi bi-x-circle-fill"></i> Cancelled</div>
+                                  {% elif order.payment_status == 'paid' %}
+                                      <div class="text-success small fw-bold mt-1" id="card-balance-status-{{ order.id }}"><i class="bi bi-check-circle-fill"></i> Paid</div>
+                                  {% else %}
+                                      <div class="text-danger small fw-bold mt-1" id="card-balance-status-{{ order.id }}">
+                                          Balance: ₹{% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:0 }}{% else %}{{ order.grand_total|floatformat:0 }}{% endif %}
+                                      </div>
+                                  {% endif %}
+                              </div>
+                          </div>
+                          <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                              <button type="button" id="pay-btn-{{ order.id }}" class="btn btn-sm {% if order.status == 'cancelled' %}btn-secondary{% elif order.payment_status == 'paid' %}btn-success{% elif order.id not in latest_order_ids %}btn-secondary{% else %}btn-outline-success{% endif %} fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center" style="font-size: 0.75rem;" {% if order.status == 'cancelled' or order.payment_status == 'paid' or order.id not in latest_order_ids %}disabled{% else %}onclick="openOrderPaymentModal({{ order.id }}, {{ order.total_amount|floatformat:2 }}, {{ order.old_balance|floatformat:2 }}, {{ order.grand_total|floatformat:2 }}, {% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:2 }}{% else %}{{ order.grand_total|floatformat:2 }}{% endif %}, '{% url 'toggle_order_payment_status' order.id %}', '{{ csrf_token }}', '{{ order.display_store_name|escapejs }}')"{% endif %}>
+                                  <i class="bi bi-cash-coin me-1"></i> Payment
+                              </button>
+                                  <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center me-2" style="font-size: 0.75rem;" {% if order.status == 'cancelled' %}disabled{% else %}onclick="openItemsModal({{ order.id }})"{% endif %}>
+                                      <i class="bi bi-receipt me-1"></i> Bill
+                                  </button>
+                                  <button type="button" id="share-btn-{{ order.id }}"
+                                      class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center"
+                                      style="font-size: 0.75rem;"
+                                      {% if order.status == 'cancelled' %}disabled{% else %}onclick="shareOrderBill({{ order.id }}, '{% url 'share_order_bill' order.id %}')"{% endif %}>
+                                      <i class="bi bi-share me-1"></i> Share
+                                  </button>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+              {% endfor %}
+          </div>
+      {% endif %}
+  </div>
+
+  <!-- REMOVED STORES TAB -->
+
+</div>
+
+<!-- Floating back button (right-mid, visible inside QB screens) -->
+<button class="qb-float-back" id="qb-float-back-btn" onclick="handleFloatBack()" title="Back">
+    <i class="bi bi-arrow-left"></i>
+</button>
+
+<!-- Continue Bill Popup (bottom sheet) -->
+<div class="continue-bill-overlay d-none" id="continueBillOverlay">
+    <div class="continue-bill-sheet">
+        <h6 class="fw-bold mb-1 text-dark" style="font-family:'Outfit',sans-serif;font-size:1.05rem;">
+            <i class="bi bi-arrow-clockwise text-warning me-2"></i>You have an unfinished bill
+        </h6>
+        <p class="text-muted small mb-4">Would you like to continue your previous bill or start a new one?</p>
+        <div class="d-flex gap-3">
+            <button class="btn btn-light fw-bold rounded-pill flex-grow-1 border" onclick="startNewBill()">
+                <i class="bi bi-plus-circle me-1"></i> New Bill
+            </button>
+            <button class="btn text-white fw-bold rounded-pill flex-grow-1" style="background-color:#ff6600;" onclick="continueDraftBill()">
+                <i class="bi bi-arrow-clockwise me-1"></i> Continue
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Bill Full Screen Container -->
+<div id="quickBillModal" class="d-none">
+  <form id="quickBillForm" onsubmit="event.preventDefault();">
+      
+      <!-- Screen 1: Menu View -->
+      <div id="qb-menu-view" class="bg-white">
+          <div class="qb-header shadow-sm">
+              <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm me-3" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;" onclick="closeQuickBillModal()">
+                  <i class="bi bi-arrow-left fs-5"></i>
+              </button>
+              <h5 class="fw-bold text-dark mb-0" id="quickBillModalLabel" style="font-family: 'Outfit', sans-serif;">Quick Bill Menu</h5>
+          </div>
+          
+          <div class="qb-search-container">
+              <div class="position-relative">
+                  <input type="text" class="form-control rounded-3 py-2 border" id="qb-product-search" placeholder="🔍 Search products..." autocomplete="off" style="border-color: #dee2e6; box-shadow: none;">
+              </div>
+          </div>
+          
+          <div class="qb-content-scroll" id="qb-product-list">
+              {% for product in products %}
+              <div class="qb-product-item bg-white" data-product-id="{{ product.id }}" data-price="{{ product.price|floatformat:0 }}" data-original-price="{{ product.price|floatformat:0 }}" data-name="{{ product.name }}">
+                  <div class="row align-items-center flex-nowrap w-100 m-0">
+                      <div class="col-auto p-0">
+                          <div class="rounded-3 shadow-sm bg-light overflow-hidden d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                              {% if product.image %}
+                                  <img src="{{ product.image.url }}" alt="{{ product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                              {% else %}
+                                  <span style="font-size: 1.4rem;">{{ product.icon|default:"📦" }}</span>
+                              {% endif %}
+                          </div>
+                      </div>
+                      <div class="col ps-3 text-start">
+                          <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem; font-family: 'Outfit', sans-serif;">{{ product.name }}</h6>
+                          <span class="fw-bold text-success qb-price-display" id="qb-price-display-{{ product.id }}" style="font-size: 0.85rem; cursor: pointer; user-select: none;" onmousedown="startLongPress(event, {{ product.id }})" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchstart="startLongPress(event, {{ product.id }})" ontouchend="cancelLongPress()">₹{{ product.price|floatformat:0 }}</span>
+                      </div>
+                      <div class="col-auto p-0 qb-qty-container">
+                          <!-- ADD button initially -->
+                          <button type="button" class="btn btn-sm bg-white border border-success text-success fw-bold rounded-3 shadow-sm qb-add-btn" style="width: 90px; height: 32px; font-size: 0.85rem;" onclick="addQBProduct({{ product.id }})">
+                              ADD <i class="bi bi-plus text-success"></i>
+                          </button>
+                          <!-- Stepper control hidden initially -->
+                          <div class="bg-white border border-success rounded-3 shadow-sm px-1 py-0 qb-qty-controls d-none" style="width: 90px; height: 32px; align-items: center; justify-content: space-between;">
+                              <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5" style="line-height: 1;" onclick="changeQBProductQty({{ product.id }}, -1)"><i class="bi bi-dash"></i></button>
+                              <input type="number" id="qb-qty-{{ product.id }}" name="qty_{{ product.id }}" value="0" min="0" class="form-control form-control-sm text-center text-success border-0 p-0 fw-bold qb-qty qb-qty-input" style="width: 32px; background: transparent; box-shadow: none; font-size: 0.85rem;">
+                              <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5" style="line-height: 1;" onclick="changeQBProductQty({{ product.id }}, 1)"><i class="bi bi-plus"></i></button>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+              {% endfor %}
+          </div>
+          
+          <div class="qb-footer">
+              <button type="button" id="qb-view-cart-btn" class="btn text-white fw-bold px-5 rounded-pill shadow-sm w-100 d-none" style="background-color: #ff6600; padding-top: 0.75rem; padding-bottom: 0.75rem;" onclick="showQBCartView()">
+                  <i class="bi bi-cart3 me-1"></i> View Cart <span id="qb-cart-badge" class="badge bg-white text-dark rounded-pill ms-2">0</span>
+              </button>
+          </div>
+      </div>
+
+          <!-- Screen 2: Cart View -->
+      <div id="qb-cart-view" class="d-none bg-white">
+          <div class="qb-header shadow-sm">
+              <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm me-3" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;" onclick="history.back()">
+                  <i class="bi bi-arrow-left fs-5"></i>
+              </button>
+              <h5 class="fw-bold text-dark mb-0" style="font-family: 'Outfit', sans-serif;">Cart</h5>
+          </div>
+          
+          <div class="qb-content-scroll pt-2">
+
+              <!-- Store Name Selection Field — TOP of cart -->
+              <div class="mb-3 position-relative">
+                  <label class="form-label fw-bold text-dark mb-1">Store / Customer <span class="badge text-bg-danger ms-1" style="font-size: 0.65rem;">Required</span></label>
+                  <div class="input-group shadow-sm rounded-3">
+                      <span class="input-group-text bg-white border-end-0 text-primary px-3 rounded-start-3" style="border-color: #dee2e6;"><i class="bi bi-shop fs-5"></i></span>
+                      <input type="text" class="form-control border-start-0 ps-0 rounded-end-3 fw-medium text-dark" id="qb-store-name" name="store_name" placeholder="Search or enter store name..." autocomplete="off" required style="box-shadow: none; border-color: #dee2e6; font-size: 1rem; padding-top: 0.6rem; padding-bottom: 0.6rem;">
+                  </div>
+                  <div id="qb-store-suggestions" class="shadow-lg rounded-3 border-0 mt-1 bg-white" style="max-height: 220px; overflow-y: auto; display: none; z-index: 3500; position: absolute; left: 0; right: 0; border: 1px solid #e9ecef;">
+                      <!-- Suggestions will be populated dynamically -->
+                  </div>
+              </div>
+
+              <!-- Selected items summary list -->
+              <div class="mb-2">
+                  <label class="form-label small fw-bold text-muted mb-1">Selected Items</label>
+                  <div class="list-group list-group-flush border rounded-3" id="qb-cart-items-summary" style="max-height: 180px; overflow-y: auto;">
+                      <!-- Populated dynamically via JS -->
+                  </div>
+              </div>
+
+              <!-- Old Balance Field -->
+              <div class="mb-2">
+                  <label class="form-label small fw-bold text-muted">Old Balance <span class="text-muted">(Optional)</span></label>
+                  <div class="input-group">
+                      <span class="input-group-text bg-light border-0 fw-bold text-muted">₹</span>
+                      <input type="number" id="qb-old-balance" name="old_balance" class="form-control rounded-end-3 border-0 bg-light" value="0" min="0" step="0.01" placeholder="0" style="box-shadow: none;" oninput="updateQBCartTotals()">
+                  </div>
+              </div>
+
+          </div>
+          
+          <div class="qb-footer">
+              <!-- Totals breakdown -->
+              <div class="border rounded-3 bg-light px-3 py-2 mb-3 w-100 text-start">
+                  <div class="d-flex justify-content-between align-items-center py-1">
+                      <span class="text-muted small">Items Total</span>
+                      <span class="fw-bold text-dark" id="qb-cart-items-total-display">₹0</span>
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center py-1" id="qb-old-balance-row" style="display: none !important;">
+                      <span class="text-muted small">Old Balance</span>
+                      <span class="fw-bold text-warning" id="qb-cart-old-balance-display">₹0</span>
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
+                      <span class="fw-bold text-dark">New Balance</span>
+                      <span class="fw-bold fs-5 text-dark" id="qb-cart-grand-total-display">₹0</span>
+                  </div>
+              </div>
+              <button type="button" id="submitQuickBillBtn" class="btn text-white fw-bold rounded-pill shadow-sm w-100" style="background-color: #ff6600; padding-top: 0.7rem; padding-bottom: 0.7rem;" onclick="submitQuickBill('{% url 'quick_bill_create' %}', '{{ csrf_token }}')">
+                  Place Order
+              </button>
+          </div>
+      </div>
+  </form>
+</div>
+
+<!-- Stores Overlay/Modal Container -->
+<div id="storesModal" class="d-none">
+  <div id="storesModalContent" class="bg-white">
+      <div class="qb-header shadow-sm">
+          <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm me-3" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;" onclick="closeStoresModal()">
+              <i class="bi bi-arrow-left fs-5"></i>
+          </button>
+          <h5 class="fw-bold text-dark mb-0" style="font-family: 'Outfit', sans-serif;">Stores / Permanent Customers</h5>
+      </div>
+      
+      <div class="qb-search-container">
+          <div class="position-relative">
+              <input type="text" class="form-control rounded-3 py-2 border" id="stores-search-input" placeholder="🔍 Search stores..." autocomplete="off" style="border-color: #dee2e6; box-shadow: none;">
+          </div>
+      </div>
+      
+      <div class="qb-content-scroll pt-2" id="stores-list-container">
+          {% for store in stores_list %}
+              {% if store.is_registered %}
+              <div class="card border-0 shadow-sm rounded-4 border-start border-4 {% if store.balance > 0 %}border-warning{% else %}border-success{% endif %} mb-2 stores-item-card" data-store-name="{{ store.name }}" data-store-balance="{{ store.balance|floatformat:2 }}">
+                  <div class="card-body px-4 py-2.5 text-start">
+                      <div class="d-flex justify-content-between align-items-center">
+                          <div>
+                              <h6 class="fw-bold mb-0 text-dark store-name-click" style="font-family: 'Outfit', sans-serif; font-size: 0.95rem; cursor: pointer;">{{ store.name }}</h6>
+                              {% if store.phone %}
+                              <small class="text-muted" style="font-size: 0.8rem;"><i class="bi bi-telephone me-1"></i> <a href="tel:{{ store.phone }}" class="text-decoration-none text-muted">{{ store.phone }}</a></small>
+                              {% endif %}
+                          </div>
+                          <div class="text-end d-flex align-items-center gap-2">
+                              <span class="badge rounded-pill {% if store.balance > 0 %}text-bg-warning text-dark{% else %}text-bg-success{% endif %} fw-bold px-3 py-1.5 border-0 shadow-sm store-balance-click" style="font-size: 0.85rem; cursor: pointer;">
+                                  ₹{{ store.balance|floatformat:0 }}
+                              </span>
+                              {% if store.balance > 0 %}
+                              <button type="button" class="btn btn-sm btn-outline-success fw-bold px-2.5 rounded-pill shadow-sm" style="font-size: 0.75rem;" onclick="openStorePaymentModal('{{ store.name|escapejs }}', {{ store.balance|floatformat:2 }}, '{{ csrf_token }}')">
+                                  Pay
+                              </button>
+                              {% endif %}
+                          </div>
+                      </div>
+                  </div>
+              </div>
+              {% endif %}
+          {% endfor %}
+      </div>
+  </div>
+</div>
+
+<!-- Cancel Order Modal -->
+<div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-labelledby="cancelOrderModalLabel" aria-hidden="true" style="z-index: 3000;">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h6 class="modal-title fw-bold text-dark" id="cancelOrderModalLabel">Cancel Order</h6>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3 text-center">
+                <p class="text-muted mb-0" style="font-size: 0.95rem;">Are you sure you want to cancel this order?</p>
+                <input type="hidden" id="cancelOrderIdInput">
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex justify-content-between">
+                <button type="button" class="btn btn-light rounded-pill fw-bold shadow-sm" style="flex: 1; margin-right: 8px;" data-bs-dismiss="modal">No</button>
+                <button type="button" class="btn btn-danger rounded-pill fw-bold shadow-sm" style="flex: 1; margin-left: 8px;" onclick="confirmCancelOrder()">Yes, Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Order Modal -->
+<div class="modal fade" id="editOrderModal" tabindex="-1" aria-labelledby="editOrderModalLabel" aria-hidden="true" style="z-index: 3000;">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h6 class="modal-title fw-bold text-dark" id="editOrderModalLabel">Edit Order</h6>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3 text-center">
+                <p class="text-muted mb-0" style="font-size: 0.95rem;">Are you sure you want to edit this order?<br><small class="text-danger">This will revert its financial effects and load its details into the Quick Bill draft.</small></p>
+                <input type="hidden" id="editOrderIdInput">
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex justify-content-between">
+                <button type="button" class="btn btn-light rounded-pill fw-bold shadow-sm" style="flex: 1; margin-right: 8px;" data-bs-dismiss="modal">No</button>
+                <button type="button" class="btn btn-primary rounded-pill fw-bold shadow-sm" style="flex: 1; margin-left: 8px; background-color: #ff6600; border-color: #ff6600;" onclick="confirmEditOrder()">Yes, Edit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Price Modal -->
+<div class="modal fade" id="customPriceModal" tabindex="-1" aria-labelledby="customPriceModalLabel" aria-hidden="true" style="z-index: 3000;">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h6 class="modal-title fw-bold text-dark" id="customPriceModalLabel">Set Temporary Price</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <input type="hidden" id="custom-price-product-id">
+                <label class="form-label small fw-bold text-muted">New Price (₹)</label>
+                <input type="number" id="custom-price-input" class="form-control rounded-3" step="0.01" min="0">
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0">
+                <button type="button" class="btn w-100 fw-bold text-white rounded-pill shadow-sm" style="background-color: #ff6600;" onclick="saveCustomPrice()">Save Price</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Order Payment Modal -->
+<div class="modal fade" id="orderPaymentModal" tabindex="-1" aria-labelledby="orderPaymentModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h6 class="modal-title fw-bold text-dark" id="orderPaymentModalLabel">Bill Payment</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <input type="hidden" id="pay-modal-order-id">
+                <input type="hidden" id="pay-modal-url">
+                <input type="hidden" id="pay-modal-csrf">
+                
+                <div class="mb-3 text-start">
+                    <label class="form-label small fw-bold text-muted mb-1">Store Name:</label>
+                    <div class="fw-bold text-dark fs-5" id="pay-modal-store-name-display"></div>
+                </div>
+                
+                <div class="mb-2 text-start">
+                    <span class="text-muted small">Balance:</span>
+                    <span class="fw-bold text-dark ms-1 fs-5" id="pay-modal-total-due-display">₹0</span>
+                </div>
+                <div class="mb-3 text-start" id="pay-modal-options-container" style="display: none;">
+                    <label class="form-label small fw-bold text-muted mb-2">Payment Type</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="paymentOption" id="payOptCustom" value="custom" checked onchange="handlePaymentOptionChange()">
+                            <label class="form-check-label text-dark fw-medium" for="payOptCustom">Custom</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="paymentOption" id="payOptOldBalance" value="old_balance" onchange="handlePaymentOptionChange()">
+                            <label class="form-check-label text-dark fw-medium" for="payOptOldBalance">Old Balance</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3 text-start">
+                    <label class="form-label small fw-bold text-muted">Amount Paid (₹)</label>
+                    <input type="number" id="pay-modal-amount-input" class="form-control rounded-3" step="0.01" min="0" placeholder="0.00" oninput="updatePaymentModalRemaining(); if(document.getElementById('payOptCustom')) document.getElementById('payOptCustom').checked = true;" style="box-shadow: none;">
+                </div>
+                
+                <div class="bg-light rounded-3 p-2.5 text-center d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">Remaining:</span>
+                    <span class="fw-bold text-danger" id="pay-modal-remaining-display">₹0</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0">
+                <button type="button" class="btn w-100 fw-bold text-white rounded-pill shadow-sm" style="background-color: #28a745;" onclick="saveOrderPayment()">Save Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Store Payment Modal -->
+<div class="modal fade" id="storePaymentModal" tabindex="-1" aria-labelledby="storePaymentModalLabel" aria-hidden="true" style="z-index: 3000;">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h6 class="modal-title fw-bold text-dark" id="storePaymentModalLabel">Store Payment</h6>
+                <button type="button" class="btn-close" onclick="closeStorePaymentModal()" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <input type="hidden" id="store-pay-name">
+                <input type="hidden" id="store-pay-csrf">
+                
+                <div class="mb-2 text-start">
+                    <span class="text-muted small">Store Name:</span>
+                    <div class="fw-bold text-dark mt-1" id="store-pay-name-display" style="font-family: 'Outfit', sans-serif;">Store Name</div>
+                </div>
+                
+                <div class="mb-2 text-start">
+                    <span class="text-muted small">Balance:</span>
+                    <span class="fw-bold text-dark ms-1" id="store-pay-total-due-display">₹0</span>
+                </div>
+                
+                <div class="mb-3 text-start">
+                    <label class="form-label small fw-bold text-muted">Amount Paid (₹)</label>
+                    <input type="number" id="store-pay-amount-input" class="form-control rounded-3" step="0.01" min="0" placeholder="0.00" oninput="updateStorePaymentRemaining()" style="box-shadow: none;">
+                </div>
+                
+                <div class="bg-light rounded-3 p-2.5 text-center d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">Remaining:</span>
+                    <span class="fw-bold text-danger" id="store-pay-remaining-display">₹0</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0">
+                <button type="button" class="btn w-100 fw-bold text-white rounded-pill shadow-sm" style="background-color: #28a745;" onclick="saveStorePayment()">Save Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Store Orders Modal -->
+<div class="modal fade" id="storeOrdersModal" tabindex="-1" aria-labelledby="storeOrdersModalLabel" aria-hidden="true" style="z-index: 3000;">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4 position-relative">
+                <h5 class="modal-title fw-bold text-dark" id="storeOrdersModalLabel" style="font-family: 'Outfit', sans-serif;">All Orders</h5>
+                <button type="button" class="btn-close position-absolute end-0 top-0 mt-4 me-4" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <div class="fw-bold text-muted mb-3 fs-6" id="store-orders-modal-title" style="font-family: 'Outfit', sans-serif;">Store Name</div>
+                <div id="store-orders-loading" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <span class="ms-2 text-muted small">Loading orders...</span>
+                </div>
+                <div id="store-orders-list" class="d-none">
+                    <!-- Orders rendered here -->
+                </div>
+                <div id="store-orders-empty" class="alert alert-light border-0 shadow-sm rounded-4 py-4 text-center text-muted d-none">
+                    <h6 class="mb-0">No orders found for this store.</h6>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dynamic Receipt Modal -->
+<div class="modal fade" id="dynamicReceiptModal" tabindex="-1" aria-labelledby="dynamicReceiptModalLabel" aria-hidden="true" style="z-index: 3100;">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4 text-center d-block position-relative">
+                <button type="button" class="btn-close position-absolute end-0 top-0 mt-4 me-4" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="text-center mb-2">
+                    <i class="bi bi-receipt fs-1 text-secondary opacity-50"></i>
+                </div>
+                <h5 class="modal-title fw-bold mb-1" id="dynamicReceiptModalLabel" style="font-family: 'Outfit', sans-serif;">Invoice #<span id="dyn-receipt-id"></span></h5>
+                <p class="text-muted small mb-0" id="dyn-receipt-store-name"></p>
+                <p class="text-muted" id="dyn-receipt-date" style="font-size: 0.75rem;"></p>
+            </div>
+            <div class="modal-body px-4 pt-2 pb-2">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-sm mb-0">
+                        <thead class="border-bottom border-2">
+                            <tr>
+                                <th class="text-muted small fw-bold pb-2" style="width:24px;">#</th>
+                                <th class="text-muted small fw-bold pb-2">Item</th>
+                                <th class="text-muted small fw-bold text-center pb-2">Qty</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Unit</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dyn-receipt-items-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0 d-block">
+                <div class="bg-light rounded-4 p-3 mt-2 shadow-sm border border-secondary border-opacity-10">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Items Total:</span>
+                        <span class="text-dark fw-bold small" id="dyn-receipt-total-amount">₹0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2" id="dyn-receipt-old-balance-row">
+                        <span class="text-muted small">Old Balance:</span>
+                        <span class="text-warning fw-bold small" id="dyn-receipt-old-balance">₹0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 d-none" id="dyn-receipt-cash-row">
+                        <span class="text-muted small">Cash (Paid):</span>
+                        <span class="text-success fw-bold small" id="dyn-receipt-cash">-₹0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 d-none" id="dyn-receipt-due-row">
+                        <span class="text-muted small">New Balance:</span>
+                        <span class="text-danger fw-bold small" id="dyn-receipt-due">₹0</span>
+                    </div>
+                    <hr class="my-2 border-secondary opacity-25" id="dyn-receipt-divider-hr">
+                    <div class="d-flex justify-content-between align-items-center" id="dyn-receipt-grand-total-row">
+                        <span class="text-dark fw-bold">New Balance:</span>
+                        <span class="text-dark fw-bold fs-5" id="dyn-receipt-grand-total">₹0</span>
+                    </div>
+                </div>
+                <div class="text-center mt-3" id="dyn-receipt-payment-status-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Order Items Modals -->
+<div id="order-items-modals-container">
+{% for order in delivery_orders %}
+<div class="modal fade" id="itemsModal-{{ order.id }}" tabindex="-1" aria-labelledby="itemsModalLabel-{{ order.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4 text-center d-block position-relative">
+                <button type="button" class="btn-close position-absolute end-0 top-0 mt-4 me-4" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="text-center mb-2">
+                    <i class="bi bi-receipt fs-1 text-secondary opacity-50"></i>
+                </div>
+                <h5 class="modal-title fw-bold mb-1" id="itemsModalLabel-{{ order.id }}" style="font-family: 'Outfit', sans-serif;">Invoice #{{ order.id }}</h5>
+                <p class="text-muted small mb-0">{{ order.display_store_name }}</p>
+                <p class="text-muted" style="font-size: 0.75rem;">{{ order.created_at|date:"M d, Y • h:i A" }}</p>
+            </div>
+            <div class="modal-body px-4 pt-2 pb-2">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-sm mb-0">
+                        <thead class="border-bottom border-2">
+                            <tr>
+                                <th class="text-muted small fw-bold pb-2" style="width:24px;">#</th>
+                                <th class="text-muted small fw-bold pb-2">Item</th>
+                                <th class="text-muted small fw-bold text-center pb-2">Qty</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Unit</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in order.items.all %}
+                            <tr class="border-bottom">
+                                <td class="py-2 text-muted small">{{ forloop.counter }}</td>
+                                <td class="py-2 text-dark fw-medium">{{ item.product.name }}</td>
+                                <td class="py-2 text-dark text-center">{{ item.quantity }}</td>
+                                <td class="py-2 text-muted text-end" style="font-size:0.82rem;">₹{{ item.price_at_time|floatformat:0 }}</td>
+                                <td class="py-2 text-dark text-end fw-bold">₹{{ item.row_total|floatformat:0 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0 d-block">
+                <div class="bg-light rounded-4 p-3 mt-2 shadow-sm border border-secondary border-opacity-10">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Items Total:</span>
+                        <span class="text-dark fw-bold small">₹{{ order.total_amount|floatformat:0 }}</span>
+                    </div>
+                    {% if order.old_balance > 0 %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Old Balance:</span>
+                        <span class="text-warning fw-bold small">₹{{ order.old_balance|floatformat:0 }}</span>
+                    </div>
+                    {% endif %}
+                    {% if order.cash_paid > 0 and order.remaining_due > 0 %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Cash (Paid):</span>
+                        <span class="text-success fw-bold small">-₹{{ order.cash_paid|floatformat:0 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">New Balance:</span>
+                        <span class="text-danger fw-bold small">₹{{ order.remaining_due|floatformat:0 }}</span>
+                    </div>
+                    {% endif %}
+                    {% if order.old_balance > 0 %}
+                    <hr class="my-2 border-secondary opacity-25">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-dark fw-bold">New Balance:</span>
+                        <span class="text-dark fw-bold fs-5">₹{{ order.grand_total|floatformat:0 }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="text-center mt-3">
+                    {% if order.payment_status == 'paid' %}
+                    <span class="badge rounded-pill text-bg-success py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                        <i class="bi bi-check-circle-fill me-1"></i> Payment Received
+                    </span>
+                    {% else %}
+                    <span class="badge rounded-pill text-bg-danger py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                        <i class="bi bi-clock-history me-1"></i> Balance: ₹{{ order.remaining_due|floatformat:0 }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% for order in completed_orders %}
+<div class="modal fade" id="itemsModal-{{ order.id }}" tabindex="-1" aria-labelledby="itemsModalLabel-{{ order.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4 text-center d-block position-relative">
+                <button type="button" class="btn-close position-absolute end-0 top-0 mt-4 me-4" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="text-center mb-2">
+                    <i class="bi bi-receipt fs-1 text-secondary opacity-50"></i>
+                </div>
+                <h5 class="modal-title fw-bold mb-1" id="itemsModalLabel-{{ order.id }}" style="font-family: 'Outfit', sans-serif;">Invoice #{{ order.id }}</h5>
+                <p class="text-muted small mb-0">{{ order.display_store_name }}</p>
+                <p class="text-muted" style="font-size: 0.75rem;">{{ order.received_at|date:"M d, Y • h:i A" }}</p>
+            </div>
+            <div class="modal-body px-4 pt-2 pb-2">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-sm mb-0">
+                        <thead class="border-bottom border-2">
+                            <tr>
+                                <th class="text-muted small fw-bold pb-2" style="width:24px;">#</th>
+                                <th class="text-muted small fw-bold pb-2">Item</th>
+                                <th class="text-muted small fw-bold text-center pb-2">Qty</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Unit</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in order.items.all %}
+                            <tr class="border-bottom">
+                                <td class="py-2 text-muted small">{{ forloop.counter }}</td>
+                                <td class="py-2 text-dark fw-medium">{{ item.product.name }}</td>
+                                <td class="py-2 text-dark text-center">{{ item.quantity }}</td>
+                                <td class="py-2 text-muted text-end" style="font-size:0.82rem;">₹{{ item.price_at_time|floatformat:0 }}</td>
+                                <td class="py-2 text-dark text-end fw-bold">₹{{ item.row_total|floatformat:0 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0 d-block">
+                <div class="bg-light rounded-4 p-3 mt-2 shadow-sm border border-secondary border-opacity-10">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Items Total:</span>
+                        <span class="text-dark fw-bold small">₹{{ order.total_amount|floatformat:0 }}</span>
+                    </div>
+                    {% if order.old_balance > 0 %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Old Balance:</span>
+                        <span class="text-warning fw-bold small">₹{{ order.old_balance|floatformat:0 }}</span>
+                    </div>
+                    {% endif %}
+                    {% if order.cash_paid > 0 and order.remaining_due > 0 %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Cash (Paid):</span>
+                        <span class="text-success fw-bold small">-₹{{ order.cash_paid|floatformat:0 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">New Balance:</span>
+                        <span class="text-danger fw-bold small">₹{{ order.remaining_due|floatformat:0 }}</span>
+                    </div>
+                    {% endif %}
+                    {% if order.old_balance > 0 %}
+                    <hr class="my-2 border-secondary opacity-25">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-dark fw-bold">New Balance:</span>
+                        <span class="text-dark fw-bold fs-5">₹{{ order.grand_total|floatformat:0 }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="text-center mt-3">
+                    {% if order.payment_status == 'paid' %}
+                    <span class="badge rounded-pill text-bg-success py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                        <i class="bi bi-check-circle-fill me-1"></i> Payment Received
+                    </span>
+                    {% else %}
+                    <span class="badge rounded-pill text-bg-danger py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                        <i class="bi bi-clock-history me-1"></i> Balance: ₹{{ order.remaining_due|floatformat:0 }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+<!-- Toast notification -->
+<div class="position-fixed bottom-0 start-50 translate-middle-x mb-4" style="z-index: 9999; min-width: 260px;" id="toastWrapper">
+    <div id="actionToast" class="toast align-items-center border-0 rounded-pill shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" style="display:none;">
+        <div class="d-flex">
+            <div class="toast-body fw-bold px-4 py-2" id="toastMsg"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Utilities ────────────────────────────────────────────────────────────────
+function fetchWithTimeout(resource, options = {}) {
+    const { timeout = 10000 } = options;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    return fetch(resource, {
+        ...options,
+        signal: controller.signal
+    }).then(response => {
+        clearTimeout(id);
+        return response;
+    }).catch(error => {
+        clearTimeout(id);
+        throw error;
+    });
+}
+
+// ── Navigation Stack & Silent Reload ───────────────────────────────────────────
+window._modalNavStack = [];
+
+function updateFloatBackButton() {
+    const floatBtn = document.getElementById('qb-float-back-btn');
+    if (floatBtn) {
+        if (window._modalNavStack.length > 0) {
+            floatBtn.classList.add('visible');
+        } else {
+            floatBtn.classList.remove('visible');
+        }
+    }
+}
+
+function handleFloatBack() {
+    window.history.back();
+}
+
+document.addEventListener('show.bs.modal', function (event) {
+    const modalId = event.target.id;
+    if (modalId && !window._modalNavStack.includes(modalId)) {
+        window._modalNavStack.push(modalId);
+        window.history.pushState({ modalOpen: true, modalId: modalId }, '');
+        updateFloatBackButton();
+    }
+});
+
+document.addEventListener('hidden.bs.modal', function (event) {
+    const modalId = event.target.id;
+    if (modalId) {
+        const index = window._modalNavStack.indexOf(modalId);
+        if (index > -1) {
+            window._modalNavStack.splice(index, 1);
+            if (history.state && history.state.modalOpen && history.state.modalId === modalId) {
+                window._ignoreNextPopState = true;
+                window.history.back();
+            }
+        }
+        updateFloatBackButton();
+        
+        // Global nested modal scroll fix
+        if (document.querySelectorAll('.modal.show').length > 0) {
+            document.body.classList.add('modal-open');
+        }
+    }
+});
+
+// Removed first popstate listener to consolidate in one unified router
+
+function silentReloadDashboard() {
+    const activeTabLink = document.querySelector('#deliveryTabs .nav-link.active');
+    const activeTabId = activeTabLink ? activeTabLink.id : null;
+
+    fetchWithTimeout(window.location.href, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        const updateElement = (selector) => {
+            const el = document.querySelector(selector);
+            const newEl = doc.querySelector(selector);
+            if (el && newEl) {
+                el.innerHTML = newEl.innerHTML;
+            }
+        };
+        
+        updateElement('#deliveryTabsContent');
+        updateElement('#stores-list-container');
+        
+        // Dynamically update STORE_BALANCES cache from the new DOM elements
+        document.querySelectorAll('.stores-item-card').forEach(card => {
+            const name = card.dataset.storeName;
+            const balance = parseFloat(card.dataset.storeBalance);
+            if (name && !isNaN(balance)) {
+                STORE_BALANCES[name.toLowerCase().trim()] = balance;
+            }
+        });
+        updateElement('#packing-count');
+        updateElement('#delivery-count');
+        updateElement('#completed-count');
+        updateElement('#order-items-modals-container');
+
+        const serverActiveTabLink = doc.querySelector('#deliveryTabs .nav-link.active');
+        const serverActiveTabId = serverActiveTabLink ? serverActiveTabLink.id : 'packing-tab';
+        document.querySelectorAll('#deliveryTabs .nav-link').forEach(btn => {
+            if (btn.id === serverActiveTabId) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        if (activeTabId) {
+            const tabBtn = document.getElementById(activeTabId);
+            if (tabBtn) {
+                const bsTab = new bootstrap.Tab(tabBtn);
+                bsTab.show();
+            }
+        }
+    })
+    .catch(err => console.error("Silent reload failed:", err));
+}
+
+// ── Tab Persistence ───────────────────────────────────────────────────────────
+const TAB_KEY = 'deliveryActiveTab';
+let _skipDraftSaveOnce = false;
+const EXISTING_STORES = [
+    {% for store in existing_stores %}
+        "{{ store|escapejs }}",
+    {% endfor %}
+];
+
+const STORE_BALANCES = {
+    {% for s in stores_list %}
+        ["{{ s.name|escapejs }}".toLowerCase().trim()]: {{ s.balance|default:0 }},
+    {% endfor %}
+};
+
+function checkStoreBalance() {
+    const storeInput = document.getElementById('qb-store-name');
+    const oldBalInput = document.getElementById('qb-old-balance');
+    if (!storeInput || !oldBalInput) return;
+
+    const val = storeInput.value.toLowerCase().trim();
+    if (val in STORE_BALANCES) {
+        let bal = parseFloat(STORE_BALANCES[val]) || 0;
+        if (isEditingOrder && editingOrderStoreName && val === editingOrderStoreName.toLowerCase().trim()) {
+            bal = Math.max(0, bal - editingOrderUnpaidBalance) + editingOrderOldBalance;
+        }
+        
+        const oldBalSpan = oldBalInput.previousElementSibling;
+        if (bal > 0) {
+            oldBalInput.value = bal.toFixed(2);
+            oldBalInput.readOnly = true;
+            oldBalInput.dataset.wasReadonly = 'true';
+            oldBalInput.style.backgroundColor = '#e9ecef';
+            if (oldBalSpan && oldBalSpan.classList.contains('input-group-text')) {
+                oldBalSpan.style.backgroundColor = '#e9ecef';
+            }
+        } else {
+            if (oldBalInput.readOnly) {
+                oldBalInput.value = '0';
+            }
+            oldBalInput.readOnly = false;
+            oldBalInput.dataset.wasReadonly = 'false';
+            oldBalInput.style.backgroundColor = '';
+            if (oldBalSpan && oldBalSpan.classList.contains('input-group-text')) {
+                oldBalSpan.style.backgroundColor = '';
+            }
+        }
+    } else {
+        if (oldBalInput.readOnly) {
+            oldBalInput.value = '0';
+            oldBalInput.readOnly = false;
+            oldBalInput.dataset.wasReadonly = 'false';
+            oldBalInput.style.backgroundColor = '';
+        }
+    }
+    updateQBCartTotals();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTab = sessionStorage.getItem(TAB_KEY);
+    if (savedTab) {
+        const tabEl = document.querySelector(savedTab);
+        if (tabEl) new bootstrap.Tab(tabEl).show();
+    }
+
+    document.querySelectorAll('#deliveryTabs button[data-bs-toggle="pill"]').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', function(e) {
+            sessionStorage.setItem(TAB_KEY, '#' + e.target.id);
+        });
+    });
+
+    // Handle manual change on quick bill inputs
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.classList.contains('qb-qty-input')) {
+            let val = parseInt(e.target.value) || 0;
+            if (val < 0) val = 0;
+            e.target.value = val;
+            
+            const productId = e.target.id.split('-')[2];
+            
+            if (val <= 0) {
+                // Hide stepper, show ADD button
+                const container = e.target.closest('.qb-qty-container');
+                if (container) {
+                    const addBtn = container.querySelector('.qb-add-btn');
+                    const controls = container.querySelector('.qb-qty-controls');
+                    if (addBtn) addBtn.classList.remove('d-none');
+                    if (controls) {
+                        controls.classList.add('d-none');
+                        controls.style.display = 'none';
+                    }
+                }
+            } else {
+                // Show stepper, hide ADD button
+                const container = e.target.closest('.qb-qty-container');
+                if (container) {
+                    const addBtn = container.querySelector('.qb-add-btn');
+                    const controls = container.querySelector('.qb-qty-controls');
+                    if (addBtn) addBtn.classList.add('d-none');
+                    if (controls) {
+                        controls.classList.remove('d-none');
+                        controls.style.display = 'inline-flex';
+                    }
+                }
+            }
+            
+            updateQBCartTotals();
+            scheduleDraftSave();
+            if (document.getElementById('qb-cart-view').classList.contains('d-none') === false) {
+                renderQBCartSummaryList();
+            }
+        }
+    });
+
+    // Clear quantity selection field on focus/touchstart to allow typed quantity selection
+    document.addEventListener('focus', function(e) {
+        if (e.target && (e.target.classList.contains('qb-qty-input') || e.target.id === 'pay-modal-amount-input' || e.target.id === 'store-pay-amount-input' || e.target.id === 'custom-price-input')) {
+            e.target.value = '';
+            if (e.target.id === 'pay-modal-amount-input') {
+                if (typeof updatePaymentModalRemaining === 'function') updatePaymentModalRemaining();
+            } else if (e.target.id === 'store-pay-amount-input') {
+                if (typeof updateStorePaymentRemaining === 'function') updateStorePaymentRemaining();
+            }
+        }
+    }, true); // Capture phase required since focus does not bubble
+
+    document.addEventListener('touchstart', function(e) {
+        if (e.target && (e.target.classList.contains('qb-qty-input') || e.target.id === 'pay-modal-amount-input' || e.target.id === 'store-pay-amount-input' || e.target.id === 'custom-price-input')) {
+            e.target.value = '';
+            if (e.target.id === 'pay-modal-amount-input') {
+                if (typeof updatePaymentModalRemaining === 'function') updatePaymentModalRemaining();
+            } else if (e.target.id === 'store-pay-amount-input') {
+                if (typeof updateStorePaymentRemaining === 'function') updateStorePaymentRemaining();
+            }
+        }
+    });
+
+    // Autocomplete for store suggestions with 3-tier ranked search
+    const storeInput = document.getElementById('qb-store-name');
+    const suggestionsContainer = document.getElementById('qb-store-suggestions');
+
+    if (storeInput && suggestionsContainer) {
+        storeInput.addEventListener('input', function() {
+            const query = this.value.trim().toLowerCase();
+            checkStoreBalance();
+            if (query.length === 0) {
+                suggestionsContainer.style.display = 'none';
+                return;
+            }
+
+            // 3-tier ranked search
+            const tier1 = [], tier2 = [], tier3 = [];
+            EXISTING_STORES.forEach(store => {
+                const s = store.toLowerCase();
+                const words = s.split(/\s+/);
+                if (s.startsWith(query)) {
+                    tier1.push(store);
+                } else if (words.slice(1).some(w => w.startsWith(query))) {
+                    tier2.push(store);
+                } else if (s.includes(query)) {
+                    tier3.push(store);
+                }
+            });
+            const ranked = [...tier1, ...tier2, ...tier3];
+
+            if (ranked.length > 0) {
+                let html = '';
+                ranked.forEach(store => {
+                    html += `<a class="dropdown-item py-2" href="#" onclick="selectStoreSuggestion(event, this)">${store}</a>`;
+                });
+                suggestionsContainer.innerHTML = html;
+                suggestionsContainer.style.display = 'block';
+            } else {
+                suggestionsContainer.style.display = 'none';
+            }
+        });
+
+        // Clear logic for store name
+        storeInput.addEventListener('focus', function() {
+            this.select();
+            checkStoreBalance();
+            clearProductSearch();
+        });
+        storeInput.addEventListener('touchstart', function() {
+            this.value = '';
+            checkStoreBalance();
+            clearProductSearch();
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (e.target !== storeInput && e.target !== suggestionsContainer && !suggestionsContainer.contains(e.target)) {
+                suggestionsContainer.style.display = 'none';
+            }
+        });
+    }
+    
+    // Auto clear product search on list touch/scroll
+    const qbProductList = document.getElementById('qb-product-list');
+    if (qbProductList) {
+        // Removed auto-clear per user request
+    }
+
+    // Clear old balance input when focused/touched to allow easy typing
+    const oldBalanceInput = document.getElementById('qb-old-balance');
+    if (oldBalanceInput) {
+        oldBalanceInput.addEventListener('focus', function() {
+            if (parseFloat(this.value) === 0) this.value = '';
+        });
+        oldBalanceInput.addEventListener('touchstart', function() {
+            if (parseFloat(this.value) === 0) this.value = '';
+        });
+        oldBalanceInput.addEventListener('blur', function() {
+            if (this.value === '' || isNaN(parseFloat(this.value))) {
+                this.value = '0';
+                updateQBCartTotals();
+            }
+        });
+    }
+
+    // Restore previous values for custom price and payment inputs when left empty on blur
+    const customPriceInput = document.getElementById('custom-price-input');
+    if (customPriceInput) {
+        customPriceInput.addEventListener('blur', function() {
+            if (this.value === '' || isNaN(parseFloat(this.value))) {
+                const productId = document.getElementById('custom-price-product-id').value;
+                const item = document.querySelector(`.qb-product-item[data-product-id="${productId}"]`);
+                if (item) {
+                    this.value = item.dataset.price;
+                }
+            }
+        });
+    }
+
+    const payModalAmountInput = document.getElementById('pay-modal-amount-input');
+    if (payModalAmountInput) {
+        payModalAmountInput.addEventListener('blur', function() {
+            if (this.value === '' || isNaN(parseFloat(this.value))) {
+                const totalDueText = document.getElementById('pay-modal-total-due-display').textContent.replace('₹', '');
+                const totalDue = parseFloat(totalDueText) || 0;
+                this.value = totalDue.toFixed(2);
+                if (typeof updatePaymentModalRemaining === 'function') updatePaymentModalRemaining();
+            }
+        });
+    }
+
+    const storePayAmountInput = document.getElementById('store-pay-amount-input');
+    if (storePayAmountInput) {
+        storePayAmountInput.addEventListener('blur', function() {
+            if (this.value === '' || isNaN(parseFloat(this.value))) {
+                const totalDueText = document.getElementById('store-pay-total-due-display').textContent.replace('₹', '');
+                const totalDue = parseFloat(totalDueText) || 0;
+                this.value = totalDue.toFixed(2);
+                if (typeof updateStorePaymentRemaining === 'function') updateStorePaymentRemaining();
+            }
+        });
+    }
+
+
+    // ── History API: Back-button navigation for Quick Bill and Stores Modals ────────────
+    // ── Modal navigation stack ───────────────────────────────────────────────
+    // We use a single history entry per modal session.
+    // _modalNavStack tracks layers within that session (menu → cart).
+    // popstate always means: go back one layer, or close if at root.
+    window._modalNavStack = [];  // e.g. ['qb-menu'] | ['qb-menu','qb-cart'] | ['stores']
+
+    window.addEventListener('popstate', function(e) {
+        if (window._ignoreNextPopState) {
+            window._ignoreNextPopState = false;
+            return;
+        }
+
+        // If an input is focused, just blur it (hide keyboard) instead of closing the modal
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+            activeEl.blur();
+            // Restore the state that was just popped so the user stays on the current view
+            history.pushState({ modalOpen: true }, '');
+            return;
+        }
+
+        if (window._modalNavStack.length === 0) {
+            // Nothing open — ensure all custom modals are hidden
+            _hideAllModals();
+            return;
+        }
+
+        const top = window._modalNavStack.pop();
+
+        if (top === 'qb-cart') {
+            // Back from cart → go to menu
+            history.pushState({ modalOpen: true }, '');
+            document.getElementById('qb-cart-view').classList.add('d-none');
+            document.getElementById('qb-menu-view').classList.remove('d-none');
+        } else if (top === 'qb-menu') {
+            // Back from menu → close QB modal
+            if (typeof _skipDraftSaveOnce !== 'undefined' && _skipDraftSaveOnce) {
+                _skipDraftSaveOnce = false;
+            } else if (typeof saveDraftBill === 'function') {
+                saveDraftBill();
+            }
+            const qbModalEl = document.getElementById('quickBillModal');
+            if (qbModalEl) {
+                qbModalEl.classList.add('d-none');
+                qbModalEl.style.height = '';
+                delete qbModalEl.dataset.lockedHeight;
+            }
+            document.body.style.overflow = '';
+            if (typeof _onQBModalClose === 'function') _onQBModalClose();
+        } else if (top === 'continueBillOverlay') {
+            const overlay = document.getElementById('continueBillOverlay');
+            if (overlay) overlay.classList.add('d-none');
+            document.body.style.overflow = '';
+        } else if (top === 'storesModal') {
+            // Back from stores → close stores modal
+            const storesModalEl = document.getElementById('storesModal');
+            if (storesModalEl) {
+                storesModalEl.classList.add('d-none');
+                storesModalEl.style.height = '';
+                delete storesModalEl.dataset.lockedHeight;
+            }
+            document.body.style.overflow = '';
+        } else {
+            // It's a standard Bootstrap modal
+            const bsModalEl = document.getElementById(top);
+            if (bsModalEl && bsModalEl.classList.contains('modal')) {
+                const bsModal = bootstrap.Modal.getInstance(bsModalEl);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+            }
+        }
+        
+        if (typeof updateFloatBackButton === 'function') {
+            updateFloatBackButton();
+        }
+    });
+
+    function _hideAllModals() {
+        const qbModalEl = document.getElementById('quickBillModal');
+        const storesModalEl = document.getElementById('storesModal');
+        window._modalNavStack = [];
+        if (qbModalEl) {
+            qbModalEl.classList.add('d-none');
+            qbModalEl.style.height = '';
+            delete qbModalEl.dataset.lockedHeight;
+        }
+        if (storesModalEl) {
+            storesModalEl.classList.add('d-none');
+            storesModalEl.style.height = '';
+            delete storesModalEl.dataset.lockedHeight;
+        }
+        document.body.style.overflow = '';
+        if (typeof _onQBModalClose === 'function') _onQBModalClose();
+    }
+    window._hideAllModals = _hideAllModals;
+
+
+    // ── Stores Modal Search (3-tier ranked) ─────────────────────────────────
+    const storesSearchInput = document.getElementById('stores-search-input');
+    if (storesSearchInput) {
+        storesSearchInput.addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase().trim();
+            if (!term) {
+                document.querySelectorAll('.stores-item-card').forEach(card => { card.style.display = 'block'; card.style.order = ''; });
+                return;
+            }
+            const cards = Array.from(document.querySelectorAll('.stores-item-card'));
+            const tier1 = [], tier2 = [], tier3 = [], hidden = [];
+            cards.forEach(card => {
+                const name = card.getAttribute('data-store-name').toLowerCase().trim();
+                const words = name.split(/\s+/);
+                if (name.startsWith(term)) tier1.push(card);
+                else if (words.slice(1).some(w => w.startsWith(term))) tier2.push(card);
+                else if (name.includes(term)) tier3.push(card);
+                else hidden.push(card);
+            });
+            const ranked = [...tier1, ...tier2, ...tier3];
+            hidden.forEach(c => { c.style.display = 'none'; });
+            ranked.forEach((c, i) => { c.style.display = 'block'; c.style.order = i; });
+        });
+        
+        storesSearchInput.addEventListener('focus', function() {
+            this.value = '';
+            document.querySelectorAll('.stores-item-card').forEach(card => {
+                card.style.display = 'block'; card.style.order = '';
+            });
+        });
+        
+        storesSearchInput.addEventListener('touchstart', function() {
+            this.value = '';
+            document.querySelectorAll('.stores-item-card').forEach(card => {
+                card.style.display = 'block'; card.style.order = '';
+            });
+        });
+    }
+});
+
+// Track when an input was last blurred to prevent buttons from firing immediately after keyboard dismiss
+let _lastInputBlurTime = 0;
+document.addEventListener('focusout', function(e) {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+        _lastInputBlurTime = Date.now();
+    }
+}, { capture: true });
+
+function closeQuickBillModal() {
+    // If an input was just blurred (e.g., user tapped this button while keyboard was open),
+    // treat the tap as 'dismiss keyboard' and don't close the modal.
+    if (Date.now() - _lastInputBlurTime < 300) {
+        return;
+    }
+    // Also check active element just in case
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        activeEl.blur();
+        return;
+    }
+
+    // Save draft before closing
+    saveDraftBill();
+    _skipDraftSaveOnce = true;
+    // Always just go back one step — popstate handles the rest
+    history.back();
+}
+
+function openStoresModal() {
+    const modalEl = document.getElementById('storesModal');
+    if (!modalEl) return;
+    // If already open, don't push another state
+    if (!modalEl.classList.contains('d-none')) return;
+    modalEl.classList.remove('d-none');
+    document.body.style.overflow = 'hidden';
+    const isMobile = window.innerWidth < 575.98;
+    if (isMobile) {
+        const initialHeight = window.innerHeight;
+        modalEl.style.height = initialHeight + 'px';
+        modalEl.dataset.lockedHeight = initialHeight;
+    } else {
+        modalEl.style.height = '';
+        delete modalEl.dataset.lockedHeight;
+    }
+    
+    if (!window._modalNavStack.includes('storesModal')) {
+        window._modalNavStack.push('storesModal');
+        history.pushState({ modalOpen: true, modalId: 'storesModal' }, '');
+        updateFloatBackButton();
+    }
+}
+
+function closeStoresModal() {
+    if (window._modalNavStack.includes('storesModal')) {
+        history.back();
+    } else {
+        const modalEl = document.getElementById('storesModal');
+        if (modalEl) {
+            modalEl.classList.add('d-none');
+            document.body.style.overflow = '';
+        }
+    }
+}
+
+function selectStoreSuggestion(e, element) {
+    e.preventDefault();
+    const storeInput = document.getElementById('qb-store-name');
+    const suggestionsContainer = document.getElementById('qb-store-suggestions');
+    if (storeInput) {
+        storeInput.value = element.textContent;
+        checkStoreBalance();
+    }
+    if (suggestionsContainer) {
+        suggestionsContainer.style.display = 'none';
+    }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, isSuccess) {
+    const toast = document.getElementById('actionToast');
+    const toastMsg = document.getElementById('toastMsg');
+    toastMsg.textContent = msg;
+    toast.className = 'toast align-items-center border-0 rounded-pill shadow-lg show ' + (isSuccess ? 'text-bg-success' : 'text-bg-danger');
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 2800);
+}
+
+// ── Build a delivery card from packing card data attributes ───────────────────
+function buildDeliveryCard(d, csrf) {
+    const mapsHref = d.maps && d.maps.trim() !== ''
+        ? d.maps
+        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.location)}`;
+
+    const locationBlock = (d.location && d.location.trim() !== '') ? `
+        <div class="p-3 bg-light rounded-3 d-flex align-items-center mt-2">
+            <i class="bi bi-geo-alt-fill text-danger fs-5 me-2"></i>
+            <span class="text-dark small">${d.location}</span>
+            <a href="${mapsHref}" target="_blank" class="ms-auto btn btn-sm btn-outline-danger rounded-pill px-3 py-1" style="font-size:0.75rem;"><i class="bi bi-map"></i> Navigate</a>
+        </div>` : '';
+
+    return `
+    <div class="col" id="delivery-card-${d.id}" style="opacity:0;transition:opacity 0.35s;">
+        <div class="card border-0 shadow-sm rounded-4 border-start border-4 border-primary">
+            <div class="card-header bg-white border-bottom-0 pt-3 pb-1 px-4 d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="fw-bold mb-0 text-dark" style="font-size:1.05rem;font-family:'Outfit',sans-serif;">Order #${d.id}</h6>
+                    <small class="text-muted" style="font-size:0.8rem;">${d.created}</small>
+                </div>
+                <div>
+                    <span class="badge rounded-pill text-bg-primary px-2.5 py-1.5 border-0" style="font-size:0.75rem;" id="status-badge-${d.id}">
+                        <i class="bi bi-truck me-1"></i> To Deliver
+                    </span>
+                </div>
+            </div>
+            <div class="card-body px-4 pt-1 pb-3">
+                <div class="mb-3">
+                    <h5 class="fw-bold text-dark mb-1">${d.store}</h5>
+                    <div class="text-muted small mb-2">
+                        <i class="bi bi-person"></i> ${d.customer} &bull;
+                        <i class="bi bi-telephone"></i> <a href="${d.phone ? 'tel:' + d.phone : '#'}" class="text-decoration-none">${d.phone || 'N/A'}</a>
+                    </div>
+                    ${locationBlock}
+                </div>
+                <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-2 flex-nowrap" id="action-bar-${d.id}">
+                    <span class="text-muted small text-nowrap me-2">Total:
+                        <span class="fw-bold text-dark fs-6">₹${d.total}</span>
+                    </span>
+                    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                        <button type="button"
+                            class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm flex-shrink-0 d-inline-flex align-items-center deliver-btn-${d.id}"
+                            style="background-color:#28a745;font-size:0.8rem;border:none;"
+                            onclick="ajaxDeliverOrder(${d.id}, '${d.deliverUrl}', '${csrf}')">
+                            <i class="bi bi-check2-circle me-1"></i> Mark Delivered
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function clearProductSearch() {
+    const search = document.getElementById('qb-product-search');
+    if (search && search.value.trim() !== '') {
+        search.value = '';
+        document.querySelectorAll('.qb-product-item').forEach(item => {
+            item.style.display = 'block';
+            item.style.order = '';
+        });
+    }
+}
+
+// ── 3-tier ranked product search helper ──────────────────────────────────────
+function rankedProductSearch(term) {
+    const items = Array.from(document.querySelectorAll('.qb-product-item'));
+    if (!term) {
+        items.forEach(item => { item.style.display = 'block'; item.style.order = ''; });
+        return;
+    }
+    const tier1 = [], tier2 = [], tier3 = [], hidden = [];
+    items.forEach(item => {
+        const name = item.getAttribute('data-name').toLowerCase().trim();
+        const words = name.split(/\s+/);
+        if (name.startsWith(term)) tier1.push(item);
+        else if (words.slice(1).some(w => w.startsWith(term))) tier2.push(item);
+        else if (name.includes(term)) tier3.push(item);
+        else hidden.push(item);
+    });
+    hidden.forEach(i => { i.style.display = 'none'; i.style.order = ''; });
+    [...tier1, ...tier2, ...tier3].forEach((i, idx) => {
+        i.style.display = 'block';
+        i.style.order = idx;
+    });
+}
+
+// ── Draft Bill — auto-save ────────────────────────────────────────────────────
+let _draftSaveTimer = null;
+const DRAFT_SAVE_URL = '{% url "draft_bill_save" %}';
+const DRAFT_CLEAR_URL = '{% url "draft_bill_clear" %}';
+const DRAFT_GET_URL  = '{% url "draft_bill_get" %}';
+const QB_CSRF = '{{ csrf_token }}';
+
+function collectDraftData() {
+    const items = {};
+    document.querySelectorAll('.qb-product-item').forEach(item => {
+        const pid = item.dataset.productId;
+        const inp = document.getElementById('qb-qty-' + pid);
+        const qty = inp ? (parseInt(inp.value) || 0) : 0;
+        if (qty > 0) items[pid] = qty;
+    });
+    
+    const editIdInput = document.getElementById('qb-edit-order-id');
+    if (editIdInput && editIdInput.value) {
+        items['_edit_order_id'] = parseInt(editIdInput.value);
+    }
+
+    const customPrices = {};
+    document.querySelectorAll('[id^="qb-custom-price-"]').forEach(inp => {
+        if (!inp.disabled) {
+            const pid = inp.id.replace('qb-custom-price-', '');
+            customPrices[pid] = parseFloat(inp.value);
+        }
+    });
+    if (Object.keys(customPrices).length > 0) {
+        items['_custom_prices'] = customPrices;
+    }
+
+    const storeInput = document.getElementById('qb-store-name');
+    const oldBalInput = document.getElementById('qb-old-balance');
+    return {
+        items,
+        store_name: storeInput ? storeInput.value.trim() : '',
+        old_balance: oldBalInput ? (parseFloat(oldBalInput.value) || 0) : 0
+    };
+}
+
+function updateQuickBillMainButton() {
+    const data = collectDraftData();
+    const hasItems = data && data.items && Object.values(data.items).some(qty => parseInt(qty) > 0);
+    _hasDraft = hasItems;
+    
+    const bottomBtn = document.getElementById('bottom-qb-btn');
+    if (bottomBtn) {
+        if (_hasDraft) {
+            bottomBtn.classList.add('has-draft');
+            bottomBtn.title = 'Continue Bill';
+        } else {
+            bottomBtn.classList.remove('has-draft');
+            bottomBtn.title = 'Quick Bill';
+        }
+    }
+
+    const btn = document.getElementById('qb-main-btn');
+    if (btn) {
+        if (_hasDraft) {
+            btn.style.backgroundColor = '#e65c00';
+            btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i> Continue Bill';
+        } else {
+            btn.style.backgroundColor = '#ff6600';
+            btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i> Quick Bill';
+        }
+    }
+}
+
+function saveDraftBill() {
+    const data = collectDraftData();
+    updateQuickBillMainButton();
+    fetchWithTimeout(DRAFT_SAVE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': QB_CSRF },
+        body: JSON.stringify(data)
+    }).catch(() => {});
+}
+
+function scheduleDraftSave() {
+    clearTimeout(_draftSaveTimer);
+    _draftSaveTimer = setTimeout(saveDraftBill, 1500);
+}
+
+// Save draft when page/tab is about to be hidden (app close, tab switch)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        const qbOpen = !document.getElementById('quickBillModal').classList.contains('d-none');
+        if (qbOpen) saveDraftBill();
+    }
+});
+window.addEventListener('pagehide', () => {
+    const qbOpen = !document.getElementById('quickBillModal').classList.contains('d-none');
+    if (qbOpen) saveDraftBill();
+});
+
+// ── Handle Quick Bill button click (Continue Bill or New Bill) ────────────────
+const HAS_DRAFT_INITIAL = {{ has_draft|yesno:'true,false' }};
+let _hasDraft = HAS_DRAFT_INITIAL;
+
+function handleQuickBillBtnClick() {
+    if (_hasDraft) {
+        // Show bottom sheet
+        document.getElementById('continueBillOverlay').classList.remove('d-none');
+        document.body.style.overflow = 'hidden';
+        
+        window._modalNavStack.push('continueBillOverlay');
+        history.pushState({ modalOpen: true }, '');
+        if (typeof updateFloatBackButton === 'function') updateFloatBackButton();
+    } else {
+        openQuickBillModal();
+    }
+}
+
+function closeContinueBillOverlay() {
+    document.getElementById('continueBillOverlay').classList.add('d-none');
+    document.body.style.overflow = '';
+}
+
+function startNewBill() {
+    closeContinueBillOverlay();
+    // Clear server-side draft
+    fetchWithTimeout(DRAFT_CLEAR_URL, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': QB_CSRF }
+    }).catch(() => {});
+    _hasDraft = false;
+    
+    const bottomBtn = document.getElementById('bottom-qb-btn');
+    if (bottomBtn) {
+        bottomBtn.classList.remove('has-draft');
+        bottomBtn.title = 'Quick Bill';
+    }
+
+    // Update button appearance
+    const btn = document.getElementById('qb-main-btn');
+    if (btn) {
+        btn.style.backgroundColor = '#ff6600';
+        btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i> Quick Bill';
+    }
+    openQuickBillModal();
+}
+
+function continueDraftBill() {
+    closeContinueBillOverlay();
+    // Fetch draft from server and load it
+    fetchWithTimeout(DRAFT_GET_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(data => {
+        openQuickBillModal();  // opens fresh, then we load draft on top
+        if (data.has_draft) {
+            const items = data.items || {};
+            
+            // Check if this draft is editing an existing order
+            const editOrderId = items['_edit_order_id'];
+            if (editOrderId) {
+                isEditingOrder = true;
+                editingOrderUnpaidBalance = data.editing_order_unpaid_balance || 0;
+                editingOrderOldBalance = data.editing_order_old_balance || 0;
+                editingOrderStoreName = data.editing_order_store_name || '';
+                
+                document.getElementById('quickBillModalLabel').textContent = 'Edit Order #' + editOrderId;
+                const submitBtn = document.getElementById('submitQuickBillBtn');
+                if (submitBtn) {
+                    submitBtn.textContent = 'Update Order';
+                    submitBtn.style.backgroundColor = '#0d6efd'; // Change to primary color
+                }
+                
+                // Populate Hidden Input
+                let orderInput = document.getElementById('qb-edit-order-id');
+                if (!orderInput) {
+                    orderInput = document.createElement('input');
+                    orderInput.type = 'hidden';
+                    orderInput.id = 'qb-edit-order-id';
+                    orderInput.name = 'order_id';
+                    const qbForm = document.getElementById('quickBillForm');
+                    if (qbForm) qbForm.appendChild(orderInput);
+                }
+                orderInput.value = editOrderId;
+            }
+
+            // Restore items
+            Object.entries(items).forEach(([pid, qty]) => {
+                if (pid === '_edit_order_id' || pid === '_custom_prices') return;
+                qty = parseInt(qty) || 0;
+                if (qty <= 0) return;
+                const inp = document.getElementById('qb-qty-' + pid);
+                if (!inp) return;
+                inp.value = qty;
+                const container = inp.closest('.qb-qty-container');
+                if (container) {
+                    container.querySelector('.qb-add-btn')?.classList.add('d-none');
+                    const ctrl = container.querySelector('.qb-qty-controls');
+                    if (ctrl) { ctrl.classList.remove('d-none'); ctrl.style.display = 'inline-flex'; }
+                }
+                if (!qbCartOrder.includes(pid.toString())) {
+                    qbCartOrder.push(pid.toString());
+                }
+            });
+
+            // Restore custom prices
+            const customPrices = items['_custom_prices'] || {};
+            Object.entries(customPrices).forEach(([pid, price]) => {
+                const item = document.querySelector(`.qb-product-item[data-product-id="${pid}"]`);
+                if (item) {
+                    item.dataset.price = price;
+                }
+                const display = document.getElementById('qb-price-display-' + pid);
+                if (display) display.textContent = '₹' + parseFloat(price).toFixed(0);
+                
+                let hiddenInput = document.getElementById('qb-custom-price-' + pid);
+                if (!hiddenInput) {
+                    hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.id = 'qb-custom-price-' + pid;
+                    hiddenInput.name = 'price_' + pid;
+                    document.getElementById('quickBillForm').appendChild(hiddenInput);
+                }
+                hiddenInput.value = price;
+                hiddenInput.disabled = false;
+            });
+            // Restore store name
+            const storeInp = document.getElementById('qb-store-name');
+            if (storeInp && data.store_name) { storeInp.value = data.store_name; checkStoreBalance(); }
+            // Restore old balance
+            const oldBalInp = document.getElementById('qb-old-balance');
+            if (oldBalInp && parseFloat(data.old_balance) > 0) {
+                oldBalInp.value = parseFloat(data.old_balance).toFixed(2);
+            }
+            updateQBCartTotals();
+        }
+    })
+    .catch(() => { openQuickBillModal(); });
+}
+
+// ── Quick Bill Logic ──────────────────────────────────────────────────────────
+let qbCartOrder = [];
+function openQuickBillModal() {
+    clearQuickBillState();
+
+    const modalEl = document.getElementById('quickBillModal');
+    modalEl.classList.remove('d-none');
+    document.body.style.overflow = 'hidden';
+
+    // Show floating back button
+    const floatBtn = document.getElementById('qb-float-back-btn');
+    if (floatBtn) floatBtn.classList.add('visible');
+
+    const isMobile = window.innerWidth < 575.98;
+    if (isMobile) {
+        const initialHeight = window.innerHeight;
+        modalEl.style.height = initialHeight + 'px';
+        modalEl.dataset.lockedHeight = initialHeight;
+    } else {
+        modalEl.style.height = '';
+        delete modalEl.dataset.lockedHeight;
+    }
+
+    // Push one history entry for the entire QB session
+    window._modalNavStack = ['qb-menu'];
+    history.pushState({ modalOpen: true }, '');
+}
+
+function addQBProduct(productId) {
+    const input = document.getElementById('qb-qty-' + productId);
+    if (input) {
+        input.value = '1';
+        // Hide ADD button, show stepper
+        const container = input.closest('.qb-qty-container');
+        if (container) {
+            const addBtn = container.querySelector('.qb-add-btn');
+            const controls = container.querySelector('.qb-qty-controls');
+            if (addBtn) addBtn.classList.add('d-none');
+            if (controls) {
+                controls.classList.remove('d-none');
+                controls.style.display = 'inline-flex';
+            }
+        }
+        updateQBCartTotals();
+        scheduleDraftSave();
+    }
+}
+
+function changeQBProductQty(productId, delta) {
+    const input = document.getElementById('qb-qty-' + productId);
+    if (input) {
+        let val = parseInt(input.value) || 0;
+        val += delta;
+        if (val <= 0) {
+            val = 0;
+            // Hide stepper, show ADD button
+            const container = input.closest('.qb-qty-container');
+            if (container) {
+                const addBtn = container.querySelector('.qb-add-btn');
+                const controls = container.querySelector('.qb-qty-controls');
+                if (addBtn) addBtn.classList.remove('d-none');
+                if (controls) {
+                    controls.classList.add('d-none');
+                    controls.style.display = 'none';
+                }
+            }
+        }
+        input.value = val;
+        updateQBCartTotals();
+        scheduleDraftSave();
+        
+        // If we are currently looking at the Cart View, we should dynamically update it
+        if (document.getElementById('qb-cart-view').classList.contains('d-none') === false) {
+            renderQBCartSummaryList();
+        }
+    }
+}
+
+function updateQBCartTotals() {
+    let totalCount = 0;
+    let totalAmount = 0;
+    
+    qbCartOrder = [];
+    
+    // Iterate product items in DOM order (= admin position order) to always use admin ordering
+    document.querySelectorAll('.qb-product-item').forEach(item => {
+        const productId = String(item.dataset.productId);
+        const price = parseFloat(item.dataset.price) || 0;
+        const qtyInput = document.getElementById('qb-qty-' + productId);
+        const qty = qtyInput ? (parseInt(qtyInput.value) || 0) : 0;
+        
+        if (qty > 0) {
+            qbCartOrder.push(productId);
+            totalCount += qty;
+            totalAmount += qty * price;
+        }
+    });
+    
+    const cartBadge = document.getElementById('qb-cart-badge');
+    if (cartBadge) cartBadge.textContent = totalCount;
+    
+    const viewCartBtn = document.getElementById('qb-view-cart-btn');
+    if (viewCartBtn) {
+        if (totalCount > 0) {
+            viewCartBtn.classList.remove('d-none');
+        } else {
+            viewCartBtn.classList.add('d-none');
+        }
+    }
+
+    // Compute old balance and grand total
+    const oldBalInput = document.getElementById('qb-old-balance');
+    const oldBalance = oldBalInput ? (parseFloat(oldBalInput.value) || 0) : 0;
+    
+    const grandTotal = totalAmount + oldBalance;
+
+    // Update items total display
+    const itemsTotalDisplay = document.getElementById('qb-cart-items-total-display');
+    if (itemsTotalDisplay) itemsTotalDisplay.textContent = '₹' + totalAmount.toFixed(0);
+
+    // Update old balance row visibility and display
+    const oldBalRow = document.getElementById('qb-old-balance-row');
+    const oldBalDisplay = document.getElementById('qb-cart-old-balance-display');
+    if (oldBalRow && oldBalDisplay) {
+        if (oldBalance > 0) {
+            oldBalRow.style.removeProperty('display');
+            oldBalDisplay.textContent = '₹' + oldBalance.toFixed(0);
+        } else {
+            oldBalRow.style.setProperty('display', 'none', 'important');
+        }
+    }
+
+    // Update grand total display
+    const grandTotalDisplay = document.getElementById('qb-cart-grand-total-display');
+    if (grandTotalDisplay) grandTotalDisplay.textContent = '₹' + grandTotal.toFixed(0);
+}
+
+function renderQBCartSummaryList() {
+    const summaryContainer = document.getElementById('qb-cart-items-summary');
+    if (!summaryContainer) return;
+    
+    let html = '';
+    
+    if (qbCartOrder.length > 0) {
+        qbCartOrder.forEach((pid, index) => {
+            const item = document.querySelector(`.qb-product-item[data-product-id="${pid}"]`);
+            if (!item) return;
+            const name = item.dataset.name;
+            const price = parseFloat(item.dataset.price) || 0;
+            const qtyInput = document.getElementById('qb-qty-' + pid);
+            const qty = qtyInput ? (parseInt(qtyInput.value) || 0) : 0;
+            
+            if (qty > 0) {
+                html += `
+                <div class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+                    <div class="d-flex align-items-center">
+                        <span class="d-inline-flex align-items-center justify-content-center me-2 flex-shrink-0" style="width: 14px; height: 14px; border: 1.5px solid #198754; padding: 2px; border-radius: 3px;">
+                            <span style="width: 5px; height: 5px; background-color: #198754; border-radius: 50%;"></span>
+                        </span>
+                        <span class="fw-bold text-dark small">${name}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-muted small" style="cursor: pointer; user-select: none;" onmousedown="startLongPress(event, ${pid})" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchstart="startLongPress(event, ${pid})" ontouchend="cancelLongPress()">${qty} x ₹${price.toFixed(0)}</span>
+                        <span class="fw-bold text-dark small">₹${(qty * price).toFixed(0)}</span>
+                    </div>
+                </div>`;
+            }
+        });
+    } else {
+        html = '<div class="p-3 text-center text-muted small">Your cart is empty.</div>';
+    }
+    
+    summaryContainer.innerHTML = html;
+}
+
+function showQBCartView() {
+    renderQBCartSummaryList();
+    document.getElementById('qb-menu-view').classList.add('d-none');
+    document.getElementById('qb-cart-view').classList.remove('d-none');
+    // Track cart layer in our internal stack (no extra pushState)
+    if (window._modalNavStack[window._modalNavStack.length - 1] !== 'qb-cart') {
+        window._modalNavStack.push('qb-cart');
+        history.pushState({ modalOpen: true }, '');
+    }
+}
+
+function showQBMenuView(goBackHistory = true) {
+    // If an input was just blurred (e.g., user tapped this button while keyboard was open),
+    // treat the tap as 'dismiss keyboard' and don't close.
+    if (Date.now() - _lastInputBlurTime < 300) {
+        return;
+    }
+    // Also check active element just in case
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        activeEl.blur();
+        return;
+    }
+
+    if (goBackHistory) {
+        history.back();
+    } else {
+        document.getElementById('qb-cart-view').classList.add('d-none');
+        document.getElementById('qb-menu-view').classList.remove('d-none');
+    }
+}
+
+// Hide floating back button when QB modal is fully closed
+function _onQBModalClose() {
+    const floatBtn = document.getElementById('qb-float-back-btn');
+    if (floatBtn) floatBtn.classList.remove('visible');
+
+    // Clean up Edit state
+    isEditingOrder = false;
+    const modalLabel = document.getElementById('quickBillModalLabel');
+    if (modalLabel) modalLabel.textContent = 'Quick Bill Menu';
+    const submitBtn = document.getElementById('submitQuickBillBtn');
+    if (submitBtn) {
+        submitBtn.textContent = 'Place Order';
+        submitBtn.style.backgroundColor = '#ff6600';
+    }
+    const editIdInput = document.getElementById('qb-edit-order-id');
+    if (editIdInput) editIdInput.remove();
+    
+    clearQuickBillState();
+}
+
+// Draggable floating back button logic
+(function() {
+    const btn = document.getElementById('qb-float-back-btn');
+    if (!btn) return;
+
+    const BTN_TOP_KEY = 'qb_float_btn_top_pct';
+
+    function restorePosition() {
+        const savedPct = localStorage.getItem(BTN_TOP_KEY);
+        if (savedPct) {
+            const pct = parseFloat(savedPct);
+            let topPx = (pct / 100) * window.innerHeight;
+            const maxTop = window.innerHeight - 60;
+            const minTop = 16;
+            topPx = Math.max(minTop, Math.min(maxTop, topPx));
+            btn.style.top = topPx + 'px';
+        }
+    }
+    
+    // Initial restore
+    restorePosition();
+
+    let isPointerDown = false;
+    let isDragging = false;
+    let wasDragged = false;
+    let startY = 0;
+    let startTop = 0;
+
+    function getBtnTopPx() {
+        return parseInt(btn.style.top) || (window.innerHeight / 2 - 22);
+    }
+
+    function onPointerDown(clientY) {
+        isPointerDown = true;
+        wasDragged = false;
+        isDragging = false;
+        startY = clientY;
+        startTop = getBtnTopPx();
+    }
+
+    function onPointerMove(clientY) {
+        if (!isPointerDown) return;
+        
+        const deltaY = clientY - startY;
+        if (!isDragging && Math.abs(deltaY) > 5) {
+            isDragging = true;
+            btn.classList.add('dragging');
+        }
+        
+        if (isDragging) {
+            let newTop = startTop + deltaY;
+            const maxTop = window.innerHeight - 60;
+            const minTop = 16;
+            newTop = Math.max(minTop, Math.min(maxTop, newTop));
+            btn.style.top = newTop + 'px';
+            wasDragged = true;
+        }
+    }
+
+    function onPointerUp() {
+        if (!isPointerDown) return;
+        isPointerDown = false;
+        
+        if (isDragging) {
+            isDragging = false;
+            btn.classList.remove('dragging');
+            const currentTop = getBtnTopPx();
+            const percentage = (currentTop / window.innerHeight) * 100;
+            localStorage.setItem(BTN_TOP_KEY, percentage);
+        }
+    }
+
+    // Touch events
+    btn.addEventListener('touchstart', function(e) {
+        onPointerDown(e.touches[0].clientY);
+    }, { passive: true });
+
+    btn.addEventListener('touchmove', function(e) {
+        if (!isPointerDown) return;
+        if (Math.abs(e.touches[0].clientY - startY) > 5) {
+            e.preventDefault(); 
+        }
+        onPointerMove(e.touches[0].clientY);
+    }, { passive: false });
+
+    btn.addEventListener('touchend', function(e) {
+        onPointerUp();
+    });
+
+    btn.addEventListener('touchcancel', function(e) {
+        onPointerUp();
+    });
+
+    // Mouse events
+    btn.addEventListener('mousedown', function(e) {
+        onPointerDown(e.clientY);
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        onPointerMove(e.clientY);
+    });
+
+    document.addEventListener('mouseup', function(e) {
+        onPointerUp();
+    });
+
+    // Capture click to prevent modal close if dragged
+    btn.addEventListener('click', function(e) {
+        if (wasDragged) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    }, true);
+    
+    // Update on resize
+    window.addEventListener('resize', restorePosition);
+})();
+
+function submitQuickBill(url, csrfToken) {
+    try {
+        const form = document.getElementById('quickBillForm');
+        if (!form.reportValidity()) {
+            const invalidEl = form.querySelector(':invalid');
+            if (invalidEl) {
+                showToast('Validation failed: ' + (invalidEl.name || invalidEl.id) + ' - ' + invalidEl.validationMessage, false);
+            }
+            return;
+        }
+        
+        let hasItems = false;
+        document.querySelectorAll('.qb-qty').forEach(input => {
+            if (parseInt(input.value) > 0) hasItems = true;
+        });
+        
+        if (!hasItems) {
+            showToast('Please select at least one item.', false);
+            return;
+        }
+        
+        const btn = document.getElementById('submitQuickBillBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        
+        const formData = new FormData(form);
+        
+        // update hidden input to submit to backend
+        let orderInput = document.getElementById('qb-item-order');
+        if(!orderInput) {
+            orderInput = document.createElement('input');
+            orderInput.type = 'hidden';
+            orderInput.id = 'qb-item-order';
+            orderInput.name = 'item_order';
+            document.getElementById('quickBillForm').appendChild(orderInput);
+        }
+        orderInput.value = qbCartOrder.join(',');
+        formData.append('item_order', orderInput.value);
+        
+        fetchWithTimeout(url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, true);
+                
+                // Clear draft state so it shows "New Bill" instead of "Continue Bill"
+                _hasDraft = false;
+                fetchWithTimeout(DRAFT_CLEAR_URL, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+                }).catch(() => {});
+                
+                // Aggressively clear the UI so it doesn't leave ghost quantities
+                clearQuickBillState();
+                updateQuickBillMainButton();
+                
+                // Clean up history stack and close Quick Bill fullscreen overlay
+                const steps = window._modalNavStack.length;
+                window._modalNavStack = [];
+                _skipDraftSaveOnce = true;
+                if (steps > 0) {
+                    history.go(-steps);
+                }
+                if (typeof window._hideAllModals === 'function') {
+                    window._hideAllModals();
+                }
+
+                if(data.target_tab) sessionStorage.setItem(TAB_KEY, data.target_tab);
+                
+                // Reset submit button state for the next time it's opened
+                btn.disabled = false;
+                btn.innerHTML = 'Place Order';
+                
+                silentReloadDashboard();
+            } else {
+                showToast(data.error, false);
+                btn.disabled = false;
+                btn.innerHTML = 'Place Order';
+            }
+        })
+        .catch(() => {
+            showToast('Network error.', false);
+            btn.disabled = false;
+            btn.innerHTML = 'Place Order';
+        });
+    } catch (e) {
+        showToast('Execution error: ' + e.message, false);
+        console.error(e);
+    }
+}
+
+// ── Share Bill Logic ──────────────────────────────────────────────────────────
+function shareOrderBill(orderId, url) {
+    const btnId = 'share-btn-' + orderId;
+    const btn = document.getElementById(btnId);
+    if(btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    }
+    
+    fetchWithTimeout(url, {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            copyBillToClipboard(data.bill_text, orderId);
+        } else {
+            showToast('Error getting bill text.', false);
+        }
+        if(btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-share me-1"></i> Share';
+        }
+    })
+    .catch(() => {
+        showToast('Network error.', false);
+        if(btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-share me-1"></i> Share';
+        }
+    });
+}
+
+function copyBillToClipboard(text, orderId) {
+    // If Web Share is supported and we are in a secure context (HTTPS/localhost), use native share sheet to share text
+    if (navigator.share && window.isSecureContext) {
+        navigator.share({
+            title: `Order #${orderId} Bill`,
+            text: text
+        })
+        .then(() => {
+            showToast('Shared successfully!', true);
+        })
+        .catch((err) => {
+            console.log('Sharing text failed, falling back to clipboard:', err);
+            fallbackCopyTextToClipboard(text);
+        });
+    } else {
+        // Fallback for insecure contexts (like accessing 192.168.x.x over HTTP on mobile)
+        // Just copy the formatted receipt text to clipboard
+        fallbackCopyTextToClipboard(text);
+    }
+}
+
+function fallbackCopyTextToClipboard(text) {
+    if(navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Bill copied to clipboard!', true);
+        }).catch(() => {
+            showToast('Failed to copy text.', false);
+        });
+    } else {
+        let textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showToast('Bill copied to clipboard!', true);
+        } catch (err) {
+            showToast('Failed to copy text.', false);
+        }
+        document.body.removeChild(textArea);
+    }
+}
+
+// ── AJAX: Mark as Packed ──────────────────────────────────────────────────────
+function ajaxPackOrder(orderId, url, csrfToken) {
+    const btn = document.getElementById('pack-btn-' + orderId);
+    if (!btn || btn.disabled) return;
+
+    // Read data attributes from the packing card
+    const packCard = document.getElementById('packing-card-' + orderId);
+    const orderData = packCard ? {
+        id:         packCard.dataset.orderId,
+        created:    packCard.dataset.created,
+        store:      packCard.dataset.store,
+        customer:   packCard.dataset.customer,
+        phone:      packCard.dataset.phone,
+        location:   packCard.dataset.location,
+        maps:       packCard.dataset.maps,
+        total:      packCard.dataset.total,
+        deliverUrl: packCard.dataset.deliverUrl,
+        shareUrl:   packCard.dataset.shareUrl,
+    } : null;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Packing...';
+
+    fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✓ Order #' + orderId + ' packed!', true);
+
+            // 1. Fade out & remove packing card
+            if (packCard) {
+                packCard.style.transition = 'opacity 0.35s';
+                packCard.style.opacity = '0';
+                setTimeout(() => {
+                    packCard.remove();
+
+                    // Update packing badge
+                    const pBadge = document.getElementById('packing-count');
+                    if (pBadge) pBadge.textContent = Math.max(0, parseInt(pBadge.textContent) - 1);
+
+                    // Show empty state if no packing cards left
+                    const packList = document.getElementById('packing-list');
+                    if (packList && packList.children.length === 0) {
+                        packList.classList.add('d-none');
+                        const emptyMsg = document.getElementById('packing-empty');
+                        if (emptyMsg) emptyMsg.classList.remove('d-none');
+                    }
+                }, 350);
+            }
+
+            // 2. Inject delivery card instantly
+            if (orderData) {
+                const deliveryList = document.getElementById('delivery-list');
+                const deliveryEmpty = document.getElementById('delivery-empty');
+
+                // Hide empty state if shown
+                if (deliveryEmpty) deliveryEmpty.classList.add('d-none');
+                if (deliveryList) deliveryList.classList.remove('d-none');
+
+                // Insert new card at top of delivery list
+                deliveryList.insertAdjacentHTML('afterbegin', buildDeliveryCard(orderData, csrfToken));
+
+                // Fade it in
+                const newCard = document.getElementById('delivery-card-' + orderId);
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (newCard) newCard.style.opacity = '1';
+                    });
+                });
+
+                // Update delivery badge
+                const dBadge = document.getElementById('delivery-count');
+                if (dBadge) dBadge.textContent = parseInt(dBadge.textContent) + 1;
+            }
+
+            // 3. Switch to Delivery tab after a brief moment
+            setTimeout(() => {
+                const deliveryTabBtn = document.getElementById('delivery-tab');
+                if (deliveryTabBtn) {
+                    new bootstrap.Tab(deliveryTabBtn).show();
+                    sessionStorage.setItem(TAB_KEY, '#delivery-tab');
+                }
+            }, 420);
+
+        } else {
+            showToast(data.error || 'Something went wrong.', false);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-box-seam me-1"></i> Mark as Packed';
+        }
+    })
+    .catch(() => {
+        showToast('Network error. Please try again.', false);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-box-seam me-1"></i> Mark as Packed';
+    });
+}
+
+// ── AJAX: Mark Delivered ──────────────────────────────────────────────────────
+function ajaxDeliverOrder(orderId, url, csrfToken) {
+    const actionBar = document.getElementById('action-bar-' + orderId);
+    const btn = actionBar ? actionBar.querySelector('.deliver-btn-' + orderId) : null;
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Updating...';
+
+    fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✓ Order #' + orderId + ' marked delivered!', true);
+
+            // Update card border
+            const card = document.querySelector('#delivery-card-' + orderId + ' .card');
+            if (card) { card.classList.remove('border-primary'); card.classList.add('border-success'); }
+
+            // Update status badge
+            const badge = document.getElementById('status-badge-' + orderId);
+            if (badge) {
+                badge.className = 'badge rounded-pill text-bg-success px-2.5 py-1.5 border-0';
+                badge.style.fontSize = '0.75rem';
+                badge.innerHTML = '<i class="bi bi-check-circle me-1"></i> Delivered';
+            }
+
+            // Update total label
+            const totalSpan = actionBar.querySelector('span.text-muted');
+            if (totalSpan) {
+                const amountSpan = totalSpan.querySelector('span');
+                totalSpan.innerHTML = 'Total: ';
+                if (amountSpan) totalSpan.appendChild(amountSpan);
+            }
+
+            // Fade & remove location block
+            const locBlock = document.querySelector('#delivery-card-' + orderId + ' .bg-light.rounded-3');
+            if (locBlock) {
+                locBlock.style.transition = 'opacity 0.3s';
+                locBlock.style.opacity = '0';
+                setTimeout(() => locBlock.remove(), 300);
+            }
+
+            // Swap button → Waiting Confirmation badge
+            btn.remove();
+            const waitBadge = document.createElement('div');
+            waitBadge.className = 'text-nowrap flex-shrink-0';
+            waitBadge.innerHTML = `<span class="badge rounded-pill px-3 fw-bold d-inline-flex align-items-center deliver-btn-${orderId}" style="font-size:0.75rem;color:#e65c00;background-color:#fff5eb;border:1px solid #ffd1a4;padding-top:0.4rem;padding-bottom:0.4rem;"><i class="bi bi-hourglass-split me-1"></i> Waiting</span>`;
+            
+            // Re-insert at the end of the action bar flex container
+            const btnGroup = actionBar.querySelector('.gap-2');
+            if(btnGroup) {
+                btnGroup.appendChild(waitBadge);
+            }
+
+        } else {
+            showToast(data.error || 'Something went wrong.', false);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Mark Delivered';
+        }
+    })
+    .catch(() => {
+        showToast('Network error. Please try again.', false);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Mark Delivered';
+    });
+}
+
+// ── Checklist toggle ──────────────────────────────────────────────────────────
+function togglePackButton(orderId) {
+    const checkboxes = document.querySelectorAll('.item-check-' + orderId);
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    document.getElementById('pack-btn-' + orderId).disabled = !allChecked;
+
+    checkboxes.forEach(cb => {
+        const label = document.getElementById('label-' + cb.id.split('-')[1]);
+        if (cb.checked) {
+            label.style.textDecoration = 'line-through';
+            label.classList.add('text-muted');
+        } else {
+            label.style.textDecoration = 'none';
+            label.classList.remove('text-muted');
+        }
+    });
+}
+
+// ── Open Items Modal ─────────────────────────────────────────────────────────
+function openItemsModal(orderId) {
+    const modalEl = document.getElementById('itemsModal-' + orderId);
+    if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
+}
+
+// ── Quick Bill Product Search ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    const qbProductSearch = document.getElementById('qb-product-search');
+    if (qbProductSearch) {
+        qbProductSearch.addEventListener('focus', function() {
+            clearProductSearch();
+        });
+        qbProductSearch.addEventListener('touchstart', function() {
+            clearProductSearch();
+        });
+        
+        qbProductSearch.addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase().trim();
+            rankedProductSearch(term);
+        });
+    }
+});
+
+function openOrderPaymentModal(orderId, totalAmount, oldBalance, grandTotal, remainingBalance, url, csrfToken, storeName) {
+    document.getElementById('pay-modal-order-id').value = orderId;
+    document.getElementById('pay-modal-url').value = url;
+    document.getElementById('pay-modal-csrf').value = csrfToken;
+    
+    const storeDisplay = document.getElementById('pay-modal-store-name-display');
+    if (storeDisplay) storeDisplay.textContent = storeName;
+    
+    const customOpt = document.getElementById('payOptCustom');
+    const oldBalOpt = document.getElementById('payOptOldBalance');
+    const optContainer = document.getElementById('pay-modal-options-container');
+    
+    if (customOpt) customOpt.checked = true;
+    
+    if (oldBalance > 0) {
+        if (optContainer) optContainer.style.display = 'block';
+        if (customOpt) customOpt.dataset.amount = remainingBalance.toFixed(2);
+        if (oldBalOpt) oldBalOpt.dataset.amount = oldBalance.toFixed(2);
+    } else {
+        if (optContainer) optContainer.style.display = 'none';
+    }
+    
+    document.getElementById('pay-modal-total-due-display').textContent = '₹' + remainingBalance.toFixed(0);
+    
+    const input = document.getElementById('pay-modal-amount-input');
+    input.value = remainingBalance.toFixed(2);
+    input.max = remainingBalance;
+    input.readOnly = false;
+    
+    updatePaymentModalRemaining();
+    
+    const modalEl = document.getElementById('orderPaymentModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+}
+
+function handlePaymentOptionChange() {
+    const opt = document.querySelector('input[name="paymentOption"]:checked');
+    const input = document.getElementById('pay-modal-amount-input');
+    
+    if (opt.value === 'old_balance') {
+        input.value = opt.dataset.amount;
+        input.readOnly = true;
+    } else {
+        input.value = opt.dataset.amount;
+        input.readOnly = false;
+        input.focus();
+    }
+    updatePaymentModalRemaining();
+}
+
+function updatePaymentModalRemaining() {
+    const totalDueText = document.getElementById('pay-modal-total-due-display').textContent.replace('₹', '');
+    const totalDue = parseFloat(totalDueText) || 0;
+    
+    const inputEl = document.getElementById('pay-modal-amount-input');
+    let amountPaid = parseFloat(inputEl.value) || 0;
+    
+    if (amountPaid > totalDue) {
+        amountPaid = totalDue;
+        inputEl.value = amountPaid;
+    }
+    
+    let remaining = totalDue - amountPaid;
+    if (remaining < 0) remaining = 0;
+    
+    const remainingEl = document.getElementById('pay-modal-remaining-display');
+    if (remainingEl) {
+        remainingEl.textContent = '₹' + remaining.toFixed(0);
+        if (remaining === 0) {
+            remainingEl.className = 'fw-bold text-success';
+        } else {
+            remainingEl.className = 'fw-bold text-danger';
+        }
+    }
+    
+    const saveBtn = document.querySelector('button[onclick="saveOrderPayment()"]');
+    if (saveBtn) {
+        saveBtn.disabled = (amountPaid <= 0 || isNaN(amountPaid));
+    }
+}
+
+function saveOrderPayment() {
+    const orderId = document.getElementById('pay-modal-order-id').value;
+    const url = document.getElementById('pay-modal-url').value;
+    const csrfToken = document.getElementById('pay-modal-csrf').value;
+    const amountPaid = parseFloat(document.getElementById('pay-modal-amount-input').value) || 0;
+    
+    if (amountPaid <= 0) {
+        showToast('Amount must be greater than zero', false);
+        return;
+    }
+    
+    let payOldBalanceOnly = false;
+    const opt = document.querySelector('input[name="paymentOption"]:checked');
+    if (opt && opt.value === 'old_balance') {
+        payOldBalanceOnly = true;
+    }
+    
+    const btn = document.querySelector('#orderPaymentModal button[onclick="saveOrderPayment()"]');
+    if (btn) {
+        btn.disabled = true;
+    }
+    
+    const formData = new FormData();
+    formData.append('amount_paid', amountPaid);
+    if (payOldBalanceOnly) formData.append('pay_old_balance_only', 'true');
+    
+    fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Payment updated successfully!', true);
+            const modalEl = document.getElementById('orderPaymentModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            }
+            if (btn) btn.disabled = false;
+            silentReloadDashboard();
+        } else {
+            showToast(data.error || 'Failed to save payment.', false);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Save Payment';
+            }
+        }
+    })
+    .catch(() => {
+        showToast('Network error.', false);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = 'Save Payment';
+        }
+    });
+}
+
+function openStorePaymentModal(storeName, balance, csrfToken) {
+    document.getElementById('store-pay-name').value = storeName;
+    document.getElementById('store-pay-csrf').value = csrfToken;
+    document.getElementById('store-pay-name-display').textContent = storeName;
+    document.getElementById('store-pay-total-due-display').textContent = '₹' + balance.toFixed(0);
+    
+    const input = document.getElementById('store-pay-amount-input');
+    input.value = balance.toFixed(2);
+    input.max = balance;
+    
+    updateStorePaymentRemaining();
+    
+    const modalEl = document.getElementById('storePaymentModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: false });
+        modal.show();
+        // Move backdrop above the stores overlay (z-index: 2000)
+        modalEl.addEventListener('shown.bs.modal', function handler() {
+            const backdrop = document.querySelector('.modal-backdrop:last-of-type');
+            if (backdrop) backdrop.style.zIndex = '2999';
+            modalEl.removeEventListener('shown.bs.modal', handler);
+        });
+    }
+}
+
+function updateStorePaymentRemaining() {
+    const totalDueText = document.getElementById('store-pay-total-due-display').textContent.replace('₹', '');
+    const totalDue = parseFloat(totalDueText) || 0;
+    
+    const inputEl = document.getElementById('store-pay-amount-input');
+    let amountPaid = parseFloat(inputEl.value) || 0;
+    
+    if (amountPaid > totalDue) {
+        amountPaid = totalDue;
+        inputEl.value = amountPaid;
+    }
+    
+    let remaining = totalDue - amountPaid;
+    if (remaining < 0) remaining = 0;
+    
+    const remainingEl = document.getElementById('store-pay-remaining-display');
+    if (remainingEl) {
+        remainingEl.textContent = '₹' + remaining.toFixed(0);
+        if (remaining === 0) {
+            remainingEl.className = 'fw-bold text-success';
+        } else {
+            remainingEl.className = 'fw-bold text-danger';
+        }
+    }
+    
+    const saveBtn = document.querySelector('button[onclick="saveStorePayment()"]');
+    if (saveBtn) {
+        saveBtn.disabled = (amountPaid <= 0 || isNaN(amountPaid));
+    }
+}
+
+function closeStorePaymentModal() {
+    const modalEl = document.getElementById('storePaymentModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
+}
+
+function saveStorePayment() {
+    const storeName = document.getElementById('store-pay-name').value;
+    const csrfToken = document.getElementById('store-pay-csrf').value;
+    const amountPaid = parseFloat(document.getElementById('store-pay-amount-input').value) || 0;
+    const url = "{% url 'pay_store_balance' %}";
+    
+    if (amountPaid <= 0) {
+        showToast('Amount must be greater than zero', false);
+        return;
+    }
+    
+    const btn = document.querySelector('#storePaymentModal button[onclick="saveStorePayment()"]');
+    if (btn) {
+        btn.disabled = true;
+    }
+    
+    const formData = new FormData();
+    formData.append('store_name', storeName);
+    formData.append('amount_paid', amountPaid);
+    
+    fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Store payment updated successfully!', true);
+            closeStorePaymentModal();
+            if (btn) btn.disabled = false;
+            silentReloadDashboard();
+        } else {
+            showToast(data.error || 'Failed to save payment.', false);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Save Payment';
+            }
+        }
+    })
+    .catch(() => {
+        showToast('Network error.', false);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = 'Save Payment';
+        }
+    });
+}
+
+// ── Custom Price Long Press Logic ───────────────────────────────────────────
+let pressTimer;
+function startLongPress(e, productId) {
+    if (e.type === 'mousedown' && e.detail !== 0) {
+        // e.detail is 0 for simulated click, ignore if needed
+    }
+    pressTimer = window.setTimeout(function() {
+        openCustomPriceModal(productId);
+    }, 500); // 500ms
+}
+
+function cancelLongPress() {
+    clearTimeout(pressTimer);
+}
+
+function openCustomPriceModal(productId) {
+    const item = document.querySelector(`.qb-product-item[data-product-id="${productId}"]`);
+    if (!item) return;
+    const currentPrice = item.dataset.price;
+    const productName = item.dataset.name;
+    
+    document.getElementById('custom-price-product-id').value = productId;
+    document.getElementById('custom-price-input').value = currentPrice;
+    document.getElementById('customPriceModalLabel').textContent = `Set Price: ${productName}`;
+    
+    const modalEl = document.getElementById('customPriceModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+        modalEl.addEventListener('shown.bs.modal', function handler() {
+            const backdrop = document.querySelector('.modal-backdrop:last-of-type');
+            if (backdrop) backdrop.style.zIndex = '2999';
+            modalEl.removeEventListener('shown.bs.modal', handler);
+        });
+    }
+}
+
+function saveCustomPrice() {
+    const productId = document.getElementById('custom-price-product-id').value;
+    const newPrice = document.getElementById('custom-price-input').value;
+    
+    if (newPrice === '' || isNaN(newPrice) || parseFloat(newPrice) < 0) {
+        showToast('Please enter a valid price.', false);
+        return;
+    }
+    
+    // update data-price on item
+    const item = document.querySelector(`.qb-product-item[data-product-id="${productId}"]`);
+    if(item) {
+        item.dataset.price = newPrice;
+    }
+    
+    // display new price in menu
+    const display = document.getElementById('qb-price-display-' + productId);
+    if(display) display.textContent = '₹' + parseFloat(newPrice).toFixed(0);
+    
+    // update hidden input to submit to backend
+    let hiddenInput = document.getElementById('qb-custom-price-' + productId);
+    if(!hiddenInput) {
+        hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.id = 'qb-custom-price-' + productId;
+        hiddenInput.name = 'price_' + productId;
+        document.getElementById('quickBillForm').appendChild(hiddenInput);
+    }
+    hiddenInput.value = newPrice;
+    hiddenInput.disabled = false;
+    
+    // update cart totals
+    updateQBCartTotals();
+    if (!document.getElementById('qb-cart-view').classList.contains('d-none')) {
+        renderQBCartSummaryList();
+    }
+    
+    bootstrap.Modal.getInstance(document.getElementById('customPriceModal')).hide();
+}
+
+// ── Drag & Drop Repositioning Core ───────────────────────────────────────────
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.qb-product-item:not(.dragging)')].filter(el => el.style.display !== 'none');
+    
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+let draggingElement = null;
+
+function initDragAndDrop() {
+    const list = document.getElementById('qb-product-list');
+    if (!list) return;
+
+    list.addEventListener('mousedown', onStart);
+    list.addEventListener('touchstart', onStart, { passive: false });
+
+    function onStart(e) {
+        const handle = e.target.closest('.qb-drag-handle');
+        if (!handle) return;
+
+        const item = handle.closest('.qb-product-item');
+        if (!item) return;
+
+        e.stopPropagation();
+
+        draggingElement = item;
+        item.classList.add('dragging');
+
+        if (e.type === 'touchstart') {
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('touchend', onEnd);
+        } else {
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onEnd);
+        }
+    }
+
+    function onMove(e) {
+        if (!draggingElement) return;
+
+        if (e.type === 'touchmove') {
+            e.preventDefault();
+        }
+
+        const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+        const afterElement = getDragAfterElement(list, clientY);
+
+        if (afterElement == null) {
+            list.appendChild(draggingElement);
+        } else {
+            list.insertBefore(draggingElement, afterElement);
+        }
+    }
+
+    function onEnd(e) {
+        if (!draggingElement) return;
+
+        draggingElement.classList.remove('dragging');
+        draggingElement = null;
+
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+
+        updateQBCartTotals();
+        // Persist the new order in localStorage
+        console.log("Draft clear failed");
+    }
+}
+
+function clearQuickBillState() {
+    // 1. Reset all quantities and inputs
+    document.querySelectorAll('.qb-qty').forEach(input => {
+        input.value = '0';
+    });
+    
+    // 2. Hide all stepper controls and show ADD buttons
+    document.querySelectorAll('.qb-add-btn').forEach(btn => btn.classList.remove('d-none'));
+    document.querySelectorAll('.qb-qty-controls').forEach(ctrl => {
+        ctrl.classList.add('d-none');
+        ctrl.style.display = 'none';
+    });
+    
+    // 3. Reset store selection to '-' (placeholder)
+    const storeInp = document.getElementById('qb-store-name');
+    if (storeInp) {
+        storeInp.value = '-';
+    }
+    
+    // 4. Reset old balance and hide old balance row
+    const oldBalInput = document.getElementById('qb-old-balance');
+    if (oldBalInput) {
+        oldBalInput.value = '0';
+        oldBalInput.readOnly = false;
+        oldBalInput.dataset.wasReadonly = 'false';
+        oldBalInput.style.backgroundColor = '';
+        const oldBalSpan = oldBalInput.previousElementSibling;
+        if (oldBalSpan && oldBalSpan.classList.contains('input-group-text')) {
+            oldBalSpan.style.backgroundColor = '';
+        }
+    }
+    const oldBalRow = document.getElementById('qb-old-balance-row');
+    if (oldBalRow) oldBalRow.style.setProperty('display', 'none', 'important');
+    
+    // 5. Remove any dynamically added custom price inputs
+    document.querySelectorAll('[id^="qb-custom-price-"]').forEach(inp => inp.remove());
+    
+    // 6. Restore original prices on item datasets and text display
+    document.querySelectorAll('.qb-product-item').forEach(item => {
+        const originalPrice = item.dataset.originalPrice || item.dataset.price;
+        if (originalPrice) {
+            item.dataset.price = originalPrice;
+            const display = document.getElementById('qb-price-display-' + item.dataset.productId);
+            if (display) {
+                display.textContent = '₹' + parseFloat(originalPrice).toFixed(0);
+            }
+        }
+    });
+    
+    // 7. Reset the qbCartOrder list
+    qbCartOrder = [];
+    
+    isEditingOrder = false;
+    editingOrderUnpaidBalance = 0;
+    editingOrderOldBalance = 0;
+    editingOrderStoreName = '';
+    
+    // 8. Update cart totals UI
+    updateQBCartTotals();
+    
+    // 9. Reset view to first screen (menu)
+    document.getElementById('qb-cart-view').classList.add('d-none');
+    document.getElementById('qb-menu-view').classList.remove('d-none');
+    
+    // 10. Clear product search input and reset list display
+    const searchInp = document.getElementById('qb-product-search');
+    if (searchInp) {
+        searchInp.value = '';
+    }
+    document.querySelectorAll('.qb-product-item').forEach(item => {
+        item.style.display = '';
+    });
+    
+    // 11. Clear edit state
+    isEditingOrder = false;
+    const existingHiddenId = document.getElementById('qb-edit-order-id');
+    if (existingHiddenId) existingHiddenId.remove();
+    
+    const submitBtn = document.getElementById('submitQuickBillBtn');
+    if (submitBtn) {
+        submitBtn.innerHTML = 'Place Order';
+        submitBtn.style.backgroundColor = '#ff6600';
+    }
+    
+    const modalLabel = document.getElementById('quickBillModalLabel');
+    if (modalLabel) {
+        modalLabel.textContent = 'Quick Bill Menu';
+    }
+}
+
+// ── Order Editing Logic ───────────────────────────────────────────────────────
+let isEditingOrder = false;
+let editingOrderUnpaidBalance = 0;
+let editingOrderOldBalance = 0;
+let editingOrderStoreName = '';
+
+function editOrder(orderId) {
+    // Show spinner or feedback on the button
+    const btn = document.querySelector(`[onclick="editOrder(${orderId})"]`);
+    if(btn) {
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    }
+    
+    fetchWithTimeout(`/orders/order/${orderId}/edit-details/`)
+    .then(r => r.json())
+    .then(data => {
+        if(data.error) {
+            showToast(data.error, false);
+            if(btn) btn.innerHTML = '<i class="bi bi-pencil-square fs-2 d-block mb-1"></i><span style="font-size: 0.85rem;">Edit</span>';
+            return;
+        }
+        
+        isEditingOrder = true;
+        editingOrderUnpaidBalance = data.remaining_balance || 0;
+        editingOrderOldBalance = data.old_balance || 0;
+        editingOrderStoreName = data.store_name || '';
+        
+        // Reset and clear Quick Bill UI first
+        clearQuickBillState();
+        
+        // Change Modal UI
+        document.getElementById('quickBillModalLabel').textContent = 'Edit Order #' + data.id;
+        const submitBtn = document.getElementById('submitQuickBillBtn');
+        if(submitBtn) {
+            submitBtn.textContent = 'Update Order';
+            submitBtn.style.backgroundColor = '#0d6efd'; // Change to primary color
+        }
+        
+        // Populate Hidden Input
+        let orderInput = document.getElementById('qb-edit-order-id');
+        if(!orderInput) {
+            orderInput = document.createElement('input');
+            orderInput.type = 'hidden';
+            orderInput.id = 'qb-edit-order-id';
+            orderInput.name = 'order_id';
+            document.getElementById('quickBillForm').appendChild(orderInput);
+        }
+        orderInput.value = data.id;
+        
+        // Populate Store Name and Old Balance
+        document.getElementById('qb-store-name').value = data.store_name;
+        document.getElementById('qb-old-balance').value = data.old_balance.toFixed(2);
+        
+        // Populate Items
+        data.items.forEach(item => {
+            const qtyInput = document.getElementById('qb-qty-' + item.product_id);
+            if(qtyInput) {
+                // If the product exists in the list
+                qtyInput.value = item.quantity;
+                const container = qtyInput.closest('.qb-qty-container');
+                if(container) {
+                    const addBtn = container.querySelector('.qb-add-btn');
+                    const controls = container.querySelector('.qb-qty-controls');
+                    if(addBtn) addBtn.classList.add('d-none');
+                    if(controls) {
+                        controls.classList.remove('d-none');
+                        controls.style.display = 'flex';
+                    }
+                }
+                
+                // Add to qbCartOrder list to maintain order
+                if (!qbCartOrder.includes(item.product_id.toString())) {
+                    qbCartOrder.push(item.product_id.toString());
+                }
+                
+                // Handle Custom Price
+                const basePrice = parseFloat(document.querySelector(`.qb-product-item[data-product-id="${item.product_id}"]`)?.dataset.price) || 0;
+                if(item.price !== basePrice) {
+                    // Update item DOM with custom price
+                    document.getElementById('custom-price-product-id').value = item.product_id;
+                    document.getElementById('custom-price-input').value = item.price;
+                    saveCustomPrice(); // This helper handles UI and hidden input creation
+                }
+            }
+        });
+        
+        // Recalculate totals
+        updateQBCartTotals();
+        
+        // Open Modal exactly like openQuickBillModal
+        const modalEl = document.getElementById('quickBillModal');
+        modalEl.classList.remove('d-none');
+        document.body.style.overflow = 'hidden';
+        
+        // Show floating back button
+        const floatBtn = document.getElementById('qb-float-back-btn');
+        if (floatBtn) floatBtn.classList.add('visible');
+        
+        const isMobile = window.innerWidth < 575.98;
+        if (isMobile) {
+            const initialHeight = window.innerHeight;
+            modalEl.style.height = initialHeight + 'px';
+            modalEl.dataset.lockedHeight = initialHeight;
+        } else {
+            modalEl.style.height = '';
+            delete modalEl.dataset.lockedHeight;
+        }
+        
+        // Push one history entry for the entire QB session
+        window._modalNavStack = ['qb-menu'];
+        history.pushState({ modalOpen: true }, '');
+        if(btn) btn.innerHTML = '<i class="bi bi-pencil-square fs-2 d-block mb-1"></i><span style="font-size: 0.85rem;">Edit</span>';
+    })
+    .catch(() => {
+        showToast('Failed to load order details.', false);
+        if(btn) btn.innerHTML = '<i class="bi bi-pencil-square fs-2 d-block mb-1"></i><span style="font-size: 0.85rem;">Edit</span>';
+    });
+}
+
+
+
+// ── Swipe-to-Edit Logic ────────────────────────────────────────────────────────
+let touchStartX = 0;
+let cancelOrderModalInstance = null;
+let editOrderModalInstance = null;
+
+function cancelOrder(event, orderId) {
+    if (event) {
+        const container = event.currentTarget.closest('.position-relative');
+        if (container) {
+            const card = container.querySelector('.swipeable-card');
+            if (card && !card.style.transform.includes('-160px')) {
+                return;
+            }
+        }
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (!cancelOrderModalInstance) {
+        cancelOrderModalInstance = bootstrap.Modal.getOrCreateInstance(document.getElementById('cancelOrderModal'));
+    }
+    document.getElementById('cancelOrderIdInput').value = orderId;
+    cancelOrderModalInstance.show();
+}
+
+function confirmCancelOrder() {
+    const orderId = document.getElementById('cancelOrderIdInput').value;
+    const csrfToken = '{{ csrf_token }}';
+    fetchWithTimeout(`/order/${orderId}/cancel/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (cancelOrderModalInstance) cancelOrderModalInstance.hide();
+            silentReloadDashboard();
+        } else {
+            alert(data.error || 'Failed to cancel order.');
+            if (cancelOrderModalInstance) cancelOrderModalInstance.hide();
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('An error occurred.');
+        if (cancelOrderModalInstance) cancelOrderModalInstance.hide();
+    });
+}
+
+function editOrderToDraft(event, orderId) {
+    if (event) {
+        const container = event.currentTarget.closest('.position-relative');
+        if (container) {
+            const card = container.querySelector('.swipeable-card');
+            if (card && !card.style.transform.includes('-160px')) {
+                return;
+            }
+        }
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (!editOrderModalInstance) {
+        editOrderModalInstance = bootstrap.Modal.getOrCreateInstance(document.getElementById('editOrderModal'));
+    }
+    document.getElementById('editOrderIdInput').value = orderId;
+    editOrderModalInstance.show();
+}
+
+function confirmEditOrder() {
+    const orderId = document.getElementById('editOrderIdInput').value;
+    const csrfToken = '{{ csrf_token }}';
+    fetchWithTimeout(`/order/${orderId}/edit-to-draft/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (editOrderModalInstance) editOrderModalInstance.hide();
+            sessionStorage.setItem('open_draft_on_load', 'true');
+            silentReloadDashboard();
+            if (typeof continueDraftBill === 'function') continueDraftBill();
+        } else {
+            alert(data.error || 'Failed to prepare order for editing.');
+            if (editOrderModalInstance) editOrderModalInstance.hide();
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('An error occurred.');
+        if (editOrderModalInstance) editOrderModalInstance.hide();
+    });
+}
+
+let swipeCard = null;
+let isDraggingCard = false;
+
+function onSwipeStart(e) {
+    if (e.target.closest('.cancel-btn') || e.target.closest('.edit-btn')) return;
+
+    const card = e.target.closest('.swipeable-card');
+    if (card) {
+        // Reset all other open cards first
+        document.querySelectorAll('.swipeable-card').forEach(c => {
+            if(c !== card && c.style.transform !== 'translateX(0px)' && c.style.transform !== '') {
+                c.style.transform = 'translateX(0)';
+            }
+        });
+        
+        touchStartX = e.type.includes('mouse') ? e.screenX : e.changedTouches[0].screenX;
+        swipeCard = card;
+        swipeCard.style.transition = 'none';
+        isDraggingCard = true;
+    } else {
+        document.querySelectorAll('.swipeable-card').forEach(c => {
+            if(c.style.transform !== 'translateX(0px)' && c.style.transform !== '') {
+                c.style.transform = 'translateX(0)';
+            }
+        });
+    }
+}
+
+function onSwipeMove(e) {
+    if (!isDraggingCard || !swipeCard) return;
+    
+    let touchX = e.type.includes('mouse') ? e.screenX : e.changedTouches[0].screenX;
+    let deltaX = touchX - touchStartX;
+    
+    if (deltaX > 0) deltaX = 0;
+    if (deltaX < -170) deltaX = -170 - (Math.abs(deltaX) - 170) * 0.2; 
+    
+    swipeCard.style.transform = `translateX(${deltaX}px)`;
+}
+
+function onSwipeEnd(e) {
+    if (!isDraggingCard || !swipeCard) return;
+    isDraggingCard = false;
+    
+    swipeCard.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)';
+    let touchX = e.type.includes('mouse') || e.type === 'mouseleave' ? e.screenX : e.changedTouches[0].screenX;
+    let deltaX = touchX - touchStartX;
+    
+    if (deltaX < -60) {
+        swipeCard.style.transform = 'translateX(-160px)';
+    } else {
+        swipeCard.style.transform = 'translateX(0)';
+    }
+    swipeCard = null;
+}
+
+document.addEventListener('touchstart', onSwipeStart, {passive: true});
+document.addEventListener('touchmove', onSwipeMove, {passive: true});
+document.addEventListener('touchend', onSwipeEnd);
+
+document.addEventListener('mousedown', onSwipeStart);
+document.addEventListener('mousemove', onSwipeMove);
+document.addEventListener('mouseup', onSwipeEnd);
+</script>
+
+<script>
+function saveProductOrder() {
+    const list = document.getElementById('qb-product-list');
+    if (!list) return;
+    const ids = Array.from(list.querySelectorAll('.qb-product-item')).map(el => el.dataset.productId);
+    try {
+        localStorage.setItem('qb_product_order', JSON.stringify(ids));
+    } catch(e) { /* storage full / private mode */ }
+}
+
+function applySavedProductOrder() {
+    const list = document.getElementById('qb-product-list');
+    if (!list) return;
+    let saved;
+    try {
+        saved = JSON.parse(localStorage.getItem('qb_product_order') || 'null');
+    } catch(e) { return; }
+    if (!saved || !Array.isArray(saved) || saved.length === 0) return;
+
+    // Reorder DOM nodes to match saved sequence (unknown IDs stay at end)
+    saved.forEach(id => {
+        const el = list.querySelector(`.qb-product-item[data-product-id="${id}"]`);
+        if (el) list.appendChild(el);
+    });
+}
+
+function openDynamicReceiptModal(order) {
+    document.getElementById('dyn-receipt-id').textContent = order.id;
+    document.getElementById('dyn-receipt-store-name').textContent = order.store_name || order.display_store_name;
+    document.getElementById('dyn-receipt-date').textContent = order.created_at;
+    
+    // Items
+    const tbody = document.getElementById('dyn-receipt-items-body');
+    tbody.innerHTML = '';
+    if (order.items) {
+        order.items.forEach((item, idx) => {
+            const tr = document.createElement('tr');
+            tr.className = 'border-bottom';
+            tr.innerHTML = `
+                <td class="py-2 text-muted small">${idx + 1}</td>
+                <td class="py-2 text-dark fw-medium">${item.product_name}</td>
+                <td class="py-2 text-dark text-center">${item.quantity}</td>
+                <td class="py-2 text-muted text-end" style="font-size:0.82rem;">₹${item.price.toFixed(0)}</td>
+                <td class="py-2 text-dark text-end fw-bold">₹${item.total.toFixed(0)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+    
+    // Totals
+    document.getElementById('dyn-receipt-total-amount').textContent = '₹' + order.total_amount.toFixed(0);
+    const oldBalRow = document.getElementById('dyn-receipt-old-balance-row');
+    const dividerHr = document.getElementById('dyn-receipt-divider-hr');
+    const grandTotalRow = document.getElementById('dyn-receipt-grand-total-row');
+    
+    if (grandTotalRow) grandTotalRow.classList.add('d-none');
+    if (dividerHr) dividerHr.classList.add('d-none');
+    
+    if (order.old_balance > 0) {
+        oldBalRow.classList.remove('d-none');
+        document.getElementById('dyn-receipt-old-balance').textContent = '₹' + order.old_balance.toFixed(0);
+    } else {
+        oldBalRow.classList.add('d-none');
+    }
+    
+    // Cash and Due
+    const remaining = order.remaining_balance !== undefined && order.remaining_balance !== null ? order.remaining_balance : order.grand_total;
+    const product_remaining = Math.max(0, remaining - order.old_balance);
+    const product_payment = order.total_amount - product_remaining;
+
+    const cashRow = document.getElementById('dyn-receipt-cash-row');
+    const dueRow = document.getElementById('dyn-receipt-due-row');
+
+    if (product_payment > 0) {
+        if (cashRow) {
+            cashRow.classList.remove('d-none');
+            document.getElementById('dyn-receipt-cash').textContent = '-₹' + product_payment.toFixed(0);
+        }
+    } else {
+        if (cashRow) cashRow.classList.add('d-none');
+    }
+    
+    if (dueRow) {
+        dueRow.classList.remove('d-none');
+        document.getElementById('dyn-receipt-due').textContent = '₹' + remaining.toFixed(0);
+    }
+    
+    // Payment status
+    const statusContainer = document.getElementById('dyn-receipt-payment-status-container');
+    if (order.payment_status === 'paid') {
+        statusContainer.innerHTML = `
+            <span class="badge rounded-pill text-bg-success py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                <i class="bi bi-check-circle-fill me-1"></i> Payment Received
+            </span>
+        `;
+    } else {
+        statusContainer.innerHTML = `
+            <span class="badge rounded-pill text-bg-danger py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                <i class="bi bi-exclamation-circle-fill me-1"></i> Balance: ₹${order.remaining_balance.toFixed(0)}
+            </span>
+        `;
+    }
+    
+    // Show modal
+    const modalEl = document.getElementById('dynamicReceiptModal');
+    if (modalEl) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+}
+
+function openStoreOrdersModal(storeName) {
+    const modalEl = document.getElementById('storeOrdersModal');
+    if (!modalEl) return;
+    
+    document.getElementById('store-orders-modal-title').textContent = storeName;
+    document.getElementById('store-orders-loading').classList.remove('d-none');
+    document.getElementById('store-orders-list').classList.add('d-none');
+    document.getElementById('store-orders-empty').classList.add('d-none');
+    
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+    
+    const url = `/orders/store/orders/?store_name=${encodeURIComponent(storeName)}`;
+    fetchWithTimeout(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('store-orders-loading').classList.add('d-none');
+        if (data.orders && data.orders.length > 0) {
+            const listContainer = document.getElementById('store-orders-list');
+            listContainer.innerHTML = '';
+            
+            data.orders.forEach(order => {
+                const card = document.createElement('div');
+                card.className = 'card border-0 shadow-sm rounded-4 mb-2 border-start border-4 ' + 
+                                 (order.payment_status === 'paid' ? 'border-success' : 'border-warning');
+                
+                let statusBadgeClass = 'bg-secondary';
+                if (order.status.toLowerCase() === 'pending') statusBadgeClass = 'text-bg-warning';
+                else if (order.status.toLowerCase() === 'packed') statusBadgeClass = 'text-bg-primary';
+                else if (order.status.toLowerCase() === 'delivered') statusBadgeClass = 'text-bg-info text-white';
+                else if (order.status.toLowerCase() === 'received') statusBadgeClass = 'text-bg-success';
+                else if (order.status.toLowerCase() === 'cancelled') statusBadgeClass = 'text-bg-danger';
+
+                card.innerHTML = `
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <span class="fw-bold text-dark">#${order.id}</span>
+                                <span class="badge ${statusBadgeClass} ms-2 fw-semibold" style="font-size:0.75rem;">${order.status}</span>
+                            </div>
+                            <span class="fw-bold text-dark">₹${order.grand_total.toFixed(0)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted" style="font-size:0.75rem;">${order.created_at}</small>
+                            <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 py-1 rounded-pill shadow-sm view-bill-btn" style="font-size:0.75rem;">
+                                <i class="bi bi-receipt me-1"></i> Bill
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                card.querySelector('.view-bill-btn').addEventListener('click', () => {
+                    openDynamicReceiptModal(order);
+                });
+                
+                listContainer.appendChild(card);
+            });
+            listContainer.classList.remove('d-none');
+        } else {
+            document.getElementById('store-orders-empty').classList.remove('d-none');
+        }
+    })
+    .catch(() => {
+        document.getElementById('store-orders-loading').classList.add('d-none');
+        document.getElementById('store-orders-empty').classList.remove('d-none');
+    });
+}
+
+function openStoreLastBill(storeName) {
+    const url = `/orders/store/orders/?store_name=${encodeURIComponent(storeName)}`;
+    fetchWithTimeout(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(data => {
+        if (data.orders && data.orders.length > 0) {
+            // Find the latest non-cancelled order
+            const nonCancelledOrder = data.orders.find(o => o.raw_status !== 'cancelled' && o.status !== 'Cancelled');
+            if (nonCancelledOrder) {
+                openDynamicReceiptModal(nonCancelledOrder);
+            } else {
+                showToast('No active bills found for this store.', false);
+            }
+        } else {
+            showToast('No bills found for this store.', false);
+        }
+    })
+    .catch(() => {
+        showToast('Error fetching store bill.', false);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Global event delegation for double tap on store names and balance badges
+    let storeNameLastTap = 0;
+    let storeBalanceLastTap = 0;
+
+    document.body.addEventListener('touchend', function(e) {
+        const storeNameElem = e.target.closest('.store-name-click');
+        if (storeNameElem) {
+            const storeCard = storeNameElem.closest('.stores-item-card');
+            if (storeCard) {
+                const storeName = storeCard.getAttribute('data-store-name');
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - storeNameLastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    e.preventDefault();
+                    openStoreOrdersModal(storeName);
+                }
+                storeNameLastTap = currentTime;
+            }
+        }
+
+        const storeBalanceElem = e.target.closest('.store-balance-click');
+        if (storeBalanceElem) {
+            const storeCard = storeBalanceElem.closest('.stores-item-card');
+            if (storeCard) {
+                const storeName = storeCard.getAttribute('data-store-name');
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - storeBalanceLastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    e.preventDefault();
+                    openStoreLastBill(storeName);
+                }
+                storeBalanceLastTap = currentTime;
+            }
+        }
+    });
+
+    document.body.addEventListener('dblclick', function(e) {
+        const storeNameElem = e.target.closest('.store-name-click');
+        if (storeNameElem) {
+            const storeCard = storeNameElem.closest('.stores-item-card');
+            if (storeCard) {
+                const storeName = storeCard.getAttribute('data-store-name');
+                openStoreOrdersModal(storeName);
+            }
+        }
+
+        const storeBalanceElem = e.target.closest('.store-balance-click');
+        if (storeBalanceElem) {
+            const storeCard = storeBalanceElem.closest('.stores-item-card');
+            if (storeCard) {
+                const storeName = storeCard.getAttribute('data-store-name');
+                openStoreLastBill(storeName);
+            }
+        }
+    });
+
+    // Check if we need to automatically continue/open an edited draft
+    if (sessionStorage.getItem('open_draft_on_load') === 'true') {
+        sessionStorage.removeItem('open_draft_on_load');
+        continueDraftBill();
+    }
+});
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+{% endblock %}

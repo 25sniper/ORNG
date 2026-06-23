@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}My Products{% endblock %}
+{% block content %}
+<h1 class="title" style="font-family: 'Inter', sans-serif; color: #fff;">My Products</h1>
+<a href="{% url 'product_create' %}" class="btn" style="margin-bottom: 1rem; background: linear-gradient(135deg, #ff7e5f, #feb47b); color: white; padding: 0.6rem 1.2rem; border-radius: 0.4rem; text-decoration: none;">Add Product</a>
+<table class="product-table" style="width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.1); backdrop-filter: blur(5px); border-radius: 0.5rem; overflow: hidden;">
+  <thead>
+    <tr style="background: rgba(0,0,0,0.2); color: #fff;">
+      <th style="padding: 0.8rem; text-align: left;">Name</th>
+      <th style="padding: 0.8rem; text-align: left;">Purchase Price</th>
+      <th style="padding: 0.8rem; text-align: left;">Selling Price</th>
+      <th style="padding: 0.8rem; text-align: left;">Qty</th>
+      <th style="padding: 0.8rem; text-align: left;">Store</th>
+      <th style="padding: 0.8rem; text-align: left;">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for product in products %}
+    <tr style="color: #fff; border-top: 1px solid rgba(255,255,255,0.05);">
+      <td style="padding: 0.6rem;">{{ product.name }}</td>
+      <td style="padding: 0.6rem;">{{ product.purchase_price }}</td>
+      <td style="padding: 0.6rem;">{{ product.selling_price }}</td>
+      <td style="padding: 0.6rem;">{{ product.qty_available }}</td>
+      <td style="padding: 0.6rem;">{{ product.store.name }}</td>
+      <td style="padding: 0.6rem;">
+        <a href="{% url 'product_update' product.pk %}" style="margin-right: 0.5rem; color: #a0e7e5;">Edit</a>
+        <a href="{% url 'product_delete' product.pk %}" style="color: #ff6b6b;">Delete</a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" style="padding: 0.8rem; color: #fff; text-align:center;">No products yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

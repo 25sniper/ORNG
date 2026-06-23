@@ -26,6 +26,4 @@ env/
 *.sw?
 
 # Project specifics
-/ORNGDB/
-ORNGDB_rework/
 python-installer.exe

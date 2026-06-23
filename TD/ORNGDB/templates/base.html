@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORNG Agent v1.0</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; min-height: 100vh; }
+        .content-wrapper { flex: 1 0 auto; }
+        h1, h2, h3, h4, h5, h6, .navbar-brand { font-family: 'Outfit', sans-serif; }
+        .navbar-brand { font-weight: bold; color: #ff6600 !important; }
+        
+        /* Mobile Bottom Nav Bar */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background-color: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 2000;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .bottom-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            height: 100%;
+            text-decoration: none;
+            color: #8e8e93;
+            font-size: 0.72rem;
+            font-weight: 500;
+            transition: color 0.15s ease-in-out, transform 0.1s ease-in-out;
+            font-family: 'Outfit', sans-serif;
+        }
+        .bottom-nav-item i {
+            font-size: 1.3rem;
+            margin-bottom: 1px;
+            transition: transform 0.15s ease-in-out;
+        }
+        .bottom-nav-item:active {
+            transform: scale(0.93);
+        }
+        .bottom-nav-item.active {
+            color: #ff6600 !important;
+            font-weight: 600;
+        }
+        .bottom-nav-item.active i {
+            transform: scale(1.1);
+        }
+        
+        /* Raised Center Quick Bill Button */
+        .bottom-nav-center {
+            position: relative;
+            width: 72px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2001;
+        }
+        .bottom-nav-btn-raised {
+            position: absolute;
+            top: -20px;
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff8a00, #ff6600);
+            box-shadow: 0 4px 15px rgba(255, 102, 0, 0.35);
+            border: 4px solid #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff !important;
+            font-size: 1.7rem;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s;
+        }
+        .bottom-nav-btn-raised:active {
+            transform: scale(0.9) translateY(-10px);
+        }
+        .bottom-nav-btn-raised.has-draft {
+            background: linear-gradient(135deg, #ff4e00, #ec008c);
+            box-shadow: 0 4px 15px rgba(236, 0, 140, 0.4);
+            animation: pulse-raised 2s infinite;
+        }
+        
+        @keyframes pulse-raised {
+            0% {
+                box-shadow: 0 0 0 0 rgba(236, 0, 140, 0.6);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(236, 0, 140, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(236, 0, 140, 0);
+            }
+        }
+        
+        .has-bottom-nav {
+            padding-bottom: 85px !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-wrapper {% if user.is_authenticated and user.role == 'agent' %}has-bottom-nav{% endif %}">
+        <nav class="navbar navbar-light bg-white shadow-sm mb-3 py-2">
+            <div class="container d-flex justify-content-between align-items-center flex-nowrap">
+                <a class="navbar-brand text-decoration-none fw-bold me-2 d-flex align-items-center gap-2" href="{% url 'home' %}" style="color: #ff6600 !important; font-size: 1.1rem; white-space: nowrap;">
+                    ORNG Agent
+                    <span class="badge rounded-pill bg-light border text-muted fw-normal" style="font-size: 0.65rem; padding: 0.25em 0.6em;">v1.0</span>
+                </a>
+                {% if user.is_authenticated %}
+                    <div class="d-flex align-items-center flex-nowrap">
+                        {% if user.role == 'customer' %}
+                            <a href="{% url 'my_orders' %}" class="btn btn-link text-decoration-none text-dark me-2 fw-bold px-1 py-1" style="font-size: 0.85rem; white-space: nowrap;">
+                                <i class="bi bi-clock-history text-muted me-1"></i> My Orders
+                            </a>
+                        {% endif %}
+                        <a href="{% url 'profile_view' %}" class="text-decoration-none ms-1">
+                            <div class="d-flex align-items-center justify-content-center rounded-circle text-white shadow-sm" style="width: 32px; height: 32px; background: linear-gradient(135deg, #ff8a00, #e52e71); font-size: 1rem; font-weight: bold; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="View Profile">
+                                {{ user.username.0|upper }}
+                            </div>
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </nav>
+
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    {% if not user.is_authenticated or user.role != 'agent' %}
+    <footer class="footer bg-white border-top py-3 mt-auto shadow-sm">
+        <div class="container text-center text-muted small">
+            <span class="fw-semibold" style="color: #ff6600;">ORNG Agent</span> <span class="text-muted opacity-75">v1.0</span> &bull; &copy; 2026
+        </div>
+    </footer>
+    {% endif %}
+
+    {% if user.is_authenticated and user.role == 'agent' %}
+    <div class="bottom-nav">
+        <!-- Orders Tab -->
+        <a href="{% url 'delivery_dashboard' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'delivery_dashboard' %}active{% endif %}">
+            <i class="bi bi-receipt"></i>
+            <span>Orders</span>
+        </a>
+        
+        <!-- Products Tab -->
+        <a href="{% url 'admin_products_view' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'admin_products_view' %}active{% endif %}">
+            <i class="bi bi-box-seam"></i>
+            <span>Products</span>
+        </a>
+        
+        <!-- Quick Bill Tab (Center Raised) -->
+        <div class="bottom-nav-center">
+            <a href="#" class="bottom-nav-btn-raised {% if user.draft_bill %}has-draft{% endif %}" id="bottom-qb-btn" title="{% if user.draft_bill %}Continue Bill{% else %}Quick Bill{% endif %}">
+                <i class="bi bi-plus-lg"></i>
+            </a>
+        </div>
+        
+        <!-- Stores Tab -->
+        <a href="{% url 'admin_stores_view' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'admin_stores_view' %}active{% endif %}">
+            <i class="bi bi-shop"></i>
+            <span>Stores</span>
+        </a>
+        
+        <!-- Profile Tab -->
+        <a href="{% url 'profile_view' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'profile_view' %}active{% endif %}">
+            <i class="bi bi-person"></i>
+            <span>Profile</span>
+        </a>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const bottomQbBtn = document.getElementById('bottom-qb-btn');
+            if (bottomQbBtn) {
+                bottomQbBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    // Check if we are on the dashboard page
+                    const isDashboard = {% if request.resolver_match.url_name == 'delivery_dashboard' %}true{% else %}false{% endif %};
+                    if (isDashboard) {
+                        if (typeof handleQuickBillBtnClick === 'function') {
+                            handleQuickBillBtnClick();
+                        }
+                    } else {
+                        sessionStorage.setItem('open_draft_on_load', 'true');
+                        window.location.href = "{% url 'delivery_dashboard' %}";
+                    }
+                });
+            }
+        });
+    </script>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

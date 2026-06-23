@@ -1,0 +1,615 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-4 mt-2">
+    <div class="d-flex justify-content-between align-items-center">
+        <h2 class="fw-bold mb-0" style="color: #ff6600;"><i class="bi bi-shop"></i> My Stores</h2>
+        <button class="btn text-white fw-bold rounded-pill px-4 shadow-sm" style="background-color: #ff6600;" data-bs-toggle="modal" data-bs-target="#addStoreModal">
+            <i class="bi bi-plus-lg"></i> Add Store
+        </button>
+    </div>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 g-3">
+    {% for store in stores %}
+    <div class="col">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden border-start border-4 {% if store.balance > 0 %}border-warning{% else %}border-success{% endif %} stores-item-card" data-store-name="{{ store.name }}" data-store-balance="{{ store.balance|floatformat:2 }}">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1 store-name-click" style="cursor: pointer;" title="Double tap to view all orders">{{ store.name }}</h5>
+                        <p class="mb-0 text-muted small">
+                            <i class="bi bi-telephone me-1"></i>
+                            {% if store.phone %}
+                            <a href="tel:{{ store.phone }}" class="text-decoration-none text-muted">{{ store.phone }}</a>
+                            {% else %}
+                            No phone number
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="text-end d-flex align-items-center gap-2">
+                        <span class="badge rounded-pill {% if store.balance > 0 %}text-bg-warning text-dark{% else %}text-bg-success{% endif %} fw-bold px-3 py-1.5 border-0 shadow-sm store-balance-click" style="font-size: 0.85rem; cursor: pointer;" title="Double tap to view latest bill">
+                            ₹{{ store.balance|floatformat:0 }}
+                        </span>
+                        {% if store.balance > 0 %}
+                        <button type="button" class="btn btn-sm btn-outline-success fw-bold px-2.5 rounded-pill shadow-sm" style="font-size: 0.75rem;" onclick="openStorePaymentModal('{{ store.name|escapejs }}', {{ store.balance|floatformat:2 }}, '{{ csrf_token }}')">
+                            Pay
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="d-flex gap-2 justify-content-end border-top pt-3 mt-3">
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#editStoreModal{{ store.id }}">
+                        <i class="bi bi-pencil"></i> Edit
+                    </button>
+                    <form action="{% url 'admin_delete_store' store.id %}" method="POST" onsubmit="return confirm('Are you sure you want to delete this store?');" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Store Modal -->
+    <div class="modal fade" id="editStoreModal{{ store.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="fw-bold mb-0">Edit Store</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-start">
+                    <form action="{% url 'admin_edit_store' store.id %}" method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Store Name</label>
+                            <input type="text" name="name" class="form-control rounded-3" value="{{ store.name }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Phone Number</label>
+                            <input type="text" name="phone" class="form-control rounded-3" value="{{ store.phone }}">
+                        </div>
+                        <button type="submit" class="btn w-100 fw-bold text-white rounded-pill mt-2 shadow-sm" style="background-color: #ff6600;">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info border-0 shadow-sm rounded-4 text-center py-5 mt-2">
+            <h5 class="mb-0 text-muted">No stores found.</h5>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Add Store Modal -->
+<div class="modal fade" id="addStoreModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold mb-0">Add New Store</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form action="{% url 'admin_add_store' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Store Name</label>
+                        <input type="text" name="name" class="form-control rounded-3" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Phone Number</label>
+                        <input type="text" name="phone" class="form-control rounded-3">
+                    </div>
+                    <button type="submit" class="btn w-100 fw-bold text-white rounded-pill mt-2 shadow-sm" style="background-color: #ff6600;">Add Store</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Store Payment Modal -->
+<div class="modal fade" id="storePaymentModal" tabindex="-1" aria-labelledby="storePaymentModalLabel" aria-hidden="true" style="z-index: 3000;">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h6 class="modal-title fw-bold text-dark" id="storePaymentModalLabel">Store Payment</h6>
+                <button type="button" class="btn-close" onclick="closeStorePaymentModal()" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <input type="hidden" id="store-pay-name">
+                <input type="hidden" id="store-pay-csrf">
+                
+                <div class="mb-2 text-start">
+                    <span class="text-muted small">Store Name:</span>
+                    <div class="fw-bold text-dark mt-1" id="store-pay-name-display" style="font-family: 'Outfit', sans-serif;">Store Name</div>
+                </div>
+                
+                <div class="mb-2 text-start">
+                    <span class="text-muted small">Balance:</span>
+                    <span class="fw-bold text-dark ms-1" id="store-pay-total-due-display">₹0</span>
+                </div>
+                
+                <div class="mb-3 text-start">
+                    <label class="form-label small fw-bold text-muted">Amount Paid (₹)</label>
+                    <input type="number" id="store-pay-amount-input" class="form-control rounded-3" step="0.01" min="0" placeholder="0.00" oninput="updateStorePaymentRemaining()" style="box-shadow: none;">
+                </div>
+                
+                <div class="bg-light rounded-3 p-2.5 text-center d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">Remaining:</span>
+                    <span class="fw-bold text-danger" id="store-pay-remaining-display">₹0</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0">
+                <button type="button" class="btn w-100 fw-bold text-white rounded-pill shadow-sm" style="background-color: #28a745;" onclick="saveStorePayment()">Save Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Store Orders Modal -->
+<div class="modal fade" id="storeOrdersModal" tabindex="-1" aria-labelledby="storeOrdersModalLabel" aria-hidden="true" style="z-index: 3000;">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4 position-relative">
+                <h5 class="modal-title fw-bold text-dark" id="storeOrdersModalLabel" style="font-family: 'Outfit', sans-serif;">All Orders</h5>
+                <button type="button" class="btn-close position-absolute end-0 top-0 mt-4 me-4" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-3 text-start">
+                <div class="fw-bold text-muted mb-3 fs-6" id="store-orders-modal-title" style="font-family: 'Outfit', sans-serif;">Store Name</div>
+                <div id="store-orders-loading" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <span class="ms-2 text-muted small">Loading orders...</span>
+                </div>
+                <div id="store-orders-list" class="d-none">
+                    <!-- Orders rendered here -->
+                </div>
+                <div id="store-orders-empty" class="alert alert-light border-0 shadow-sm rounded-4 py-4 text-center text-muted d-none">
+                    <h6 class="mb-0">No orders found for this store.</h6>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dynamic Receipt Modal -->
+<div class="modal fade" id="dynamicReceiptModal" tabindex="-1" aria-labelledby="dynamicReceiptModalLabel" aria-hidden="true" style="z-index: 3100;">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4 text-center d-block position-relative">
+                <button type="button" class="btn-close position-absolute end-0 top-0 mt-4 me-4" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="text-center mb-2">
+                    <i class="bi bi-receipt fs-1 text-secondary opacity-50"></i>
+                </div>
+                <h5 class="modal-title fw-bold mb-1" id="dynamicReceiptModalLabel" style="font-family: 'Outfit', sans-serif;">Invoice #<span id="dyn-receipt-id"></span></h5>
+                <p class="text-muted small mb-0" id="dyn-receipt-store-name"></p>
+                <p class="text-muted" id="dyn-receipt-date" style="font-size: 0.75rem;"></p>
+            </div>
+            <div class="modal-body px-4 pt-2 pb-2 text-start">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-sm mb-0">
+                        <thead class="border-bottom border-2">
+                            <tr>
+                                <th class="text-muted small fw-bold pb-2" style="width:24px;">#</th>
+                                <th class="text-muted small fw-bold pb-2">Item</th>
+                                <th class="text-muted small fw-bold text-center pb-2">Qty</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Unit</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dyn-receipt-items-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0 d-block">
+                <div class="bg-light rounded-4 p-3 mt-2 shadow-sm border border-secondary border-opacity-10">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Items Total:</span>
+                        <span class="text-dark fw-bold small" id="dyn-receipt-total-amount">₹0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2" id="dyn-receipt-old-balance-row">
+                        <span class="text-muted small">Old Balance:</span>
+                        <span class="text-warning fw-bold small" id="dyn-receipt-old-balance">₹0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 d-none" id="dyn-receipt-cash-row">
+                        <span class="text-muted small">Cash (Paid):</span>
+                        <span class="text-success fw-bold small" id="dyn-receipt-cash">-₹0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 d-none" id="dyn-receipt-due-row">
+                        <span class="text-muted small">New Balance:</span>
+                        <span class="text-danger fw-bold small" id="dyn-receipt-due">₹0</span>
+                    </div>
+                    <hr class="my-2 border-secondary opacity-25" id="dyn-receipt-divider-hr">
+                    <div class="d-flex justify-content-between align-items-center" id="dyn-receipt-grand-total-row">
+                        <span class="text-dark fw-bold">New Balance:</span>
+                        <span class="text-dark fw-bold fs-5" id="dyn-receipt-grand-total">₹0</span>
+                    </div>
+                </div>
+                <div class="text-center mt-3" id="dyn-receipt-payment-status-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast notification -->
+<div class="position-fixed bottom-0 start-50 translate-middle-x mb-4" style="z-index: 9999; min-width: 260px;" id="toastWrapper">
+    <div id="actionToast" class="toast align-items-center border-0 rounded-pill shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" style="display:none;">
+        <div class="d-flex">
+            <div class="toast-body fw-bold px-4 py-2 text-white text-center w-100" id="toastMsg"></div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Utilities
+function fetchWithTimeout(resource, options = {}) {
+    const { timeout = 10000 } = options;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    return fetch(resource, {
+        ...options,
+        signal: controller.signal
+    }).then(response => {
+        clearTimeout(id);
+        return response;
+    }).catch(error => {
+        clearTimeout(id);
+        throw error;
+    });
+}
+
+function showToast(msg, isSuccess) {
+    const toast = document.getElementById('actionToast');
+    const toastMsg = document.getElementById('toastMsg');
+    if (!toast || !toastMsg) return;
+    toastMsg.textContent = msg;
+    toast.className = 'toast align-items-center border-0 rounded-pill shadow-lg show ' + (isSuccess ? 'text-bg-success' : 'text-bg-danger');
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 2800);
+}
+
+// Modal actions
+function openStoreOrdersModal(storeName) {
+    const modalEl = document.getElementById('storeOrdersModal');
+    if (!modalEl) return;
+    
+    document.getElementById('store-orders-modal-title').textContent = storeName;
+    document.getElementById('store-orders-loading').classList.remove('d-none');
+    document.getElementById('store-orders-list').classList.add('d-none');
+    document.getElementById('store-orders-empty').classList.add('d-none');
+    
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+    
+    const url = `/orders/store/orders/?store_name=${encodeURIComponent(storeName)}`;
+    fetchWithTimeout(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('store-orders-loading').classList.add('d-none');
+        if (data.orders && data.orders.length > 0) {
+            const listContainer = document.getElementById('store-orders-list');
+            listContainer.innerHTML = '';
+            
+            data.orders.forEach(order => {
+                const card = document.createElement('div');
+                card.className = 'card border-0 shadow-sm rounded-4 mb-2 border-start border-4 ' + 
+                                 (order.payment_status === 'paid' ? 'border-success' : 'border-warning');
+                
+                let statusBadgeClass = 'bg-secondary';
+                if (order.status.toLowerCase() === 'pending') statusBadgeClass = 'text-bg-warning';
+                else if (order.status.toLowerCase() === 'packed') statusBadgeClass = 'text-bg-primary';
+                else if (order.status.toLowerCase() === 'delivered') statusBadgeClass = 'text-bg-info text-white';
+                else if (order.status.toLowerCase() === 'received') statusBadgeClass = 'text-bg-success';
+                else if (order.status.toLowerCase() === 'cancelled') statusBadgeClass = 'text-bg-danger';
+
+                card.innerHTML = `
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <span class="fw-bold text-dark">#${order.id}</span>
+                                <span class="badge ${statusBadgeClass} ms-2 fw-semibold" style="font-size:0.75rem;">${order.status}</span>
+                            </div>
+                            <span class="fw-bold text-dark">₹${order.grand_total.toFixed(0)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted" style="font-size:0.75rem;">${order.created_at}</small>
+                            <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 py-1 rounded-pill shadow-sm view-bill-btn" style="font-size:0.75rem;">
+                                <i class="bi bi-receipt me-1"></i> Bill
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                card.querySelector('.view-bill-btn').addEventListener('click', () => {
+                    openDynamicReceiptModal(order);
+                });
+                
+                listContainer.appendChild(card);
+            });
+            listContainer.classList.remove('d-none');
+        } else {
+            document.getElementById('store-orders-empty').classList.remove('d-none');
+        }
+    })
+    .catch(() => {
+        document.getElementById('store-orders-loading').classList.add('d-none');
+        document.getElementById('store-orders-empty').classList.remove('d-none');
+    });
+}
+
+function openStoreLastBill(storeName) {
+    const url = `/orders/store/orders/?store_name=${encodeURIComponent(storeName)}`;
+    fetchWithTimeout(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(data => {
+        if (data.orders && data.orders.length > 0) {
+            const nonCancelledOrder = data.orders.find(o => o.raw_status !== 'cancelled' && o.status !== 'Cancelled');
+            if (nonCancelledOrder) {
+                openDynamicReceiptModal(nonCancelledOrder);
+            } else {
+                showToast('No active bills found for this store.', false);
+            }
+        } else {
+            showToast('No bills found for this store.', false);
+        }
+    })
+    .catch(() => {
+        showToast('Error fetching store bill.', false);
+    });
+}
+
+function openDynamicReceiptModal(order) {
+    document.getElementById('dyn-receipt-id').textContent = order.id;
+    document.getElementById('dyn-receipt-store-name').textContent = order.store_name || order.display_store_name;
+    document.getElementById('dyn-receipt-date').textContent = order.created_at;
+    
+    const tbody = document.getElementById('dyn-receipt-items-body');
+    tbody.innerHTML = '';
+    if (order.items) {
+        order.items.forEach((item, idx) => {
+            const tr = document.createElement('tr');
+            tr.className = 'border-bottom';
+            tr.innerHTML = `
+                <td class="py-2 text-muted small">${idx + 1}</td>
+                <td class="py-2 text-dark fw-medium">${item.product_name}</td>
+                <td class="py-2 text-dark text-center">${item.quantity}</td>
+                <td class="py-2 text-muted text-end" style="font-size:0.82rem;">₹${item.price.toFixed(0)}</td>
+                <td class="py-2 text-dark text-end fw-bold">₹${item.total.toFixed(0)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+    
+    document.getElementById('dyn-receipt-total-amount').textContent = '₹' + order.total_amount.toFixed(0);
+    const oldBalRow = document.getElementById('dyn-receipt-old-balance-row');
+    const dividerHr = document.getElementById('dyn-receipt-divider-hr');
+    const grandTotalRow = document.getElementById('dyn-receipt-grand-total-row');
+    
+    if (grandTotalRow) grandTotalRow.classList.add('d-none');
+    if (dividerHr) dividerHr.classList.add('d-none');
+    
+    if (order.old_balance > 0) {
+        oldBalRow.classList.remove('d-none');
+        document.getElementById('dyn-receipt-old-balance').textContent = '₹' + order.old_balance.toFixed(0);
+    } else {
+        oldBalRow.classList.add('d-none');
+    }
+    
+    const remaining = order.remaining_balance !== undefined && order.remaining_balance !== null ? order.remaining_balance : order.grand_total;
+    const product_remaining = Math.max(0, remaining - order.old_balance);
+    const product_payment = order.total_amount - product_remaining;
+
+    const cashRow = document.getElementById('dyn-receipt-cash-row');
+    const dueRow = document.getElementById('dyn-receipt-due-row');
+
+    if (product_payment > 0) {
+        if (cashRow) {
+            cashRow.classList.remove('d-none');
+            document.getElementById('dyn-receipt-cash').textContent = '-₹' + product_payment.toFixed(0);
+        }
+    } else {
+        if (cashRow) cashRow.classList.add('d-none');
+    }
+    
+    if (dueRow) {
+        dueRow.classList.remove('d-none');
+        document.getElementById('dyn-receipt-due').textContent = '₹' + remaining.toFixed(0);
+    }
+    
+    const statusContainer = document.getElementById('dyn-receipt-payment-status-container');
+    if (order.payment_status === 'paid') {
+        statusContainer.innerHTML = `
+            <span class="badge rounded-pill text-bg-success py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                <i class="bi bi-check-circle-fill me-1"></i> Payment Received
+            </span>
+        `;
+    } else {
+        statusContainer.innerHTML = `
+            <span class="badge rounded-pill text-bg-danger py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                <i class="bi bi-exclamation-circle-fill me-1"></i> Balance: ₹${order.remaining_balance.toFixed(0)}
+            </span>
+        `;
+    }
+    
+    const modalEl = document.getElementById('dynamicReceiptModal');
+    if (modalEl) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+}
+
+// Payment modals
+function openStorePaymentModal(storeName, balance, csrfToken) {
+    document.getElementById('store-pay-name').value = storeName;
+    document.getElementById('store-pay-csrf').value = csrfToken;
+    document.getElementById('store-pay-name-display').textContent = storeName;
+    document.getElementById('store-pay-total-due-display').textContent = '₹' + balance.toFixed(0);
+    
+    const input = document.getElementById('store-pay-amount-input');
+    input.value = balance.toFixed(2);
+    input.max = balance;
+    
+    updateStorePaymentRemaining();
+    
+    const modalEl = document.getElementById('storePaymentModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: false });
+        modal.show();
+    }
+}
+
+function updateStorePaymentRemaining() {
+    const totalDueText = document.getElementById('store-pay-total-due-display').textContent.replace('₹', '');
+    const totalDue = parseFloat(totalDueText) || 0;
+    
+    const inputEl = document.getElementById('store-pay-amount-input');
+    let amountPaid = parseFloat(inputEl.value) || 0;
+    
+    if (amountPaid > totalDue) {
+        amountPaid = totalDue;
+        inputEl.value = amountPaid;
+    }
+    
+    let remaining = totalDue - amountPaid;
+    if (remaining < 0) remaining = 0;
+    
+    const remainingEl = document.getElementById('store-pay-remaining-display');
+    if (remainingEl) {
+        remainingEl.textContent = '₹' + remaining.toFixed(0);
+        if (remaining === 0) {
+            remainingEl.className = 'fw-bold text-success';
+        } else {
+            remainingEl.className = 'fw-bold text-danger';
+        }
+    }
+    
+    const saveBtn = document.querySelector('button[onclick="saveStorePayment()"]');
+    if (saveBtn) {
+        saveBtn.disabled = (amountPaid <= 0 || isNaN(amountPaid));
+    }
+}
+
+function closeStorePaymentModal() {
+    const modalEl = document.getElementById('storePaymentModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
+}
+
+function saveStorePayment() {
+    const storeName = document.getElementById('store-pay-name').value;
+    const csrfToken = document.getElementById('store-pay-csrf').value;
+    const amountPaid = parseFloat(document.getElementById('store-pay-amount-input').value) || 0;
+    const url = "{% url 'pay_store_balance' %}";
+    
+    if (amountPaid <= 0) {
+        showToast('Amount must be greater than zero', false);
+        return;
+    }
+    
+    const btn = document.querySelector('#storePaymentModal button[onclick="saveStorePayment()"]');
+    if (btn) {
+        btn.disabled = true;
+    }
+    
+    const formData = new FormData();
+    formData.append('store_name', storeName);
+    formData.append('amount_paid', amountPaid);
+    
+    fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Store payment updated successfully!', true);
+            closeStorePaymentModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast(data.error || 'Failed to save payment.', false);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Save Payment';
+            }
+        }
+    })
+    .catch(() => {
+        showToast('Network error.', false);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = 'Save Payment';
+        }
+    });
+}
+
+// Double tap detection logic
+document.addEventListener('DOMContentLoaded', function() {
+    let storeNameLastTap = 0;
+    let storeBalanceLastTap = 0;
+
+    document.body.addEventListener('touchend', function(e) {
+        const storeNameElem = e.target.closest('.store-name-click');
+        if (storeNameElem) {
+            const storeCard = storeNameElem.closest('.stores-item-card');
+            if (storeCard) {
+                const storeName = storeCard.getAttribute('data-store-name');
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - storeNameLastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    e.preventDefault();
+                    openStoreOrdersModal(storeName);
+                }
+                storeNameLastTap = currentTime;
+            }
+        }
+
+        const storeBalanceElem = e.target.closest('.store-balance-click');
+        if (storeBalanceElem) {
+            const storeCard = storeBalanceElem.closest('.stores-item-card');
+            if (storeCard) {
+                const storeName = storeCard.getAttribute('data-store-name');
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - storeBalanceLastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    e.preventDefault();
+                    openStoreLastBill(storeName);
+                }
+                storeBalanceLastTap = currentTime;
+            }
+        }
+    });
+
+    document.body.addEventListener('dblclick', function(e) {
+        const storeNameElem = e.target.closest('.store-name-click');
+        if (storeNameElem) {
+            const storeCard = storeNameElem.closest('.stores-item-card');
+            if (storeCard) {
+                const storeName = storeCard.getAttribute('data-store-name');
+                openStoreOrdersModal(storeName);
+            }
+        }
+
+        const storeBalanceElem = e.target.closest('.store-balance-click');
+        if (storeBalanceElem) {
+            const storeCard = storeBalanceElem.closest('.stores-item-card');
+            if (storeCard) {
+                const storeName = storeCard.getAttribute('data-store-name');
+                openStoreLastBill(storeName);
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
