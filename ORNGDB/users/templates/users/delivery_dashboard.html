@@ -2661,12 +2661,12 @@ function shareOrderBill(orderId, baseUrl) {
                 receiptDiv.style.top = '-9999px';
                 receiptDiv.style.display = 'inline-block';
                 receiptDiv.style.backgroundColor = '#ffffff';
-                receiptDiv.style.padding = '15px';
+                receiptDiv.style.padding = '0px';
                 receiptDiv.style.color = '#000000';
                 receiptDiv.style.fontFamily = 'monospace';
-                receiptDiv.style.fontSize = '16px';
+                receiptDiv.style.fontSize = '28px';
                 receiptDiv.style.fontWeight = 'bold';
-                receiptDiv.style.lineHeight = '1.2';
+                receiptDiv.style.lineHeight = '1.6';
                 receiptDiv.style.whiteSpace = 'pre';
                 
                 receiptDiv.textContent = data.bill_text;
@@ -2683,11 +2683,7 @@ function shareOrderBill(orderId, baseUrl) {
                         
                         const file = new File([blob], `receipt_${orderId}.png`, { type: 'image/png' });
                         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                            navigator.share({
-                                files: [file],
-                                title: `Order #${orderId} Receipt`,
-                                text: 'Here is your receipt.'
-                            }).then(() => {
+                            navigator.share({ files: [file] }).then(() => {
                                 showToast('Shared successfully!', true);
                                 resetBtn(btn);
                             }).catch(err => {
