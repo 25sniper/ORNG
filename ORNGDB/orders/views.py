@@ -512,8 +512,7 @@ def share_order_bill(request, order_id):
         divider_double
     ]
     
-    bill_text = "
-".join(header + details + items_lines + [" " * w, " " * w] + footer)
+    bill_text = "\n".join(header + details + items_lines + [" " * w, " " * w] + footer)
     
     format_type = request.GET.get('format', 'json')
     if format_type == 'image':
@@ -523,8 +522,7 @@ def share_order_bill(request, order_id):
         except IOError:
             font = ImageFont.load_default()
 
-        lines = bill_text.split('
-')
+        lines = bill_text.split('\n')
         
         # Calculate dimensions
         max_width = 0
