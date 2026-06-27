@@ -997,29 +997,6 @@
 
 <!-- Dynamic Receipt Modal -->
 
-<div class="modal fade" id="imageShareModal" tabindex="-1" aria-labelledby="imageShareModalLabel" aria-hidden="true" style="z-index: 3100;">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg rounded-4">
-      <div class="modal-header border-bottom-0 pb-0">
-        <h5 class="modal-title fw-bold" id="imageShareModalLabel">Share Receipt</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body text-center">
-        <p class="text-muted small mb-3">Your image is ready to share.</p>
-        <img id="imageShareModalPreview" src="" alt="Receipt Preview" class="img-fluid rounded border mb-3" style="max-height: 400px;">
-        <div class="d-grid gap-2">
-            <button type="button" id="imageShareModalBtn" class="btn text-white rounded-pill fw-bold py-3 shadow-sm" style="background-color: #ff6600;">
-                <i class="bi bi-share me-1"></i> Share Image Now
-            </button>
-            <button type="button" id="imageDownloadModalBtn" class="btn btn-outline-secondary rounded-pill fw-bold py-2">
-                <i class="bi bi-download me-1"></i> Download Instead
-            </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div class="modal fade" id="dynamicReceiptModal" tabindex="-1" aria-labelledby="dynamicReceiptModalLabel" aria-hidden="true" style="z-index: 3100;">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow rounded-4">
@@ -2631,51 +2608,44 @@ function loadHtml2Canvas(callback) {
     }
 }
 
-let pendingShareFile = null;
-let pendingShareOrderId = null;
-let pendingShareCanvas = null;
+window.readyShares = window.readyShares || {};
+window.readyShareCanvas = window.readyShareCanvas || {};
 
-document.addEventListener("DOMContentLoaded", function() {
-    const shareBtn = document.getElementById("imageShareModalBtn");
-    const downloadBtn = document.getElementById("imageDownloadModalBtn");
+function executeReadyShare(orderId, url) {
+    const btnId = 'share-btn-' + orderId;
+    const btn = document.getElementById(btnId);
     
-    if(shareBtn) {
-        shareBtn.addEventListener("click", function() {
-            if (pendingShareFile && navigator.canShare && navigator.canShare({ files: [pendingShareFile] })) {
-                navigator.share({ 
-                    files: [pendingShareFile],
-                    title: 'Receipt'
-                }).then(() => {
-                    showToast('Shared successfully!', true);
-                    const modalEl = document.getElementById('imageShareModal');
-                    const modal = bootstrap.Modal.getInstance(modalEl);
-                    if(modal) modal.hide();
-                }).catch(err => {
-                    console.log('Share failed:', err);
-                    alert('Share cancelled or failed: ' + (err.message || err.name || err));
-                });
-            } else {
-                alert("Sharing files is not supported on this browser.");
-            }
-        });
-    }
+    const file = window.readyShares[orderId];
+    const canvas = window.readyShareCanvas[orderId];
     
-    if(downloadBtn) {
-        downloadBtn.addEventListener("click", function() {
-            if(pendingShareCanvas && pendingShareOrderId) {
-                downloadImage(pendingShareCanvas, pendingShareOrderId);
-                showToast('Receipt downloaded!', true);
-            }
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ 
+            files: [file],
+            title: 'Receipt'
+        }).then(() => {
+            showToast('Shared successfully!', true);
+            resetBtn(btn, orderId, url);
+        }).catch(err => {
+            alert('Share cancelled or failed: ' + (err.message || err.name || err));
+            // Do not reset button on failure, let them try again or download
         });
+    } else if (canvas) {
+        // Fallback for browsers that don't support file sharing
+        downloadImage(canvas, orderId);
+        showToast('Receipt downloaded!', true);
+        resetBtn(btn, orderId, url);
+    } else {
+        alert("Sharing files is not supported on this browser.");
+        resetBtn(btn, orderId, url);
     }
-});
+}
 
 function shareOrderBill(orderId, baseUrl) {
     const btnId = 'share-btn-' + orderId;
     const btn = document.getElementById(btnId);
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Gen...';
     }
     
     const format = localStorage.getItem("receipt_format") || "image";
@@ -2692,7 +2662,7 @@ function shareOrderBill(orderId, baseUrl) {
     .then(data => {
         if (!data.success) {
             showToast('Error getting bill text.', false);
-            if (btn) resetBtn(btn);
+            if (btn) resetBtn(btn, orderId, baseUrl);
             return;
         }
 
@@ -2703,14 +2673,14 @@ function shareOrderBill(orderId, baseUrl) {
                     text: data.bill_text
                 }).then(() => {
                     showToast('Shared successfully!', true);
-                    resetBtn(btn);
+                    resetBtn(btn, orderId, baseUrl);
                 }).catch(() => {
                     fallbackCopyTextToClipboard(data.bill_text);
-                    resetBtn(btn);
+                    resetBtn(btn, orderId, baseUrl);
                 });
             } else {
                 fallbackCopyTextToClipboard(data.bill_text);
-                resetBtn(btn);
+                resetBtn(btn, orderId, baseUrl);
             }
         } else {
             loadHtml2Canvas(() => {
@@ -2736,40 +2706,34 @@ function shareOrderBill(orderId, baseUrl) {
                     canvas.toBlob(blob => {
                         if (!blob) {
                             showToast('Failed to generate image.', false);
-                            if (btn) resetBtn(btn);
+                            if (btn) resetBtn(btn, orderId, baseUrl);
                             return;
                         }
                         
-                        pendingShareFile = new File([blob], `receipt_${orderId}.png`, { type: 'image/png' });
-                        pendingShareOrderId = orderId;
-                        pendingShareCanvas = canvas;
+                        const file = new File([blob], `receipt_${orderId}.png`, { type: 'image/png' });
+                        window.readyShares[orderId] = file;
+                        window.readyShareCanvas[orderId] = canvas;
                         
-                        // Show modal
-                        const previewImg = document.getElementById('imageShareModalPreview');
-                        if (previewImg) {
-                            previewImg.src = URL.createObjectURL(blob);
+                        // Change button to green "Share Now"
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.className = "btn btn-sm fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center btn-success text-white";
+                            btn.innerHTML = '<i class="bi bi-share-fill me-1"></i> Share Now';
+                            btn.onclick = function() { executeReadyShare(orderId, baseUrl); };
                         }
-                        
-                        const modalEl = document.getElementById('imageShareModal');
-                        if (modalEl) {
-                            const modal = new bootstrap.Modal(modalEl);
-                            modal.show();
-                        }
-                        
-                        resetBtn(btn);
                     }, 'image/png');
                 }).catch(err => {
                     console.error(err);
                     document.body.removeChild(receiptDiv);
                     showToast('Failed to create image.', false);
-                    resetBtn(btn);
+                    resetBtn(btn, orderId, baseUrl);
                 });
             });
         }
     })
     .catch(() => {
         showToast('Network error.', false);
-        if(btn) resetBtn(btn);
+        if(btn) resetBtn(btn, orderId, baseUrl);
     });
 }
 
@@ -2797,9 +2761,13 @@ function fallbackCopyTextToClipboard(text) {
     }
 }
 
-function resetBtn(btn) {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-share me-1"></i> Share';
+function resetBtn(btn, orderId, baseUrl) {
+    if(btn) {
+        btn.disabled = false;
+        btn.className = "btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center";
+        btn.innerHTML = '<i class="bi bi-share me-1"></i> Share';
+        btn.onclick = function() { shareOrderBill(orderId, baseUrl); };
+    }
 }
 
 function downloadImage(canvas, orderId) {
