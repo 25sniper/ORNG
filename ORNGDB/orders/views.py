@@ -512,7 +512,55 @@ def share_order_bill(request, order_id):
         divider_double
     ]
     
-    bill_text = "\n".join(header + details + items_lines + [" " * w, " " * w] + footer)
+    bill_text = "
+".join(header + details + items_lines + [" " * w, " " * w] + footer)
+    
+    format_type = request.GET.get('format', 'json')
+    if format_type == 'image':
+        font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'RobotoMono-Regular.ttf')
+        try:
+            font = ImageFont.truetype(font_path, 28)
+        except IOError:
+            font = ImageFont.load_default()
+
+        lines = bill_text.split('
+')
+        
+        # Calculate dimensions
+        max_width = 0
+        total_height = 0
+        line_heights = []
+        
+        # dummy image just for measuring
+        dummy_img = Image.new('RGB', (1, 1))
+        dummy_draw = ImageDraw.Draw(dummy_img)
+        
+        for line in lines:
+            # textbbox returns (left, top, right, bottom)
+            bbox = dummy_draw.textbbox((0, 0), line, font=font)
+            w_line = bbox[2] - bbox[0]
+            h_line = bbox[3] - bbox[1] + 10 # 10px spacing
+            if h_line < 20: h_line = 38 # Fallback minimum line height for 28px font
+            max_width = max(max_width, w_line)
+            total_height += h_line
+            line_heights.append(h_line)
+            
+        img_width = max_width + 40
+        img_height = total_height + 40
+        
+        img = Image.new('RGB', (img_width, img_height), color='white')
+        draw = ImageDraw.Draw(img)
+        
+        y_text = 20
+        for i, line in enumerate(lines):
+            draw.text((20, y_text), line, font=font, fill='black')
+            y_text += line_heights[i]
+            
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        return HttpResponse(buffer.getvalue(), content_type='image/png')
+
     return JsonResponse({'success': True, 'bill_text': bill_text})
 
 
