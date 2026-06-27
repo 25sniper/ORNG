@@ -516,10 +516,11 @@ def share_order_bill(request, order_id):
     
     format_type = request.GET.get('format', 'json')
     if format_type == 'image':
-        font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'RobotoMono-Regular.ttf')
+        font_path = os.path.join(str(settings.BASE_DIR), 'static', 'fonts', 'RobotoMono-Regular.ttf')
         try:
             font = ImageFont.truetype(font_path, 28)
-        except IOError:
+        except Exception as e:
+            print("Font error:", e)
             font = ImageFont.load_default()
 
         lines = bill_text.split('\n')

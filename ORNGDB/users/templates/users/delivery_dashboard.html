@@ -2677,8 +2677,9 @@ function shareOrderBill(orderId, baseUrl) {
                 resetBtn(btn);
             }
         })
-        .catch(() => {
-            showToast('Failed to generate or fetch image.', false);
+        .catch(err => {
+            console.error(err);
+            showToast('Failed to generate or fetch image: ' + err.message, false);
             if(btn) resetBtn(btn);
         });
     }
