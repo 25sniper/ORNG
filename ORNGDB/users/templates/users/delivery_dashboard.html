@@ -2683,11 +2683,14 @@ function shareOrderBill(orderId, baseUrl) {
                         
                         const file = new File([blob], `receipt_${orderId}.png`, { type: 'image/png' });
                         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                            navigator.share({ files: [file] }).then(() => {
+                            navigator.share({ 
+                                files: [file],
+                                title: 'Receipt'
+                            }).then(() => {
                                 showToast('Shared successfully!', true);
                                 resetBtn(btn);
                             }).catch(err => {
-                                console.log('Share failed, triggering download:', err);
+                                alert('Share failed: ' + (err.message || err.name || err));
                                 downloadImage(canvas, orderId);
                                 resetBtn(btn);
                             });
