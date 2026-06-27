@@ -1,4 +1,7 @@
-import json
+
+
+import csv
+from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
@@ -9,7 +12,8 @@ from django.utils import timezone
 from .models import User
 from orders.models import Order, CartItem, DraftBill
 from products.models import Product
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Max, F
+from django.db.models.functions import Coalesce
 
 def home_redirect(request):
     if request.user.is_authenticated:
@@ -18,7 +22,7 @@ def home_redirect(request):
         elif request.user.role == 'delivery':
             return redirect('delivery_dashboard')
         else:
-            return redirect('customer_menu')
+            return redirect('customer_dashboard')
     return redirect('login')
 
 def unified_login(request):
@@ -85,23 +89,39 @@ def user_logout(request):
     return redirect('login')
 
 @login_required
-def customer_menu(request):
+def customer_dashboard(request):
     if request.user.role != 'customer':
         return redirect('home')
-        
+
+    from orders.models import DraftBill
+    has_draft = DraftBill.objects.filter(delivery_user=request.user).exists()
+
     products = Product.objects.filter(available=True).order_by('position', 'name')
-    cart_items = CartItem.objects.filter(customer=request.user)
-    cart_count = cart_items.aggregate(total_qty=Sum('quantity'))['total_qty'] or 0
-    
-    cart_map = {item.product_id: item.quantity for item in cart_items}
-    for product in products:
-        product.cart_qty = cart_map.get(product.id, 0)
-    
+
+    orders = Order.objects.filter(
+        customer=request.user
+    ).prefetch_related('items__product').order_by('-created_at')
+
+    # Calculate unpaid balance for the logged-in customer
+    balance = Order.objects.filter(
+        payment_status='unpaid',
+        customer=request.user
+    ).exclude(status='cancelled').aggregate(
+        balance=Sum(Coalesce('remaining_balance', F('total_amount') + F('old_balance')))
+    )['balance'] or 0.00
+
     context = {
         'products': products,
-        'cart_count': cart_count,
+        'orders': orders,
+        'balance': balance,
+        'has_draft': has_draft,
     }
-    return render(request, 'users/customer_menu.html', context)
+    return render(request, 'users/customer_dashboard.html', context)
+
+
+
+
+
 
 @login_required
 def admin_dashboard(request):
@@ -191,51 +211,26 @@ def admin_toggle_product(request, product_id):
 
 @login_required
 @require_POST
-def pack_order(request, order_id):
+def receive_order(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
     if request.user.role == 'delivery' and order.assigned_delivery_user == request.user:
         if order.status == 'pending':
-            order.status = 'packed'
-            order.packed_at = timezone.now()
+            order.status = 'received'
+            order.received_at = timezone.now()
             order.save()
             if is_ajax:
-                return JsonResponse({'success': True, 'message': f'Order #{order.id} packed successfully.', 'new_status': 'packed'})
-            messages.success(request, f'Order #{order.id} packed successfully.')
+                return JsonResponse({'success': True, 'message': f'Order #{order.id} marked as completed successfully.', 'new_status': 'completed'})
+            messages.success(request, f'Order #{order.id} marked as completed successfully.')
         else:
             if is_ajax:
                 return JsonResponse({'success': False, 'error': f'Order #{order.id} is already {order.status}.'})
             messages.error(request, f'Order #{order.id} is already {order.status}.')
     else:
         if is_ajax:
-            return JsonResponse({'success': False, 'error': 'You do not have permission to pack this order.'}, status=403)
-        messages.error(request, 'You do not have permission to pack this order.')
-
-    return redirect('delivery_dashboard')
-
-@login_required
-@require_POST
-def deliver_order(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
-    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
-
-    if request.user.role == 'delivery' and order.assigned_delivery_user == request.user:
-        if order.status == 'packed':
-            order.status = 'delivered'
-            order.delivered_at = timezone.now()
-            order.save()
-            if is_ajax:
-                return JsonResponse({'success': True, 'message': f'Order #{order.id} marked as delivered successfully.', 'new_status': 'delivered'})
-            messages.success(request, f'Order #{order.id} marked as delivered successfully.')
-        else:
-            if is_ajax:
-                return JsonResponse({'success': False, 'error': f'Order #{order.id} cannot be delivered as it is not packed.'})
-            messages.error(request, f'Order #{order.id} cannot be delivered as it is not packed.')
-    else:
-        if is_ajax:
-            return JsonResponse({'success': False, 'error': 'You do not have permission to deliver this order.'}, status=403)
-        messages.error(request, 'You do not have permission to deliver this order.')
+            return JsonResponse({'success': False, 'error': 'You do not have permission to complete this order.'}, status=403)
+        messages.error(request, 'You do not have permission to complete this order.')
 
     return redirect('delivery_dashboard')
 
@@ -346,17 +341,12 @@ def delivery_dashboard(request):
     if request.user.role != 'delivery':
         return redirect('home')
         
-    packing_orders = Order.objects.filter(
-        Q(status='pending') | Q(status='cancelled', packed_at__isnull=True),
+    pending_orders = Order.objects.filter(
+        Q(status='pending') | Q(status='cancelled', received_at__isnull=True),
         assigned_delivery_user=request.user
-    ).select_related('customer').prefetch_related('items__product').order_by('created_at')
+    ).select_related('customer').prefetch_related('items__product').order_by('-created_at')
     
-    delivery_orders = Order.objects.filter(
-        Q(status__in=['packed', 'delivered']) | Q(status='cancelled', packed_at__isnull=False, received_at__isnull=True),
-        assigned_delivery_user=request.user
-    ).select_related('customer').prefetch_related('items__product').order_by('created_at')
-    
-    completed_orders = Order.objects.filter(
+    received_orders = Order.objects.filter(
         Q(status='received') | Q(status='cancelled', received_at__isnull=False),
         assigned_delivery_user=request.user
     ).select_related('customer').prefetch_related('items__product').order_by('-received_at')
@@ -418,26 +408,26 @@ def delivery_dashboard(request):
     # Find the latest order ID for each store to prevent modifying old orders
     latest_orders_qs = Order.objects.exclude(status='cancelled').annotate(
         store_name_lower=Lower('store_name')
-    ).values('store_name_lower').annotate(max_id=Max('id'))
-    latest_order_ids = [item['max_id'] for item in latest_orders_qs if item['max_id']]
+    ).values('store_name_lower').annotate(latest_id=Max('id'))
+    
+    latest_order_ids = [item['latest_id'] for item in latest_orders_qs]
 
-    # Exclude the order currently being edited in the Quick Bill draft from showing up on the dashboard
     draft_edit_order_id = None
-    try:
-        draft = DraftBill.objects.get(delivery_user=request.user)
-        draft_edit_order_id = draft.items_json.get('_edit_order_id')
-    except DraftBill.DoesNotExist:
-        pass
+    if has_draft:
+        try:
+            draft = DraftBill.objects.get(delivery_user=request.user)
+            draft_edit_order_id = draft.items_json.get('_edit_order_id', None) if isinstance(draft.items_json, dict) else None
+        except DraftBill.DoesNotExist:
+            pass
         
     if draft_edit_order_id:
-        packing_orders = packing_orders.exclude(id=draft_edit_order_id)
-        delivery_orders = delivery_orders.exclude(id=draft_edit_order_id)
-        completed_orders = completed_orders.exclude(id=draft_edit_order_id)
+        pending_orders = pending_orders.exclude(id=draft_edit_order_id)
+        received_orders = received_orders.exclude(id=draft_edit_order_id)
 
     context = {
-        'packing_orders': packing_orders,
-        'delivery_orders': delivery_orders,
-        'completed_orders': completed_orders,
+        'pending_orders': pending_orders,
+        'received_orders': received_orders,
+        'delivery_orders': list(pending_orders) + list(received_orders),
         'products': Product.objects.filter(available=True).order_by('position', 'name'),
         'existing_stores': User.objects.filter(role='customer').values_list('store_name', flat=True).distinct().order_by('store_name'),
         'stores_list': stores_list,
@@ -445,25 +435,6 @@ def delivery_dashboard(request):
         'latest_order_ids': latest_order_ids,
     }
     return render(request, 'users/delivery_dashboard.html', context)
-@login_required
-def delivery_pack_order(request, order_id):
-    if request.user.role != 'delivery':
-        return redirect('home')
-        
-    order = get_object_or_404(Order, id=order_id)
-    
-    if request.user.role == 'delivery' and order.assigned_delivery_user != request.user:
-        messages.error(request, 'You do not have permission to pack this order.')
-        return redirect('delivery_dashboard')
-        
-    if order.status != 'pending':
-        messages.error(request, f'Order #{order.id} is already {order.status}.')
-        return redirect('delivery_dashboard')
-        
-    context = {
-        'order': order,
-    }
-    return render(request, 'users/delivery_pack_order.html', context)
 
 @login_required
 @require_POST
@@ -477,12 +448,15 @@ def admin_add_product(request):
     image = request.FILES.get('image')
     
     if name and price:
+        max_pos = Product.objects.aggregate(Max('position'))['position__max']
+        next_pos = (max_pos + 1) if max_pos is not None else 0
         Product.objects.create(
             name=name,
             price=price,
             icon=icon,
             image=image,
-            available=True
+            available=True,
+            position=next_pos
         )
         messages.success(request, f'Product {name} added successfully.')
     else:
@@ -635,3 +609,94 @@ def admin_reorder_products(request):
         Product.objects.filter(id=product_id).update(position=position)
 
     return JsonResponse({'success': True})
+
+@login_required
+@require_POST
+def admin_bulk_import_products(request):
+    if request.user.role != 'admin':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    if 'file' not in request.FILES:
+        return JsonResponse({'error': 'No file uploaded'}, status=400)
+    
+    file = request.FILES['file']
+    if not file.name.endswith('.csv'):
+        return JsonResponse({'error': 'Please upload a valid CSV file'}, status=400)
+
+    try:
+        decoded_file = file.read().decode('utf-8').splitlines()
+        reader = csv.DictReader(decoded_file)
+        
+        for row in reader:
+            name = row.get('name', '').strip()
+            if not name:
+                continue
+            
+            price = row.get('price', '0.00').strip()
+            stock_quantity = row.get('stock_quantity', '').strip()
+            available = row.get('available', 'True').strip().lower() in ['true', '1', 'yes']
+            
+            # Use defaults for update_or_create
+            defaults = {
+                'price': price if price else '0.00',
+                'stock_quantity': stock_quantity if stock_quantity else None,
+                'available': available
+            }
+            Product.objects.update_or_create(name=name, defaults=defaults)
+            
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'error': f'Failed to process file: {str(e)}'}, status=500)
+
+
+@login_required
+def admin_bulk_export_preview(request):
+    if request.user.role != 'admin':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    products = Product.objects.all().order_by('position', 'name')[:5]
+    data = []
+    for p in products:
+        data.append({
+            'name': p.name,
+            'price': str(p.price),
+            'stock_quantity': p.stock_quantity if p.stock_quantity is not None else '',
+            'available': p.available
+        })
+    return JsonResponse({'products': data})
+
+
+@login_required
+def admin_bulk_export_products(request):
+    if request.user.role != 'admin':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="products_export.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['name', 'price', 'stock_quantity', 'available'])
+    
+    products = Product.objects.all().order_by('position', 'name')
+    for p in products:
+        writer.writerow([
+            p.name,
+            p.price,
+            p.stock_quantity if p.stock_quantity is not None else '',
+            p.available
+        ])
+        
+    return response
+
+
+@login_required
+@require_POST
+def admin_bulk_delete_products(request):
+    if request.user.role != 'admin':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+    try:
+        Product.objects.all().delete()
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

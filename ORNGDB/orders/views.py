@@ -10,179 +10,8 @@ from .models import CartItem, Order, OrderItem, DraftBill
 from products.models import Product
 from decimal import Decimal
 
-@login_required
-def cart_view(request):
-    if request.user.role != 'customer':
-        return redirect('home')
-        
-    cart_items = list(CartItem.objects.filter(customer=request.user).select_related('product'))
-    total_amount = 0
-    for item in cart_items:
-        item.subtotal = item.product.price * item.quantity
-        item.original_subtotal = (item.subtotal * 115) / 100
-        total_amount += item.subtotal
-    
-    context = {
-        'cart_items': cart_items,
-        'total_amount': total_amount,
-    }
-    return render(request, 'orders/cart.html', context)
 
-@login_required
-@require_POST
-def cart_add(request, product_id):
-    if request.user.role != 'customer':
-        return redirect('home')
-        
-    product = get_object_or_404(Product, id=product_id, available=True)
-    try:
-        quantity = int(round(float(request.POST.get('quantity', 1))))
-    except (ValueError, TypeError):
-        quantity = 1
 
-    if quantity <= 0:
-        messages.error(request, 'Quantity must be greater than zero.')
-        return redirect('customer_menu')
-
-    cart_item, created = CartItem.objects.get_or_create(
-        customer=request.user,
-        product=product,
-        defaults={'quantity': quantity}
-    )
-    
-    if not created:
-        cart_item.quantity += quantity
-        cart_item.save()
-        
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        cart_count = sum(item.quantity for item in CartItem.objects.filter(customer=request.user))
-        html = render_to_string('users/partials/qty_controls.html', {'product': product, 'cart_qty': cart_item.quantity}, request=request)
-        return JsonResponse({'success': True, 'cart_count': cart_count, 'html': html})
-        
-    # If added from the cart page itself or redirecting, but normally we redirect to menu
-    return redirect('customer_menu')
-
-@login_required
-@require_POST
-def cart_update(request, item_id):
-    if request.user.role != 'customer':
-        return redirect('home')
-        
-    cart_item = get_object_or_404(CartItem, id=item_id, customer=request.user)
-    action = request.POST.get('action')
-    quantity_str = request.POST.get('quantity')
-
-    if action == 'increase':
-        cart_item.quantity += 1
-        cart_item.save()
-    elif action == 'decrease':
-        cart_item.quantity -= 1
-        if cart_item.quantity <= 0:
-            cart_item.delete()
-        else:
-            cart_item.save()
-    elif quantity_str is not None:
-        try:
-            quantity = int(round(float(quantity_str)))
-        except (ValueError, TypeError):
-            quantity = 1
-
-        if quantity <= 0:
-            cart_item.delete()
-        else:
-            cart_item.quantity = quantity
-            cart_item.save()
-        
-    return redirect('cart_view')
-
-@login_required
-@require_POST
-def cart_remove(request, item_id):
-    if request.user.role != 'customer':
-        return redirect('home')
-        
-    cart_item = get_object_or_404(CartItem, id=item_id, customer=request.user)
-    cart_item.delete()
-    return redirect('cart_view')
-
-@login_required
-@require_POST
-def checkout(request):
-    if request.user.role != 'customer':
-        return redirect('home')
-        
-    cart_items = CartItem.objects.filter(customer=request.user).select_related('product')
-    if not cart_items.exists():
-        messages.error(request, 'Your cart is empty.')
-        return redirect('customer_menu')
-        
-    try:
-        with transaction.atomic():
-            total_amount = sum(item.product.price * item.quantity for item in cart_items)
-            
-            order = Order.objects.create(
-                customer=request.user,
-                status='pending',
-                total_amount=total_amount
-            )
-            
-            for item in cart_items:
-                OrderItem.objects.create(
-                    order=order,
-                    product=item.product,
-                    quantity=item.quantity,
-                    price_at_time=item.product.price
-                )
-            
-            # Clear cart
-            cart_items.delete()
-            
-        messages.success(request, 'Order placed successfully!')
-        return redirect('my_orders')
-    except Exception as e:
-        messages.error(request, 'An error occurred during checkout. Please try again.')
-        return redirect('cart_view')
-
-@login_required
-def my_orders(request):
-    if request.user.role != 'customer':
-        return redirect('home')
-        
-    orders = Order.objects.filter(customer=request.user).order_by('-created_at').prefetch_related('items__product')
-    return render(request, 'orders/my_orders.html', {'orders': orders})
-
-@login_required
-def order_detail(request, order_id):
-    if request.user.role != 'customer':
-        return redirect('home')
-        
-    order = get_object_or_404(Order, id=order_id, customer=request.user)
-    return render(request, 'orders/order_detail.html', {'order': order})
-
-@login_required
-@require_POST
-def mark_order_received(request, order_id):
-    if request.user.role != 'customer':
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
-        return redirect('home')
-
-    order = get_object_or_404(Order, id=order_id, customer=request.user)
-    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
-
-    if order.status == 'delivered':
-        order.status = 'received'
-        order.received_at = timezone.now()
-        order.save()
-        if is_ajax:
-            return JsonResponse({'success': True, 'message': f'Order #{order.id} marked as received. Thank you!'})
-        messages.success(request, f'Order #{order.id} marked as received. Thank you!')
-    else:
-        if is_ajax:
-            return JsonResponse({'success': False, 'error': 'This order cannot be marked as received yet.'})
-        messages.error(request, 'This order cannot be marked as received yet.')
-
-    return redirect('my_orders')
 
 @login_required
 @require_POST
@@ -201,50 +30,7 @@ def cancel_order(request, order_id):
         
     return redirect('my_orders')
 
-@login_required
-@require_POST
-def cart_update_qty(request, product_id):
-    if request.user.role != 'customer':
-        return redirect('home')
-    product = get_object_or_404(Product, id=product_id)
-    action = request.POST.get('action')
-    
-    cart_item, created = CartItem.objects.get_or_create(
-        customer=request.user,
-        product=product,
-        defaults={'quantity': 0}
-    )
-    
-    quantity_str = request.POST.get('quantity')
-    
-    if action == 'increase':
-        cart_item.quantity += 1
-        cart_item.save()
-    elif action == 'decrease':
-        cart_item.quantity -= 1
-        if cart_item.quantity <= 0:
-            cart_item.delete()
-        else:
-            cart_item.save()
-    elif quantity_str is not None:
-        try:
-            val = int(round(float(quantity_str)))
-        except (ValueError, TypeError):
-            val = 0
-            
-        if val <= 0:
-            cart_item.delete()
-        else:
-            cart_item.quantity = val
-            cart_item.save()
-            
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        cart_count = sum(item.quantity for item in CartItem.objects.filter(customer=request.user))
-        current_qty = cart_item.quantity if cart_item.id else 0
-        html = render_to_string('users/partials/qty_controls.html', {'product': product, 'cart_qty': current_qty}, request=request)
-        return JsonResponse({'success': True, 'cart_count': cart_count, 'html': html})
-            
-    return redirect('customer_menu')
+
 
 @login_required
 @require_POST
@@ -376,7 +162,7 @@ def quick_bill_create(request):
                     )
                 
                 status = 'received'
-                target_tab = '#completed-tab'
+                target_tab = '#received-tab'
                     
                 order = Order.objects.create(
                     customer=customer,
@@ -385,12 +171,8 @@ def quick_bill_create(request):
                     total_amount=total_amount,
                     old_balance=old_balance,
                     assigned_delivery_user=request.user,
-                    packed_at=timezone.now(),
-                    delivered_at=timezone.now()
+                    received_at=timezone.now()
                 )
-                if status == 'received':
-                    order.received_at = timezone.now()
-                    order.save()
                     
                 for product, qty, price in items:
                     OrderItem.objects.create(
@@ -620,12 +402,17 @@ def share_order_bill(request, order_id):
         if order.customer != request.user:
             return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
             
-    divider_double = "=" * 32
-    divider_single = "-" * 32
+    try:
+        w = int(request.GET.get('width', 32))
+    except ValueError:
+        w = 32
+        
+    divider_double = "=" * w
+    divider_single = "-" * w
     
     header = [
         divider_double,
-        "ESTIMATION".center(32),
+        "ESTIMATION".center(w),
         divider_double
     ]
     
@@ -636,12 +423,15 @@ def share_order_bill(request, order_id):
     
     store_name = order.display_store_name
     
+    # Calculate space for item name based on total width (32 - 18 = 14) -> (w - 18)
+    name_w = max(10, w - 18)
+    
     details = [
-        f"ORDER NO: {order_num}".ljust(32),
-        f"DATE: {date_str} | TIME: {time_str}".ljust(32),
-        f"Store: {store_name}".ljust(32),
+        f"ORDER NO: {order_num}".ljust(w),
+        f"DATE: {date_str} | TIME: {time_str}".ljust(w),
+        f"Store: {store_name}".ljust(w),
         divider_single,
-        "NO ITEM          QTY       TOTAL",
+        "NO ITEM".ljust(3 + name_w) + "QTY       TOTAL",
         divider_single
     ]
     
@@ -649,7 +439,7 @@ def share_order_bill(request, order_id):
     import textwrap
     for idx, item in enumerate(order.items.all(), 1):
         desc = item.product.name
-        wrapped_desc = textwrap.wrap(desc, width=14)
+        wrapped_desc = textwrap.wrap(desc, width=name_w)
         if not wrapped_desc:
             wrapped_desc = [""]
             
@@ -666,16 +456,16 @@ def share_order_bill(request, order_id):
             total_str = f"{int(total_val)}"
         total_str = total_str.rjust(6)[:6]
         
-        first_name_part = wrapped_desc[0].ljust(14)
+        first_name_part = wrapped_desc[0].ljust(name_w)
         first_line = f"{no_str}{first_name_part}{qty_str}      {total_str}"
         items_lines.append(first_line)
         
         for line in wrapped_desc[1:]:
-            items_lines.append("   " + line.ljust(14) + " " * 15)
+            items_lines.append("   " + line.ljust(name_w) + " " * 15)
         
     total_label = "TOTAL:"
     total_val_str = f"₹{order.total_amount:.2f}"
-    spaces_needed = 32 - len(total_label) - len(total_val_str)
+    spaces_needed = w - len(total_label) - len(total_val_str)
     if spaces_needed < 1:
         spaces_needed = 1
     total_line = f"{total_label}{' ' * spaces_needed}{total_val_str}"
@@ -688,7 +478,7 @@ def share_order_bill(request, order_id):
     if old_bal > 0:
         old_bal_label = "OLD BALANCE:"
         old_bal_str = f"₹{old_bal:.2f}"
-        sp = 32 - len(old_bal_label) - len(old_bal_str)
+        sp = w - len(old_bal_label) - len(old_bal_str)
         old_bal_line = f"{old_bal_label}{' ' * max(1, sp)}{old_bal_str}"
         totals_lines.append(old_bal_line)
 
@@ -698,40 +488,38 @@ def share_order_bill(request, order_id):
     if product_payment > 0:
         cash_label = "CASH:"
         cash_str = f"-₹{product_payment:.2f}"
-        sp_cash = 32 - len(cash_label) - len(cash_str)
+        sp_cash = w - len(cash_label) - len(cash_str)
         cash_line = f"{cash_label}{' ' * max(1, sp_cash)}{cash_str}"
         totals_lines.append(cash_line)
 
     due_label = "NEW BALANCE:"
     due_str = f"₹{remaining:.2f}"
-    sp_due = 32 - len(due_label) - len(due_str)
+    sp_due = w - len(due_label) - len(due_str)
     due_line = f"{due_label}{' ' * max(1, sp_due)}{due_str}"
     totals_lines.append(due_line)
 
     payment_status_text = f"PAYMENT STATUS: {order.payment_status.upper()}"
-    payment_line = payment_status_text.ljust(32)
+    payment_line = payment_status_text.ljust(w)
 
     footer = [
         divider_single,
         *totals_lines,
-        " " * 32,
-        " " * 32,
+        " " * w,
+        " " * w,
         payment_line,
-        " " * 32,
-        "Thank you for your business!".center(32),
+        " " * w,
+        "Thank you for your business!".center(w),
         divider_double
     ]
     
-    bill_text = "\n".join(header + details + items_lines + [" " * 32, " " * 32] + footer)
+    bill_text = "\n".join(header + details + items_lines + [" " * w, " " * w] + footer)
     return JsonResponse({'success': True, 'bill_text': bill_text})
 
 
 # ── Draft Bill Views ─────────────────────────────────────────────────────────
 @login_required
 def draft_bill_get(request):
-    """Return current draft bill for the logged-in delivery user."""
-    if request.user.role != 'delivery':
-        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    """Return current draft bill for the logged-in user."""
     try:
         draft = DraftBill.objects.get(delivery_user=request.user)
         res = {
@@ -757,9 +545,7 @@ def draft_bill_get(request):
 @login_required
 @require_POST
 def draft_bill_save(request):
-    """Save or update the current draft bill for the logged-in delivery user."""
-    if request.user.role != 'delivery':
-        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    """Save or update the current draft bill for the logged-in user."""
     import json as _json
     try:
         data = _json.loads(request.body)
@@ -791,9 +577,7 @@ def draft_bill_save(request):
 @login_required
 @require_POST
 def draft_bill_clear(request):
-    """Delete the current draft bill for the logged-in delivery user."""
-    if request.user.role != 'delivery':
-        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    """Delete the current draft bill for the logged-in user."""
     DraftBill.objects.filter(delivery_user=request.user).delete()
     return JsonResponse({'cleared': True})
 
@@ -865,3 +649,89 @@ def order_edit_details_api(request, order_id):
         'remaining_balance': float(order.remaining_balance) if order.remaining_balance is not None else float(order.grand_total),
         'items': items
     })
+
+
+@login_required
+@require_POST
+def customer_quick_bill_create(request):
+    """Allow a logged-in customer to place a new order via the popup quick-bill UI."""
+    if request.user.role != 'customer':
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+
+    # Extract items from POST
+    items = []
+    for key, value in request.POST.items():
+        if key.startswith('qty_'):
+            try:
+                product_id = int(key.split('_')[1])
+                qty = int(value)
+                if qty > 0:
+                    product = Product.objects.filter(id=product_id, available=True).first()
+                    if product:
+                        price = Decimal(str(product.price))
+                        items.append((product, qty, price))
+            except (ValueError, IndexError):
+                continue
+
+    if not items:
+        return JsonResponse({'success': False, 'error': 'Please select at least one item.'})
+
+    # Respect item order
+    item_order_str = request.POST.get('item_order', '').strip()
+    if item_order_str:
+        try:
+            ordered_ids = [int(x) for x in item_order_str.split(',') if x.strip()]
+            items.sort(key=lambda x: ordered_ids.index(x[0].id) if x[0].id in ordered_ids else 999)
+        except ValueError:
+            pass
+
+    try:
+        with transaction.atomic():
+            total_amount = sum(price * q for p, q, price in items)
+            customer = request.user
+            store_name = customer.store_name or customer.name or customer.username
+            
+            from django.db.models import Sum, F
+            from django.db.models.functions import Coalesce
+            
+            old_balance = Order.objects.filter(
+                payment_status='unpaid',
+                customer=customer
+            ).exclude(status='cancelled').aggregate(
+                balance=Sum(Coalesce('remaining_balance', F('total_amount') + F('old_balance')))
+            )['balance'] or Decimal('0.00')
+
+            order = Order.objects.create(
+                customer=customer,
+                store_name=store_name,
+                status='pending',
+                total_amount=total_amount,
+                old_balance=old_balance,
+                remaining_balance=total_amount + old_balance,
+                payment_status='unpaid'
+            )
+
+            for product, qty, price in items:
+                OrderItem.objects.create(
+                    order=order,
+                    product=product,
+                    quantity=qty,
+                    price_at_time=price
+                )
+                
+            if old_balance > 0:
+                prior_unpaid = Order.objects.filter(
+                    customer=customer,
+                    payment_status='unpaid'
+                ).exclude(status='cancelled').exclude(id=order.id)
+                prior_unpaid.update(
+                    payment_status='paid',
+                    remaining_balance=Decimal('0.00')
+                )
+
+        return JsonResponse({'success': True, 'message': f'✓ Order #{order.id} placed successfully!'})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': 'An error occurred while placing the order.'})
+

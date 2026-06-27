@@ -91,9 +91,22 @@
     </a>
     <div class="d-flex justify-content-between align-items-center">
         <h2 class="fw-bold mb-0" style="color: #ff6600;"><i class="bi bi-box-seam"></i> Products</h2>
-        <button class="btn text-white fw-bold rounded-pill px-4 shadow-sm" style="background-color: #ff6600;" data-bs-toggle="modal" data-bs-target="#addProductModal">
-            <i class="bi bi-plus-lg"></i> Add Product
-        </button>
+        <div class="d-flex gap-2">
+            <button class="btn text-white fw-bold rounded-pill px-4 shadow-sm" style="background-color: #ff6600;" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                <i class="bi bi-plus-lg"></i> Add Product
+            </button>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary rounded-circle shadow-sm bg-white" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-color: #dee2e6;">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
+                    <li><a class="dropdown-item fw-bold" href="#" data-bs-toggle="modal" data-bs-target="#bulkImportModal"><i class="bi bi-upload me-2 text-primary"></i> Bulk Import</a></li>
+                    <li><a class="dropdown-item fw-bold" href="#" data-bs-toggle="modal" data-bs-target="#bulkExportModal"><i class="bi bi-download me-2 text-success"></i> Bulk Export</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item fw-bold text-danger" href="#" data-bs-toggle="modal" data-bs-target="#bulkDeleteModal"><i class="bi bi-trash me-2"></i> Delete All</a></li>
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -215,6 +228,82 @@
                     </div>
                     <button type="submit" class="btn w-100 fw-bold text-white rounded-pill mt-2 shadow-sm" style="background-color: #ff6600;">Add Product</button>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Import Modal -->
+<div class="modal fade" id="bulkImportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold mb-0">Bulk Import Products</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <p class="text-muted small">Upload a CSV file to import products. It must have columns: <code>name, price, stock_quantity, available</code>.</p>
+                <div class="mb-3 text-start">
+                    <input class="form-control" type="file" id="bulkImportFile" accept=".csv">
+                </div>
+                <div class="d-flex justify-content-between">
+                    <button class="btn btn-outline-primary fw-bold rounded-pill px-3 shadow-sm" onclick="downloadSampleCSV()"><i class="bi bi-file-earmark-arrow-down"></i> Download Sample CSV</button>
+                    <button class="btn text-white fw-bold rounded-pill px-4 shadow-sm" style="background-color: #ff6600;" onclick="submitBulkImport()">Import</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Export Modal -->
+<div class="modal fade" id="bulkExportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold mb-0">Bulk Export Products</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small">Preview of the first few rows of your export:</p>
+                <div class="table-responsive mb-3 border rounded">
+                    <table class="table table-sm mb-0">
+                        <thead class="bg-light">
+                            <tr><th>Name</th><th>Price</th><th>Stock</th><th>Available</th></tr>
+                        </thead>
+                        <tbody id="exportPreviewBody">
+                            <!-- Preview Data Injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-end">
+                    <a href="{% url 'admin_bulk_export_products' %}" class="btn btn-success fw-bold rounded-pill px-4 shadow-sm"><i class="bi bi-download"></i> Download CSV</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Delete Modal -->
+<div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold mb-0 text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Delete All Products</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <p class="text-muted">Are you sure you want to delete all items? This cannot be undone.</p>
+                <button class="btn btn-danger fw-bold rounded-pill px-4 shadow-sm mt-3" onclick="submitBulkDelete()">Yes, Delete All</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-3" style="z-index: 9999;">
+    <div id="bulkToast" class="toast align-items-center border-0 shadow-lg rounded-pill" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="3000">
+        <div class="d-flex">
+            <div class="toast-body fw-bold px-4" id="bulkToastBody">
             </div>
         </div>
     </div>
@@ -512,6 +601,127 @@ document.addEventListener('DOMContentLoaded', function() {
         touchSrcRow = null;
         touchActive = false;
     });
+    // ==================================================
+    // ========== BULK ACTION LOGIC =====================
+    // ==================================================
+    const bulkToastEl = document.getElementById('bulkToast');
+    const bulkToastBody = document.getElementById('bulkToastBody');
+    let bulkToast = null;
+    if (bulkToastEl) {
+        // Only initialize if Bootstrap is loaded
+        if (typeof bootstrap !== 'undefined') {
+            bulkToast = new bootstrap.Toast(bulkToastEl);
+        }
+    }
+
+    function showBulkToast(message, isError=false) {
+        if (!bulkToast) {
+            alert(message);
+            return;
+        }
+        bulkToastBody.textContent = message;
+        bulkToastEl.classList.remove('text-bg-success', 'text-bg-danger');
+        if (isError) {
+            bulkToastEl.classList.add('text-bg-danger');
+        } else {
+            bulkToastEl.classList.add('text-bg-success');
+            bulkToastEl.style.color = '#fff'; // override text color
+        }
+        bulkToast.show();
+    }
+
+    window.downloadSampleCSV = function() {
+        const csvContent = "data:text/csv;charset=utf-8,name,price,stock_quantity,available\nSample Product,150.00,50,True\n";
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "sample_products.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    window.submitBulkImport = function() {
+        const fileInput = document.getElementById('bulkImportFile');
+        if (!fileInput.files.length) {
+            showBulkToast("Please select a file first.", true);
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        fetch("{% url 'admin_bulk_import_products' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showBulkToast("Import successful! Reloading...");
+                const modalEl = document.getElementById('bulkImportModal');
+                if (typeof bootstrap !== 'undefined') bootstrap.Modal.getInstance(modalEl).hide();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showBulkToast(data.error || "Import failed.", true);
+            }
+        })
+        .catch(err => {
+            showBulkToast("An error occurred during import.", true);
+        });
+    };
+
+    window.submitBulkDelete = function() {
+        fetch("{% url 'admin_bulk_delete_products' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': CSRF_TOKEN,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showBulkToast("Delete successful! Reloading...");
+                const modalEl = document.getElementById('bulkDeleteModal');
+                if (typeof bootstrap !== 'undefined') bootstrap.Modal.getInstance(modalEl).hide();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showBulkToast(data.error || "Delete failed.", true);
+            }
+        })
+        .catch(err => {
+            showBulkToast("An error occurred during delete.", true);
+        });
+    };
+
+    const exportModalEl = document.getElementById('bulkExportModal');
+    if (exportModalEl) {
+        exportModalEl.addEventListener('show.bs.modal', function() {
+            const tbody = document.getElementById('exportPreviewBody');
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Loading preview...</td></tr>';
+            
+            fetch("{% url 'admin_bulk_export_preview' %}")
+            .then(res => res.json())
+            .then(data => {
+                if (data.products && data.products.length > 0) {
+                    tbody.innerHTML = data.products.map(p => 
+                        `<tr><td>${p.name}</td><td>₹${p.price}</td><td>${p.stock_quantity}</td><td>${p.available}</td></tr>`
+                    ).join('');
+                } else if (data.products && data.products.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No products found.</td></tr>';
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Failed to load preview.</td></tr>';
+                }
+            })
+            .catch(() => {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Network error.</td></tr>';
+            });
+        });
+    }
 });
 </script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">

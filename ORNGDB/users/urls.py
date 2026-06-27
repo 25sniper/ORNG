@@ -15,7 +15,8 @@ urlpatterns = [
     path('manage/staff/', views.admin_staff_view, name='admin_staff_view'),
     path('manage/order/<int:order_id>/', views.admin_order_detail_view, name='admin_order_detail_view'),
     path('delivery/dashboard/', views.delivery_dashboard, name='delivery_dashboard'),
-    path('customer/menu/', views.customer_menu, name='customer_menu'),
+
+    path('customer/dashboard/', views.customer_dashboard, name='customer_dashboard'),
     
     # Admin & Delivery Actions
     path('manage/assign-delivery/<int:order_id>/', views.admin_assign_delivery, name='admin_assign_delivery'),
@@ -25,9 +26,11 @@ urlpatterns = [
     path('manage/product/edit/<int:product_id>/', views.admin_edit_product, name='admin_edit_product'),
     path('manage/delete-order-history/', views.admin_delete_order_history, name='admin_delete_order_history'),
     path('manage/products/reorder/', views.admin_reorder_products, name='admin_reorder_products'),
-    path('order/<int:order_id>/pack/', views.pack_order, name='pack_order'),
-    path('order/<int:order_id>/deliver/', views.deliver_order, name='deliver_order'),
+    path('manage/products/bulk-import/', views.admin_bulk_import_products, name='admin_bulk_import_products'),
+    path('manage/products/bulk-export/', views.admin_bulk_export_products, name='admin_bulk_export_products'),
+    path('manage/products/bulk-export-preview/', views.admin_bulk_export_preview, name='admin_bulk_export_preview'),
+    path('manage/products/bulk-delete/', views.admin_bulk_delete_products, name='admin_bulk_delete_products'),
+    path('order/<int:order_id>/receive/', views.receive_order, name='receive_order'),
     path('order/<int:order_id>/cancel/', views.delivery_cancel_order, name='delivery_cancel_order'),
     path('order/<int:order_id>/edit-to-draft/', views.delivery_edit_order_to_draft, name='edit_order_to_draft'),
-    path('delivery/order/<int:order_id>/pack/', views.delivery_pack_order, name='delivery_pack_order'),
 ]

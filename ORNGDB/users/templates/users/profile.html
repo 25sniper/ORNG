@@ -57,6 +57,26 @@
                         </div>
                     {% endif %}
                     
+
+                    {% if user.role == 'delivery' %}
+                    <h5 class="fw-bold mb-3 border-bottom pb-2">App Settings</h5>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Receipt Sharing Format</label>
+                        <select id="receipt-format" class="form-select rounded-3">
+                            <option value="image">Image (High Quality)</option>
+                            <option value="text">Plain Text</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-bold">Printer Size</label>
+                        <select id="receipt-size" class="form-select rounded-3">
+                            <option value="2inch">2 Inch (Standard)</option>
+                            <option value="3inch">3 Inch (Wide)</option>
+                        </select>
+                        <small class="text-muted d-block mt-1">These settings are saved automatically to this device.</small>
+                    </div>
+                    {% endif %}
+                    
                     <h5 class="fw-bold mb-3 border-bottom pb-2">Security</h5>
                     <div class="mb-4">
                         <label class="form-label text-muted small fw-bold">Change Password (leave blank to keep current)</label>
@@ -76,5 +96,30 @@
     </div>
 </div>
 
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const formatSelect = document.getElementById("receipt-format");
+        const sizeSelect = document.getElementById("receipt-size");
+        
+        if (formatSelect && sizeSelect) {
+            // Load saved preferences
+            const savedFormat = localStorage.getItem("receipt_format") || "image";
+            const savedSize = localStorage.getItem("receipt_size") || "2inch";
+            
+            formatSelect.value = savedFormat;
+            sizeSelect.value = savedSize;
+            
+            // Save preferences on change
+            formatSelect.addEventListener("change", function() {
+                localStorage.setItem("receipt_format", this.value);
+            });
+            
+            sizeSelect.addEventListener("change", function() {
+                localStorage.setItem("receipt_size", this.value);
+            });
+        }
+    });
+</script>
 {% endblock %}

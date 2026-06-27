@@ -27,8 +27,6 @@
                 </div>
                 <div>
                     {% if order.status == 'pending' %}<span class="badge rounded-pill text-bg-warning px-2.5 py-1.5 border-0">Pending</span>
-                    {% elif order.status == 'packed' %}<span class="badge rounded-pill text-bg-primary px-2.5 py-1.5 border-0">Packed</span>
-                    {% elif order.status == 'delivered' %}<span class="badge rounded-pill text-bg-info text-white px-2.5 py-1.5 border-0">Delivered</span>
                     {% elif order.status == 'received' %}<span class="badge rounded-pill text-bg-success px-2.5 py-1.5 border-0">Received</span>
                     {% elif order.status == 'cancelled' %}<span class="badge rounded-pill text-bg-danger px-2.5 py-1.5 border-0">Cancelled</span>
                     {% endif %}
@@ -41,7 +39,7 @@
                 
                 <div class="bg-light p-3 rounded-3 mb-3">
                     <p class="mb-1 text-muted small fw-bold">Assignment:</p>
-                    {% if order.status == 'delivered' or order.status == 'received' or order.status == 'cancelled' or order.status == 'packed' and order.assigned_delivery_user %}
+                    {% if order.status == 'received' or order.status == 'cancelled' %}
                         {% if order.assigned_delivery_user %}
                             <span class="text-dark fw-bold d-block"><i class="bi bi-person-check-fill text-success me-1"></i> {{ order.assigned_delivery_user.name|default:order.assigned_delivery_user.username }}</span>
                         {% else %}

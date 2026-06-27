@@ -1,0 +1,1070 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+  /* ── Quick Bill Modal — exact copy from delivery_dashboard ─────────────────── */
+  #quickBillModal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 2000;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      transition: background-color 0.2s ease;
+  }
+  #quickBillForm {
+      display: flex; flex-direction: column;
+      margin: 0 !important;
+      background: #ffffff;
+      width: 100%; overflow: hidden;
+  }
+  @media (max-width: 575.98px) {
+      #quickBillModal { background-color: #ffffff; }
+      #quickBillForm  { height: 100%; max-width: 100%; border-radius: 0; box-shadow: none; }
+  }
+  @media (min-width: 576px) {
+      #quickBillModal { background-color: rgba(0,0,0,0.45); padding: 24px; }
+      #quickBillForm  { max-width: 500px; height: 90vh; max-height: 800px; border-radius: 20px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.05);
+          border: 1px solid rgba(0,0,0,0.08); }
+  }
+  /* Inner views */
+  #qb-menu-view, #qb-cart-view {
+      display: flex; flex-direction: column;
+      height: 100%; width: 100%; overflow: hidden;
+  }
+  /* Header */
+  .qb-header {
+      flex-shrink: 0; background-color: #ffffff;
+      border-bottom: 1px solid #eef1f6; padding: 16px 24px;
+      display: flex; align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+  }
+  /* Search bar container */
+  .qb-search-container {
+      flex-shrink: 0; padding: 16px 24px 12px 24px; background-color: #ffffff;
+  }
+  /* Scrollable content area */
+  .qb-content-scroll {
+      flex-grow: 1; overflow-y: auto;
+      padding: 0 24px 24px 24px; -webkit-overflow-scrolling: touch;
+  }
+  #qb-product-list { display: flex; flex-direction: column; }
+  /* Footer */
+  .qb-footer {
+      flex-shrink: 0; border-top: 1px solid #eef1f6;
+      padding: 16px 24px 24px 24px; background-color: #ffffff;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+  }
+  /* Product items */
+  .qb-product-item {
+      transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1) !important;
+      border-radius: 12px !important; margin-bottom: 10px;
+      border: 1px solid #f1f3f5 !important; padding: 12px 16px !important;
+  }
+  .qb-product-item:hover { transform: translateY(-1px) scale(1.015); box-shadow: 0 6px 16px rgba(0,0,0,0.04) !important; background-color: #fcfdfe !important; }
+  .qb-product-item:active { transform: translateY(0) scale(0.99) !important; }
+  /* Custom scrollbar */
+  .qb-content-scroll::-webkit-scrollbar { width: 6px; }
+  .qb-content-scroll::-webkit-scrollbar-track { background: transparent; }
+  .qb-content-scroll::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.1); border-radius: 10px; }
+
+  /* Mobile compact overrides — exact copy from delivery */
+  @media (max-width: 575.98px) {
+      #quickBillModal .qb-header       { padding: 12px 16px !important; }
+      #quickBillModal .qb-search-container { padding: 12px 16px 8px 16px !important; }
+      #quickBillModal .qb-content-scroll   { padding: 0 16px 12px 16px !important; }
+      #quickBillModal .qb-footer           { padding: 12px 16px 16px 16px !important; }
+      #qb-cart-view .mb-2  { margin-bottom: 0.5rem !important; }
+      #qb-cart-view label.form-label { margin-bottom: 0.25rem !important; font-size: 0.75rem !important; }
+      #qb-cart-view .qb-footer .border { padding: 0.375rem 0.75rem !important; margin-bottom: 0.5rem !important; }
+      #qb-cart-view .qb-footer .py-1  { padding-top: 0.15rem !important; padding-bottom: 0.15rem !important; }
+      #qb-cart-view #submitQuickBillBtn { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; font-size: 0.95rem !important; }
+  }
+
+  /* Floating back button — exact copy from delivery */
+  .qb-float-back {
+      position: fixed; right: 16px; top: calc(50% - 22px);
+      z-index: 4000; width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(255,102,0,0.92); color: #fff; border: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; cursor: grab;
+      transition: background 0.15s, transform 0.15s, opacity 0.2s;
+      opacity: 0; pointer-events: none;
+  }
+  .qb-float-back.visible { opacity: 1; pointer-events: auto; }
+  .qb-float-back:active  { transform: scale(0.9); }
+  .qb-float-back.dragging { cursor: grabbing; transform: scale(1.05); transition: opacity 0.2s; }
+
+  /* Premium button animations */
+  .btn, .badge { transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1) !important; }
+  .btn:hover:not(:disabled), .badge:hover { transform: scale(1.04); box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important; }
+  .btn:active:not(:disabled), .badge:active { transform: scale(0.96) !important; }
+  .tab-pane .card { transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1) !important; }
+  .tab-pane .card:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 20px rgba(0,0,0,0.08) !important; }
+  .tab-pane .card:active { transform: translateY(0) scale(0.98); }
+  #qb-main-btn, .qb-float-back:not(.dragging) {
+      transition: background 0.15s, opacity 0.2s, transform 0.22s cubic-bezier(0.34,1.56,0.64,1) !important;
+  }
+  #qb-main-btn:hover, .qb-float-back:hover:not(.dragging) {
+      transform: scale(1.08) !important; box-shadow: 0 8px 24px rgba(255,102,0,0.3) !important;
+  }
+  #qb-main-btn:active, .qb-float-back:active:not(.dragging) { transform: scale(0.92) !important; }
+  .form-control:focus, .form-select:focus {
+      transform: scale(1.015);
+      box-shadow: 0 0 0 0.25rem rgba(255,102,0,0.18) !important;
+  }
+</style>
+
+<!-- ── Page Header ─────────────────────────────────────────────────────────── -->
+<div class="d-flex justify-content-between align-items-center mb-2 mt-2 px-1">
+  <h5 class="fw-bold mb-0 text-dark" style="font-family:'Outfit',sans-serif;">My Orders
+    {% if balance > 0 %}
+      <span class="badge rounded-pill text-white ms-2 fw-bold" style="background-color:#ff6600;font-size:0.75rem;">Balance ₹{{ balance|floatformat:0 }}</span>
+    {% endif %}
+  </h5>
+  <button class="btn btn-sm text-white fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center" id="qb-main-btn"
+    style="background-color:#ff6600;" onclick="handleQuickBillBtnClick()">
+    <i class="bi bi-plus-circle me-1"></i> Quick Bill
+  </button>
+</div>
+
+<!-- ── Orders List ────────────────────────────────────────────────────────── -->
+<div class="row row-cols-1 g-3 mt-1">
+{% if not orders %}
+  <div class="alert alert-light border-0 shadow-sm rounded-4 py-5 text-center text-muted">
+    <h5 class="mb-0">No orders yet.</h5>
+  </div>
+{% else %}
+  {% for order in orders %}
+  <div class="col">
+    <div class="card border-0 shadow-sm rounded-4 border-start border-4
+      {% if order.status == 'cancelled' %}border-danger
+      {% elif order.status == 'pending' %}border-warning
+      {% elif order.status == 'received' %}border-success
+      {% else %}border-secondary{% endif %}
+      bg-white">
+      <div class="card-body px-4 py-3">
+
+        <!-- Row 1: Order id + date + badge -->
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <h6 class="fw-bold mb-0 text-dark" style="font-family:'Outfit',sans-serif;">Order #{{ order.id }}</h6>
+            <small class="text-muted" style="font-size:0.78rem;">{{ order.created_at|date:"M d, Y • h:i A" }}</small>
+          </div>
+          <div>
+            {% if order.status == 'cancelled' %}
+              <span class="badge rounded-pill text-bg-danger" style="font-size:0.72rem;"><i class="bi bi-x-circle me-1"></i>Cancelled</span>
+            {% elif order.status == 'pending' %}
+              <span class="badge rounded-pill text-bg-warning text-dark" style="font-size:0.72rem;"><i class="bi bi-hourglass-split me-1"></i>Pending</span>
+            {% elif order.status == 'received' %}
+              <span class="badge rounded-pill text-bg-success" style="font-size:0.72rem;"><i class="bi bi-check-circle me-1"></i>Received</span>
+            {% else %}
+              <span class="badge rounded-pill text-bg-secondary" style="font-size:0.72rem;">{{ order.status }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Row 2: Total + payment status + Bill button -->
+        <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-1">
+          <div>
+            <span class="text-muted small">Total: <span class="fw-bold text-dark fs-6">₹{{ order.total_amount|floatformat:0 }}</span></span>
+            {% if order.status != 'cancelled' %}
+              {% if order.payment_status == 'paid' %}
+                <span class="text-success small fw-bold ms-2"><i class="bi bi-check-circle-fill"></i> Paid</span>
+              {% else %}
+                <span class="text-danger small fw-bold ms-2">Bal: ₹{% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:0 }}{% else %}{{ order.total_amount|floatformat:0 }}{% endif %}</span>
+              {% endif %}
+            {% endif %}
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center"
+              style="font-size:0.75rem;"
+              {% if order.status == 'cancelled' %}disabled{% else %}onclick="openItemsModal({{ order.id }})"{% endif %}>
+              <i class="bi bi-receipt me-1"></i> Bill
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+{% endif %}
+</div>
+
+<!-- ── Continue Bill Overlay ──────────────────────────────────────────────── -->
+<div id="continueBillOverlay" class="d-none" style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:3000;display:flex;align-items:flex-end;">
+  <div class="bg-white w-100 rounded-top-4 p-4 pb-5 shadow" style="animation: slideUp 0.25s ease-out;">
+    <h5 class="fw-bold mb-3 text-dark text-center" style="font-family:'Outfit',sans-serif;">You have an unsaved bill</h5>
+    <p class="text-muted text-center mb-4 small">Would you like to continue from where you left off or start a new bill?</p>
+    <div class="d-flex gap-3">
+      <button class="btn btn-light fw-bold rounded-pill w-50 py-2 border text-danger" onclick="startNewBill()">Start New</button>
+      <button class="btn text-white fw-bold rounded-pill w-50 py-2" style="background-color:#0d6efd;" onclick="continueDraftBill()">Continue</button>
+    </div>
+  </div>
+</div>
+<style>
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+</style>
+
+<!-- ── Floating Back Button — exact copy from delivery ─────────────────────── -->
+<button class="qb-float-back" id="qb-float-back-btn" onclick="handleFloatBack()" title="Back">
+  <i class="bi bi-arrow-left"></i>
+</button>
+
+<!-- ── Quick Bill Full Screen Container — exact copy from delivery ─────────── -->
+<div id="quickBillModal" class="d-none">
+  <form id="quickBillForm" onsubmit="event.preventDefault();">
+
+    <!-- Screen 1: Menu View -->
+    <div id="qb-menu-view" class="bg-white">
+      <div class="qb-header shadow-sm">
+        <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm me-3"
+          style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;"
+          onclick="closeQuickBillModal()">
+          <i class="bi bi-arrow-left fs-5"></i>
+        </button>
+        <h5 class="fw-bold text-dark mb-0" id="quickBillModalLabel" style="font-family:'Outfit',sans-serif;">Menu</h5>
+      </div>
+
+      <div class="qb-search-container">
+        <div class="position-relative">
+          <input type="text" class="form-control rounded-3 py-2 border" id="qb-product-search"
+            placeholder="🔍 Search products..." autocomplete="off" style="border-color:#dee2e6;box-shadow:none;">
+        </div>
+      </div>
+
+      <div class="qb-content-scroll" id="qb-product-list">
+        {% for product in products %}
+        <div class="qb-product-item bg-white"
+          data-product-id="{{ product.id }}"
+          data-price="{{ product.price|floatformat:0 }}"
+          data-original-price="{{ product.price|floatformat:0 }}"
+          data-name="{{ product.name }}">
+          <div class="row align-items-center flex-nowrap w-100 m-0">
+            <div class="col-auto p-0">
+              <div class="rounded-3 shadow-sm bg-light overflow-hidden d-flex align-items-center justify-content-center" style="width:44px;height:44px;">
+                {% if product.image %}
+                  <img src="{{ product.image.url }}" alt="{{ product.name }}" style="width:100%;height:100%;object-fit:cover;">
+                {% else %}
+                  <span style="font-size:1.4rem;">{{ product.icon|default:"📦" }}</span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="col ps-3 text-start">
+              <h6 class="fw-bold mb-0 text-dark" style="font-size:0.95rem;font-family:'Outfit',sans-serif;">{{ product.name }}</h6>
+              <span class="fw-bold text-success" style="font-size:0.85rem;">₹{{ product.price|floatformat:0 }}</span>
+            </div>
+            <div class="col-auto p-0 qb-qty-container">
+              <!-- ADD button -->
+              <button type="button" class="btn btn-sm bg-white border border-success text-success fw-bold rounded-3 shadow-sm qb-add-btn"
+                style="width:90px;height:32px;font-size:0.85rem;" onclick="addQBProduct({{ product.id }})">
+                ADD <i class="bi bi-plus text-success"></i>
+              </button>
+              <!-- Stepper hidden initially -->
+              <div class="bg-white border border-success rounded-3 shadow-sm px-1 py-0 qb-qty-controls d-none"
+                style="width:90px;height:32px;align-items:center;justify-content:space-between;">
+                <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5"
+                  style="line-height:1;" onclick="changeQBProductQty({{ product.id }}, -1)"><i class="bi bi-dash"></i></button>
+                <input type="number" id="qb-qty-{{ product.id }}" name="qty_{{ product.id }}" value="0" min="0"
+                  class="form-control form-control-sm text-center text-success border-0 p-0 fw-bold qb-qty qb-qty-input"
+                  style="width:32px;background:transparent;box-shadow:none;font-size:0.85rem;">
+                <button type="button" class="btn btn-sm text-success p-0 fw-bold border-0 bg-transparent fs-5"
+                  style="line-height:1;" onclick="changeQBProductQty({{ product.id }}, 1)"><i class="bi bi-plus"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="qb-footer">
+        <button type="button" id="qb-view-cart-btn"
+          class="btn text-white fw-bold px-5 rounded-pill shadow-sm w-100 d-none"
+          style="background-color:#ff6600;padding-top:0.75rem;padding-bottom:0.75rem;"
+          onclick="showQBCartView()">
+          <i class="bi bi-cart3 me-1"></i> View Cart <span id="qb-cart-badge" class="badge bg-white text-dark rounded-pill ms-2">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Screen 2: Cart View -->
+    <div id="qb-cart-view" class="d-none bg-white">
+      <div class="qb-header shadow-sm">
+        <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm me-3"
+          style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;"
+          onclick="history.back()">
+          <i class="bi bi-arrow-left fs-5"></i>
+        </button>
+        <h5 class="fw-bold text-dark mb-0" style="font-family:'Outfit',sans-serif;">Cart</h5>
+      </div>
+
+      <div class="qb-content-scroll pt-2">
+        <!-- Selected items summary list -->
+        <div class="mb-2">
+          <label class="form-label small fw-bold text-muted mb-1">Selected Items</label>
+          <div class="list-group list-group-flush border rounded-3" id="qb-cart-items-summary" style="max-height:260px;overflow-y:auto;">
+          </div>
+        </div>
+      </div>
+
+      <div class="qb-footer">
+        <!-- Totals breakdown -->
+        <div class="border rounded-3 bg-light px-3 py-2 mb-3 w-100 text-start">
+          <div class="d-flex justify-content-between align-items-center py-1">
+            <span class="text-muted small">Items Total</span>
+            <span class="fw-bold text-dark" id="qb-cart-items-total-display">₹0</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center py-1" id="qb-old-balance-row" style="display: none !important;">
+            <span class="text-muted small">Old Balance</span>
+            <span class="fw-bold text-warning" id="qb-cart-old-balance-display">₹0</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
+            <span class="fw-bold text-dark">New Balance</span>
+            <span class="fw-bold fs-5 text-dark" id="qb-cart-grand-total-display">₹0</span>
+          </div>
+        </div>
+        <button type="button" id="submitQuickBillBtn"
+          class="btn text-white fw-bold rounded-pill shadow-sm w-100"
+          style="background-color:#ff6600;padding-top:0.7rem;padding-bottom:0.7rem;"
+          onclick="submitCustomerOrder('{% url 'customer_quick_bill_create' %}', '{{ csrf_token }}')">
+          Place Order
+        </button>
+      </div>
+    </div>
+
+  </form>
+</div>
+
+<!-- ── Bill Receipt Modals — one per order ────────────────────────────────── -->
+{% for order in orders %}
+<div class="modal fade" id="itemsModal-{{ order.id }}" tabindex="-1" aria-labelledby="itemsModalLabel-{{ order.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header border-0 pb-0 px-4 pt-4 text-center d-block position-relative">
+        <button type="button" class="btn-close position-absolute end-0 top-0 mt-4 me-4" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="text-center mb-2"><i class="bi bi-receipt fs-1 text-secondary opacity-50"></i></div>
+        <h5 class="modal-title fw-bold mb-1" id="itemsModalLabel-{{ order.id }}" style="font-family:'Outfit',sans-serif;">Invoice #{{ order.id }}</h5>
+        <p class="text-muted small mb-0">{{ order.created_at|date:"M d, Y • h:i A" }}</p>
+      </div>
+      <div class="modal-body px-4 pt-2 pb-2">
+        <div class="table-responsive">
+          <table class="table table-borderless table-sm mb-0">
+            <thead class="border-bottom border-2">
+              <tr>
+                <th class="text-muted small fw-bold pb-2" style="width:24px;">#</th>
+                <th class="text-muted small fw-bold pb-2">Item</th>
+                <th class="text-muted small fw-bold text-center pb-2">Qty</th>
+                <th class="text-muted small fw-bold text-end pb-2">Unit</th>
+                <th class="text-muted small fw-bold text-end pb-2">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in order.items.all %}
+              <tr class="border-bottom">
+                <td class="py-2 text-muted small">{{ forloop.counter }}</td>
+                <td class="py-2 text-dark fw-medium">{{ item.product.name }}</td>
+                <td class="py-2 text-dark text-center">{{ item.quantity }}</td>
+                <td class="py-2 text-muted text-end" style="font-size:0.82rem;">₹{{ item.price_at_time|floatformat:0 }}</td>
+                <td class="py-2 text-dark text-end fw-bold">₹{{ item.row_total|floatformat:0 }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer border-0 px-4 pb-4 pt-0 d-block">
+        <div class="bg-light rounded-4 p-3 mt-2 shadow-sm border border-secondary border-opacity-10">
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted small">Items Total:</span>
+            <span class="text-dark fw-bold small">₹{{ order.total_amount|floatformat:0 }}</span>
+          </div>
+          {% if order.old_balance > 0 %}
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted small">Old Balance:</span>
+            <span class="text-warning fw-bold small">₹{{ order.old_balance|floatformat:0 }}</span>
+          </div>
+          {% endif %}
+          {% if order.cash_paid > 0 and order.remaining_due > 0 %}
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted small">Cash (Paid):</span>
+            <span class="text-success fw-bold small">-₹{{ order.cash_paid|floatformat:0 }}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted small">New Balance:</span>
+            <span class="text-danger fw-bold small">₹{{ order.remaining_due|floatformat:0 }}</span>
+          </div>
+          {% endif %}
+          {% if order.old_balance > 0 %}
+          <hr class="my-2 border-secondary opacity-25">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-dark fw-bold">New Balance:</span>
+            <span class="text-dark fw-bold fs-5">₹{{ order.grand_total|floatformat:0 }}</span>
+          </div>
+          {% endif %}
+        </div>
+        <div class="text-center mt-3">
+          {% if order.payment_status == 'paid' %}
+          <span class="badge rounded-pill text-bg-success py-2 px-4 shadow-sm" style="font-size:0.85rem;">
+            <i class="bi bi-check-circle-fill me-1"></i> Payment Received
+          </span>
+          {% else %}
+          <span class="badge rounded-pill text-bg-danger py-2 px-4 shadow-sm" style="font-size:0.85rem;">
+            <i class="bi bi-clock-history me-1"></i> Balance: ₹{% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:0 }}{% else %}{{ order.grand_total|floatformat:0 }}{% endif %}
+          </span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<!-- ── Toast — exact copy from delivery ───────────────────────────────────── -->
+<div class="position-fixed bottom-0 start-50 translate-middle-x mb-4" style="z-index:9999;min-width:260px;" id="toastWrapper">
+  <div id="actionToast" class="toast align-items-center border-0 rounded-pill shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" style="display:none;">
+    <div class="d-flex">
+      <div class="toast-body fw-bold px-4 py-2" id="toastMsg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CUSTOMER_OLD_BALANCE = {{ balance|default:0|floatformat:2 }};
+const HAS_DRAFT_INITIAL = {{ has_draft|yesno:'true,false' }};
+let _hasDraft = HAS_DRAFT_INITIAL;
+const DRAFT_SAVE_URL = '{% url "draft_bill_save" %}';
+const DRAFT_CLEAR_URL = '{% url "draft_bill_clear" %}';
+const DRAFT_GET_URL  = '{% url "draft_bill_get" %}';
+const QB_CSRF = '{{ csrf_token }}';
+let _draftSaveTimer = null;
+let _skipDraftSaveOnce = false;
+
+function collectDraftData() {
+    const items = {};
+    document.querySelectorAll('.qb-product-item').forEach(item => {
+        const pid = item.dataset.productId;
+        const inp = document.getElementById('qb-qty-' + pid);
+        const qty = inp ? (parseInt(inp.value) || 0) : 0;
+        if (qty > 0) items[pid] = qty;
+    });
+    return { items, store_name: '', old_balance: 0 };
+}
+
+function updateQuickBillMainButton() {
+    const data = collectDraftData();
+    const hasItems = data && data.items && Object.values(data.items).some(qty => parseInt(qty) > 0);
+    _hasDraft = hasItems;
+    const btn = document.getElementById('qb-main-btn');
+    if (btn) {
+        if (_hasDraft) {
+            btn.style.backgroundColor = '#e65c00';
+            btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i> Continue Bill';
+        } else {
+            btn.style.backgroundColor = '#ff6600';
+            btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i> Quick Bill';
+        }
+    }
+}
+
+function saveDraftBill() {
+    clearTimeout(_draftSaveTimer);
+    const data = collectDraftData();
+    updateQuickBillMainButton();
+    fetchWithTimeout(DRAFT_SAVE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': QB_CSRF },
+        body: JSON.stringify(data),
+        keepalive: true
+    }).catch(() => {});
+}
+
+function scheduleDraftSave() {
+    clearTimeout(_draftSaveTimer);
+    _draftSaveTimer = setTimeout(saveDraftBill, 1500);
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        const qbOpen = !document.getElementById('quickBillModal').classList.contains('d-none');
+        if (qbOpen) saveDraftBill();
+    }
+});
+window.addEventListener('pagehide', () => {
+    const qbOpen = !document.getElementById('quickBillModal').classList.contains('d-none');
+    if (qbOpen) saveDraftBill();
+});
+
+// ── Handle Quick Bill button click (Continue Bill or New Bill) ────────────────
+function handleQuickBillBtnClick() {
+    if (_hasDraft) {
+        document.getElementById('continueBillOverlay').classList.remove('d-none');
+        document.body.style.overflow = 'hidden';
+        window._modalNavStack.push('continueBillOverlay');
+        history.pushState({ modalOpen: true }, '');
+        if (typeof updateFloatBackButton === 'function') updateFloatBackButton();
+    } else {
+        openQuickBillModal();
+    }
+}
+
+function closeContinueBillOverlay() {
+    document.getElementById('continueBillOverlay').classList.add('d-none');
+    document.body.style.overflow = '';
+}
+
+function startNewBill() {
+    closeContinueBillOverlay();
+    fetchWithTimeout(DRAFT_CLEAR_URL, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': QB_CSRF }
+    }).catch(() => {});
+    _hasDraft = false;
+    updateQuickBillMainButton();
+    openQuickBillModal();
+}
+
+function continueDraftBill() {
+    closeContinueBillOverlay();
+    fetchWithTimeout(DRAFT_GET_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(data => {
+        openQuickBillModal();
+        if (data.has_draft) {
+            const items = data.items || {};
+            Object.entries(items).forEach(([pid, qty]) => {
+                if (pid === '_edit_order_id' || pid === '_custom_prices') return;
+                qty = parseInt(qty) || 0;
+                if (qty <= 0) return;
+                const inp = document.getElementById('qb-qty-' + pid);
+                if (!inp) return;
+                inp.value = qty;
+                const container = inp.closest('.qb-qty-container');
+                if (container) {
+                    container.querySelector('.qb-add-btn')?.classList.add('d-none');
+                    const ctrl = container.querySelector('.qb-qty-controls');
+                    if (ctrl) { ctrl.classList.remove('d-none'); ctrl.style.display = 'inline-flex'; }
+                }
+                if (!qbCartOrder.includes(pid.toString())) qbCartOrder.push(pid.toString());
+            });
+            updateQBCartTotals();
+        }
+    })
+    .catch(() => { openQuickBillModal(); });
+}
+
+// ── Utilities — exact copy from delivery ─────────────────────────────────────
+function fetchWithTimeout(resource, options = {}) {
+    const { timeout = 10000 } = options;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    return fetch(resource, { ...options, signal: controller.signal })
+        .then(r => { clearTimeout(id); return r; })
+        .catch(e => { clearTimeout(id); throw e; });
+}
+
+// ── Navigation Stack — exact copy from delivery ──────────────────────────────
+window._modalNavStack = [];
+
+function updateFloatBackButton() {
+    const floatBtn = document.getElementById('qb-float-back-btn');
+    if (floatBtn) {
+        if (window._modalNavStack.length > 0) floatBtn.classList.add('visible');
+        else floatBtn.classList.remove('visible');
+    }
+}
+
+function handleFloatBack() { window.history.back(); }
+
+document.addEventListener('show.bs.modal', function(event) {
+    const modalId = event.target.id;
+    if (modalId && !window._modalNavStack.includes(modalId)) {
+        window._modalNavStack.push(modalId);
+        window.history.pushState({ modalOpen: true, modalId }, '');
+        updateFloatBackButton();
+    }
+});
+
+document.addEventListener('hidden.bs.modal', function(event) {
+    const modalId = event.target.id;
+    if (modalId) {
+        const index = window._modalNavStack.indexOf(modalId);
+        if (index > -1) {
+            window._modalNavStack.splice(index, 1);
+            if (history.state && history.state.modalOpen && history.state.modalId === modalId) {
+                window._ignoreNextPopState = true;
+                window.history.back();
+            }
+        }
+        updateFloatBackButton();
+        if (document.querySelectorAll('.modal.show').length > 0) document.body.classList.add('modal-open');
+    }
+});
+
+// ── Unified popstate router — same logic as delivery, no draft/stores branches ──
+window.addEventListener('popstate', function(e) {
+    if (window._ignoreNextPopState) { window._ignoreNextPopState = false; return; }
+
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        activeEl.blur();
+        history.pushState({ modalOpen: true }, '');
+        return;
+    }
+
+    if (window._modalNavStack.length === 0) { _hideAllModals(); return; }
+
+    const top = window._modalNavStack.pop();
+
+    if (top === 'qb-cart') {
+        // Back from cart → go to menu
+        history.pushState({ modalOpen: true }, '');
+        document.getElementById('qb-cart-view').classList.add('d-none');
+        document.getElementById('qb-menu-view').classList.remove('d-none');
+    } else if (top === 'qb-menu') {
+        // Back from menu → close QB modal
+        if (typeof _skipDraftSaveOnce !== 'undefined' && _skipDraftSaveOnce) {
+            _skipDraftSaveOnce = false;
+        } else if (typeof saveDraftBill === 'function') {
+            saveDraftBill();
+        }
+        const qbModalEl = document.getElementById('quickBillModal');
+        if (qbModalEl) { qbModalEl.classList.add('d-none'); qbModalEl.style.height = ''; delete qbModalEl.dataset.lockedHeight; }
+        document.body.style.overflow = '';
+        if (typeof _onQBModalClose === 'function') _onQBModalClose();
+    } else if (top === 'continueBillOverlay') {
+        const overlay = document.getElementById('continueBillOverlay');
+        if (overlay) overlay.classList.add('d-none');
+        document.body.style.overflow = '';
+    } else {
+        // Standard Bootstrap modal
+        const bsModalEl = document.getElementById(top);
+        if (bsModalEl && bsModalEl.classList.contains('modal')) {
+            const bsModal = bootstrap.Modal.getInstance(bsModalEl);
+            if (bsModal) bsModal.hide();
+        }
+    }
+    if (typeof updateFloatBackButton === 'function') updateFloatBackButton();
+});
+
+function _hideAllModals() {
+    const qbModalEl = document.getElementById('quickBillModal');
+    window._modalNavStack = [];
+    if (qbModalEl) { qbModalEl.classList.add('d-none'); qbModalEl.style.height = ''; delete qbModalEl.dataset.lockedHeight; }
+    document.body.style.overflow = '';
+}
+window._hideAllModals = _hideAllModals;
+
+// ── Toast — exact copy from delivery ─────────────────────────────────────────
+function showToast(msg, isSuccess) {
+    const toast = document.getElementById('actionToast');
+    const toastMsg = document.getElementById('toastMsg');
+    toastMsg.textContent = msg;
+    toast.className = 'toast align-items-center border-0 rounded-pill shadow-lg show ' + (isSuccess ? 'text-bg-success' : 'text-bg-danger');
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 2800);
+}
+
+// ── Input blur guard — exact copy from delivery ───────────────────────────────
+let _lastInputBlurTime = 0;
+document.addEventListener('focusout', function(e) {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+        _lastInputBlurTime = Date.now();
+    }
+}, { capture: true });
+
+// ── DOMContentLoaded setup — mirrors delivery's DOMContentLoaded block ────────
+document.addEventListener('DOMContentLoaded', function() {
+
+    // Handle manual change on qb-qty-input (typed value)
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.classList.contains('qb-qty-input')) {
+            let val = parseInt(e.target.value) || 0;
+            if (val < 0) val = 0;
+            e.target.value = val;
+            const container = e.target.closest('.qb-qty-container');
+            if (val <= 0) {
+                if (container) {
+                    container.querySelector('.qb-add-btn')?.classList.remove('d-none');
+                    const ctrl = container.querySelector('.qb-qty-controls');
+                    if (ctrl) { ctrl.classList.add('d-none'); ctrl.style.display = 'none'; }
+                }
+            } else {
+                if (container) {
+                    container.querySelector('.qb-add-btn')?.classList.add('d-none');
+                    const ctrl = container.querySelector('.qb-qty-controls');
+                    if (ctrl) { ctrl.classList.remove('d-none'); ctrl.style.display = 'inline-flex'; }
+                }
+            }
+            updateQBCartTotals();
+            scheduleDraftSave();
+            if (!document.getElementById('qb-cart-view').classList.contains('d-none')) {
+                renderQBCartSummaryList();
+            }
+        }
+    });
+
+    // Clear qty field on focus/touchstart — exact copy from delivery
+    document.addEventListener('focus', function(e) {
+        if (e.target && e.target.classList.contains('qb-qty-input')) {
+            e.target.value = '';
+        }
+    }, true);
+
+    document.addEventListener('touchstart', function(e) {
+        if (e.target && e.target.classList.contains('qb-qty-input')) {
+            e.target.value = '';
+        }
+    });
+
+    // 3-tier ranked product search — same as delivery
+    const productSearch = document.getElementById('qb-product-search');
+    if (productSearch) {
+        productSearch.addEventListener('input', function() {
+            rankedProductSearch(this.value.toLowerCase().trim());
+        });
+        productSearch.addEventListener('focus', function() {
+            this.value = '';
+            rankedProductSearch('');
+        });
+        productSearch.addEventListener('touchstart', function() {
+            this.value = '';
+            rankedProductSearch('');
+        });
+    }
+});
+
+// ── closeQuickBillModal — exact copy from delivery ────────────────────────────
+function closeQuickBillModal() {
+    if (Date.now() - _lastInputBlurTime < 300) return;
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) { activeEl.blur(); return; }
+    
+    saveDraftBill();
+    _skipDraftSaveOnce = true;
+    history.back();
+}
+
+// ── openItemsModal — same as delivery ────────────────────────────────────────
+function openItemsModal(orderId) {
+    const modalEl = document.getElementById('itemsModal-' + orderId);
+    if (modalEl) { new bootstrap.Modal(modalEl).show(); }
+}
+
+// ── 3-tier ranked product search — exact copy from delivery ──────────────────
+function rankedProductSearch(term) {
+    const items = Array.from(document.querySelectorAll('.qb-product-item'));
+    if (!term) {
+        items.forEach(item => { item.style.display = 'block'; item.style.order = ''; });
+        return;
+    }
+    const tier1 = [], tier2 = [], tier3 = [], hidden = [];
+    items.forEach(item => {
+        const name = item.getAttribute('data-name').toLowerCase().trim();
+        const words = name.split(/\s+/);
+        if (name.startsWith(term)) tier1.push(item);
+        else if (words.slice(1).some(w => w.startsWith(term))) tier2.push(item);
+        else if (name.includes(term)) tier3.push(item);
+        else hidden.push(item);
+    });
+    hidden.forEach(i => { i.style.display = 'none'; i.style.order = ''; });
+    [...tier1, ...tier2, ...tier3].forEach((i, idx) => { i.style.display = 'block'; i.style.order = idx; });
+}
+
+// ── Quick Bill core — exact copy from delivery ────────────────────────────────
+let qbCartOrder = [];
+
+function openQuickBillModal() {
+    clearQuickBillState();
+    const modalEl = document.getElementById('quickBillModal');
+    modalEl.classList.remove('d-none');
+    document.body.style.overflow = 'hidden';
+    const floatBtn = document.getElementById('qb-float-back-btn');
+    if (floatBtn) floatBtn.classList.add('visible');
+    const isMobile = window.innerWidth < 575.98;
+    if (isMobile) {
+        const h = window.innerHeight;
+        modalEl.style.height = h + 'px';
+        modalEl.dataset.lockedHeight = h;
+    } else {
+        modalEl.style.height = '';
+        delete modalEl.dataset.lockedHeight;
+    }
+    window._modalNavStack = ['qb-menu'];
+    history.pushState({ modalOpen: true }, '');
+}
+
+function addQBProduct(productId) {
+    const input = document.getElementById('qb-qty-' + productId);
+    if (input) {
+        input.value = '1';
+        const container = input.closest('.qb-qty-container');
+        if (container) {
+            container.querySelector('.qb-add-btn')?.classList.add('d-none');
+            const ctrl = container.querySelector('.qb-qty-controls');
+            if (ctrl) { ctrl.classList.remove('d-none'); ctrl.style.display = 'inline-flex'; }
+        }
+        updateQBCartTotals();
+        scheduleDraftSave();
+    }
+}
+
+function changeQBProductQty(productId, delta) {
+    const input = document.getElementById('qb-qty-' + productId);
+    if (input) {
+        let val = (parseInt(input.value) || 0) + delta;
+        if (val <= 0) {
+            val = 0;
+            const container = input.closest('.qb-qty-container');
+            if (container) {
+                container.querySelector('.qb-add-btn')?.classList.remove('d-none');
+                const ctrl = container.querySelector('.qb-qty-controls');
+                if (ctrl) { ctrl.classList.add('d-none'); ctrl.style.display = 'none'; }
+            }
+        }
+        input.value = val;
+        updateQBCartTotals();
+        scheduleDraftSave();
+        if (!document.getElementById('qb-cart-view').classList.contains('d-none')) {
+            renderQBCartSummaryList();
+        }
+    }
+}
+
+function updateQBCartTotals() {
+    let totalCount = 0, totalAmount = 0;
+    qbCartOrder = [];
+    document.querySelectorAll('.qb-product-item').forEach(item => {
+        const pid = String(item.dataset.productId);
+        const price = parseFloat(item.dataset.price) || 0;
+        const inp = document.getElementById('qb-qty-' + pid);
+        const qty = inp ? (parseInt(inp.value) || 0) : 0;
+        if (qty > 0) { qbCartOrder.push(pid); totalCount += qty; totalAmount += qty * price; }
+    });
+
+    const badge = document.getElementById('qb-cart-badge');
+    if (badge) badge.textContent = totalCount;
+    const viewCartBtn = document.getElementById('qb-view-cart-btn');
+    if (viewCartBtn) viewCartBtn.classList.toggle('d-none', totalCount === 0);
+
+    const itemsTotalDisplay = document.getElementById('qb-cart-items-total-display');
+    if (itemsTotalDisplay) itemsTotalDisplay.textContent = '₹' + totalAmount.toFixed(0);
+
+    const oldBalance = CUSTOMER_OLD_BALANCE;
+    const grandTotal = totalAmount + oldBalance;
+
+    const oldBalRow = document.getElementById('qb-old-balance-row');
+    const oldBalDisplay = document.getElementById('qb-cart-old-balance-display');
+    if (oldBalRow && oldBalDisplay) {
+        if (oldBalance > 0) {
+            oldBalRow.style.removeProperty('display');
+            oldBalDisplay.textContent = '₹' + oldBalance.toFixed(0);
+        } else {
+            oldBalRow.style.setProperty('display', 'none', 'important');
+        }
+    }
+
+    const grandTotalDisplay = document.getElementById('qb-cart-grand-total-display');
+    if (grandTotalDisplay) grandTotalDisplay.textContent = '₹' + grandTotal.toFixed(0);
+}
+
+function renderQBCartSummaryList() {
+    const container = document.getElementById('qb-cart-items-summary');
+    if (!container) return;
+    let html = '';
+    qbCartOrder.forEach(pid => {
+        const item = document.querySelector(`.qb-product-item[data-product-id="${pid}"]`);
+        if (!item) return;
+        const name = item.dataset.name;
+        const price = parseFloat(item.dataset.price) || 0;
+        const inp = document.getElementById('qb-qty-' + pid);
+        const qty = inp ? (parseInt(inp.value) || 0) : 0;
+        if (qty > 0) {
+            html += `
+            <div class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+                <div class="d-flex align-items-center">
+                    <span class="d-inline-flex align-items-center justify-content-center me-2 flex-shrink-0"
+                      style="width:14px;height:14px;border:1.5px solid #198754;padding:2px;border-radius:3px;">
+                        <span style="width:5px;height:5px;background-color:#198754;border-radius:50%;"></span>
+                    </span>
+                    <span class="fw-bold text-dark small">${name}</span>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="text-muted small">${qty} x ₹${price.toFixed(0)}</span>
+                    <span class="fw-bold text-dark small">₹${(qty * price).toFixed(0)}</span>
+                </div>
+            </div>`;
+        }
+    });
+    container.innerHTML = html || '<div class="p-3 text-center text-muted small">Your cart is empty.</div>';
+}
+
+function showQBCartView() {
+    renderQBCartSummaryList();
+    document.getElementById('qb-menu-view').classList.add('d-none');
+    document.getElementById('qb-cart-view').classList.remove('d-none');
+    if (window._modalNavStack[window._modalNavStack.length - 1] !== 'qb-cart') {
+        window._modalNavStack.push('qb-cart');
+        history.pushState({ modalOpen: true }, '');
+    }
+}
+
+function showQBMenuView(goBackHistory = true) {
+    if (Date.now() - _lastInputBlurTime < 300) return;
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) { activeEl.blur(); return; }
+    if (goBackHistory) { history.back(); } else {
+        document.getElementById('qb-cart-view').classList.add('d-none');
+        document.getElementById('qb-menu-view').classList.remove('d-none');
+    }
+}
+
+function _onQBModalClose() {
+    const floatBtn = document.getElementById('qb-float-back-btn');
+    if (floatBtn) floatBtn.classList.remove('visible');
+    clearQuickBillState();
+}
+
+function clearQuickBillState() {
+    // 1. Reset all quantities
+    document.querySelectorAll('.qb-qty').forEach(inp => { inp.value = '0'; });
+    // 2. Hide all stepper controls, show ADD buttons
+    document.querySelectorAll('.qb-add-btn').forEach(btn => btn.classList.remove('d-none'));
+    document.querySelectorAll('.qb-qty-controls').forEach(ctrl => { ctrl.classList.add('d-none'); ctrl.style.display = 'none'; });
+    // 3. Reset cart order
+    qbCartOrder = [];
+    // 4. Update totals
+    updateQBCartTotals();
+    // 5. Reset view to menu screen
+    document.getElementById('qb-cart-view').classList.add('d-none');
+    document.getElementById('qb-menu-view').classList.remove('d-none');
+    // 6. Clear search
+    const searchInp = document.getElementById('qb-product-search');
+    if (searchInp) searchInp.value = '';
+    document.querySelectorAll('.qb-product-item').forEach(item => { item.style.display = ''; });
+    // 7. Reset submit button
+    const submitBtn = document.getElementById('submitQuickBillBtn');
+    if (submitBtn) { submitBtn.innerHTML = 'Place Order'; submitBtn.style.backgroundColor = '#ff6600'; submitBtn.disabled = false; }
+}
+
+// ── Submit Order — customer-specific (no store_name, no draft clear) ──────────
+function submitCustomerOrder(url, csrfToken) {
+    if (Date.now() - _lastInputBlurTime < 300) return;
+    const btn = document.getElementById('submitQuickBillBtn');
+    if (!btn || btn.disabled) return;
+
+    let hasItems = false;
+    document.querySelectorAll('.qb-qty').forEach(inp => { if (parseInt(inp.value) > 0) hasItems = true; });
+    if (!hasItems) { showToast('Please select at least one item.', false); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Placing...';
+
+    // Build item_order hidden input — same pattern as delivery
+    let orderInput = document.getElementById('qb-item-order');
+    if (!orderInput) {
+        orderInput = document.createElement('input');
+        orderInput.type = 'hidden'; orderInput.id = 'qb-item-order'; orderInput.name = 'item_order';
+        document.getElementById('quickBillForm').appendChild(orderInput);
+    }
+    orderInput.value = qbCartOrder.join(',');
+
+    const formData = new FormData(document.getElementById('quickBillForm'));
+    formData.append('item_order', orderInput.value);
+
+    fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || 'Order placed!', true);
+            
+            _hasDraft = false;
+            fetchWithTimeout(DRAFT_CLEAR_URL, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+            }).catch(() => {});
+            
+            clearQuickBillState();
+            updateQuickBillMainButton();
+            
+            // Close QB modal — pop whole stack
+            const steps = window._modalNavStack.length;
+            window._modalNavStack = [];
+            if (steps > 0) history.go(-steps);
+            if (typeof window._hideAllModals === 'function') window._hideAllModals();
+            btn.disabled = false; btn.innerHTML = 'Place Order';
+            // Reload page to show new order
+            setTimeout(() => location.reload(), 800);
+        } else {
+            showToast(data.error || 'Something went wrong.', false);
+            btn.disabled = false; btn.innerHTML = 'Place Order';
+        }
+    })
+    .catch(() => {
+        showToast('Network error.', false);
+        btn.disabled = false; btn.innerHTML = 'Place Order';
+    });
+}
+
+// ── Draggable floating back button — exact copy from delivery ─────────────────
+(function() {
+    const btn = document.getElementById('qb-float-back-btn');
+    if (!btn) return;
+    const BTN_TOP_KEY = 'qb_float_btn_top_pct';
+
+    function restorePosition() {
+        const savedPct = localStorage.getItem(BTN_TOP_KEY);
+        if (savedPct) {
+            const pct = parseFloat(savedPct);
+            let topPx = (pct / 100) * window.innerHeight;
+            topPx = Math.max(16, Math.min(window.innerHeight - 60, topPx));
+            btn.style.top = topPx + 'px';
+        }
+    }
+    restorePosition();
+
+    let isPointerDown = false, isDragging = false, wasDragged = false, startY = 0, startTop = 0;
+
+    function getBtnTopPx() { return parseInt(btn.style.top) || (window.innerHeight / 2 - 22); }
+    function onPointerDown(clientY) { isPointerDown = true; wasDragged = false; isDragging = false; startY = clientY; startTop = getBtnTopPx(); }
+    function onPointerMove(clientY) {
+        if (!isPointerDown) return;
+        const deltaY = clientY - startY;
+        if (!isDragging && Math.abs(deltaY) > 5) { isDragging = true; btn.classList.add('dragging'); }
+        if (isDragging) {
+            let newTop = Math.max(16, Math.min(window.innerHeight - 60, startTop + deltaY));
+            btn.style.top = newTop + 'px'; wasDragged = true;
+        }
+    }
+    function onPointerUp() {
+        if (!isPointerDown) return; isPointerDown = false;
+        if (isDragging) {
+            isDragging = false; btn.classList.remove('dragging');
+            localStorage.setItem(BTN_TOP_KEY, (getBtnTopPx() / window.innerHeight) * 100);
+        }
+    }
+
+    btn.addEventListener('touchstart',  e => onPointerDown(e.touches[0].clientY), { passive: true });
+    btn.addEventListener('touchmove',   e => { if (isPointerDown && Math.abs(e.touches[0].clientY - startY) > 5) e.preventDefault(); onPointerMove(e.touches[0].clientY); }, { passive: false });
+    btn.addEventListener('touchend',    () => onPointerUp());
+    btn.addEventListener('touchcancel', () => onPointerUp());
+    btn.addEventListener('mousedown',   e => onPointerDown(e.clientY));
+    document.addEventListener('mousemove', e => onPointerMove(e.clientY));
+    document.addEventListener('mouseup',   () => onPointerUp());
+    btn.addEventListener('click', e => { if (wasDragged) { e.stopPropagation(); e.preventDefault(); } }, true);
+    window.addEventListener('resize', restorePosition);
+})();
+
+// Set initial button state on page load
+document.addEventListener('DOMContentLoaded', () => {
+    updateQuickBillMainButton();
+});
+</script>
+
+{% endblock %}

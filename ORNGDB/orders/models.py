@@ -1,12 +1,11 @@
 from django.db import models
 from django.conf import settings
 from products.models import Product
+from decimal import Decimal
 
 class Order(models.Model):
     STATUS_CHOICES = (
         ('pending', 'Pending'),
-        ('packed', 'Packed'),
-        ('delivered', 'Delivered'),
         ('received', 'Received'),
         ('cancelled', 'Cancelled'),
     )
@@ -20,13 +19,11 @@ class Order(models.Model):
         blank=True, 
         related_name='deliveries'
     )
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    old_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    old_balance = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     remaining_balance = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     payment_status = models.CharField(max_length=20, choices=(('paid', 'Paid'), ('unpaid', 'Unpaid')), default='unpaid')
     created_at = models.DateTimeField(auto_now_add=True)
-    packed_at = models.DateTimeField(null=True, blank=True)
-    delivered_at = models.DateTimeField(null=True, blank=True)
     received_at = models.DateTimeField(null=True, blank=True)
 
     @property
@@ -72,7 +69,7 @@ class Order(models.Model):
                 self.assigned_delivery_user = delivery_guy
         
         if self.remaining_balance is None:
-            self.remaining_balance = self.total_amount + self.old_balance
+            self.remaining_balance = Decimal(str(self.total_amount)) + Decimal(str(self.old_balance))
             
         super().save(*args, **kwargs)
 
@@ -107,7 +104,7 @@ class DraftBill(models.Model):
     )
     items_json = models.JSONField(default=dict)   # {product_id: qty}
     store_name = models.CharField(max_length=255, blank=True, default='')
-    old_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    old_balance = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
