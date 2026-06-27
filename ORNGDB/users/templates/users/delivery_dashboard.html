@@ -996,6 +996,30 @@
 </div>
 
 <!-- Dynamic Receipt Modal -->
+
+<div class="modal fade" id="imageShareModal" tabindex="-1" aria-labelledby="imageShareModalLabel" aria-hidden="true" style="z-index: 3100;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header border-bottom-0 pb-0">
+        <h5 class="modal-title fw-bold" id="imageShareModalLabel">Share Receipt</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="text-muted small mb-3">Your image is ready to share.</p>
+        <img id="imageShareModalPreview" src="" alt="Receipt Preview" class="img-fluid rounded border mb-3" style="max-height: 400px;">
+        <div class="d-grid gap-2">
+            <button type="button" id="imageShareModalBtn" class="btn text-white rounded-pill fw-bold py-3 shadow-sm" style="background-color: #ff6600;">
+                <i class="bi bi-share me-1"></i> Share Image Now
+            </button>
+            <button type="button" id="imageDownloadModalBtn" class="btn btn-outline-secondary rounded-pill fw-bold py-2">
+                <i class="bi bi-download me-1"></i> Download Instead
+            </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="dynamicReceiptModal" tabindex="-1" aria-labelledby="dynamicReceiptModalLabel" aria-hidden="true" style="z-index: 3100;">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow rounded-4">
@@ -2607,6 +2631,45 @@ function loadHtml2Canvas(callback) {
     }
 }
 
+let pendingShareFile = null;
+let pendingShareOrderId = null;
+let pendingShareCanvas = null;
+
+document.addEventListener("DOMContentLoaded", function() {
+    const shareBtn = document.getElementById("imageShareModalBtn");
+    const downloadBtn = document.getElementById("imageDownloadModalBtn");
+    
+    if(shareBtn) {
+        shareBtn.addEventListener("click", function() {
+            if (pendingShareFile && navigator.canShare && navigator.canShare({ files: [pendingShareFile] })) {
+                navigator.share({ 
+                    files: [pendingShareFile],
+                    title: 'Receipt'
+                }).then(() => {
+                    showToast('Shared successfully!', true);
+                    const modalEl = document.getElementById('imageShareModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if(modal) modal.hide();
+                }).catch(err => {
+                    console.log('Share failed:', err);
+                    alert('Share cancelled or failed: ' + (err.message || err.name || err));
+                });
+            } else {
+                alert("Sharing files is not supported on this browser.");
+            }
+        });
+    }
+    
+    if(downloadBtn) {
+        downloadBtn.addEventListener("click", function() {
+            if(pendingShareCanvas && pendingShareOrderId) {
+                downloadImage(pendingShareCanvas, pendingShareOrderId);
+                showToast('Receipt downloaded!', true);
+            }
+        });
+    }
+});
+
 function shareOrderBill(orderId, baseUrl) {
     const btnId = 'share-btn-' + orderId;
     const btn = document.getElementById(btnId);
@@ -2615,14 +2678,12 @@ function shareOrderBill(orderId, baseUrl) {
         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     }
     
-    // Read user preferences
     const format = localStorage.getItem("receipt_format") || "image";
     const size = localStorage.getItem("receipt_size") || "2inch";
     const width = (size === "3inch") ? 48 : 32;
     
     const url = baseUrl + '?width=' + width;
 
-    // Fetch the formatted bill text from the server
     fetchWithTimeout(url, {
         method: 'GET',
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -2636,7 +2697,6 @@ function shareOrderBill(orderId, baseUrl) {
         }
 
         if (format === "text") {
-            // Share directly as text
             if (navigator.share && window.isSecureContext) {
                 navigator.share({
                     title: `Order #${orderId} Bill`,
@@ -2653,7 +2713,6 @@ function shareOrderBill(orderId, baseUrl) {
                 resetBtn(btn);
             }
         } else {
-            // Share as Image
             loadHtml2Canvas(() => {
                 const receiptDiv = document.createElement('div');
                 receiptDiv.style.position = 'absolute';
@@ -2681,24 +2740,23 @@ function shareOrderBill(orderId, baseUrl) {
                             return;
                         }
                         
-                        const file = new File([blob], `receipt_${orderId}.png`, { type: 'image/png' });
-                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                            navigator.share({ 
-                                files: [file],
-                                title: 'Receipt'
-                            }).then(() => {
-                                showToast('Shared successfully!', true);
-                                resetBtn(btn);
-                            }).catch(err => {
-                                alert('Share failed: ' + (err.message || err.name || err));
-                                downloadImage(canvas, orderId);
-                                resetBtn(btn);
-                            });
-                        } else {
-                            downloadImage(canvas, orderId);
-                            showToast('Receipt downloaded!', true);
-                            resetBtn(btn);
+                        pendingShareFile = new File([blob], `receipt_${orderId}.png`, { type: 'image/png' });
+                        pendingShareOrderId = orderId;
+                        pendingShareCanvas = canvas;
+                        
+                        // Show modal
+                        const previewImg = document.getElementById('imageShareModalPreview');
+                        if (previewImg) {
+                            previewImg.src = URL.createObjectURL(blob);
                         }
+                        
+                        const modalEl = document.getElementById('imageShareModal');
+                        if (modalEl) {
+                            const modal = new bootstrap.Modal(modalEl);
+                            modal.show();
+                        }
+                        
+                        resetBtn(btn);
                     }, 'image/png');
                 }).catch(err => {
                     console.error(err);
