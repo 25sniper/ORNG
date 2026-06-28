@@ -1,8 +1,3 @@
-from io import BytesIO
-from django.conf import settings
-from PIL import Image, ImageDraw, ImageFont
-from django.http import HttpResponse
-import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
@@ -415,20 +410,21 @@ def share_order_bill(request, order_id):
     divider_double = "=" * w
     divider_single = "-" * w
     
-    local_dt = timezone.localtime(order.created_at)
-    date_str = local_dt.strftime('%d/%m/%Y')
-    time_str = local_dt.strftime('%H:%M')
-    order_num = f"#{order.id:05d}"
-    store_name = order.display_store_name
-    
-    # Calculate space for item name based on total width (32 - 18 = 14) -> (w - 18)
-    name_w = max(10, w - 18)
-    
     header = [
         divider_double,
         "ESTIMATION".center(w),
         divider_double
     ]
+    
+    local_dt = timezone.localtime(order.created_at)
+    date_str = local_dt.strftime('%d/%m/%Y')
+    time_str = local_dt.strftime('%H:%M')
+    order_num = f"#{order.id:05d}"
+    
+    store_name = order.display_store_name
+    
+    # Calculate space for item name based on total width (32 - 18 = 14) -> (w - 18)
+    name_w = max(10, w - 18)
     
     details = [
         f"ORDER NO: {order_num}".ljust(w),
@@ -515,127 +511,58 @@ def share_order_bill(request, order_id):
         "Thank you for your business!".center(w),
         divider_double
     ]
-    bill_text = "\n".join(header + details + items_lines + [" " * w, " " * w] + footer)
+    
+    bill_text = "
+".join(header + details + items_lines + [" " * w, " " * w] + footer)
+    
     format_type = request.GET.get('format', 'json')
     if format_type == 'image':
-        font_path = os.path.join(str(settings.BASE_DIR), 'static', 'fonts', 'NotoSansTamil-Regular.ttf')
-        fallback_font_path = os.path.join(str(settings.BASE_DIR), 'static', 'fonts', 'RobotoMono-Regular.ttf')
-        
+        font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'RobotoMono-Regular.ttf')
         try:
-            # We try to use NotoSansTamil, but if not found, we use RobotoMono
-            if os.path.exists(font_path):
-                font = ImageFont.truetype(font_path, 28)
-                bold_font = ImageFont.truetype(font_path, 32)
-            else:
-                font = ImageFont.truetype(fallback_font_path, 28)
-                bold_font = ImageFont.truetype(fallback_font_path, 32)
-        except Exception as e:
-            print("Font error:", e)
+            font = ImageFont.truetype(font_path, 28)
+        except IOError:
             font = ImageFont.load_default()
-            bold_font = font
 
-        # Manual image drawing for perfect alignment regardless of proportional font
-        img_width = 650
-        img = Image.new('RGB', (img_width, 10), color='white') # temporary height
-        draw = ImageDraw.Draw(img)
+        lines = bill_text.split('
+')
         
-        y = 20
-        padding = 30
-        line_height = 40
+        # Calculate dimensions
+        max_width = 0
+        total_height = 0
+        line_heights = []
         
-        # Calculate total height first
-        total_items = order.items.count()
-        # header(3) + details(3) + space + items(total_items) + space + totals(4) + space + payment(1) + footer(1)
-        estimated_lines = 15 + total_items * 2
-        img_height = estimated_lines * line_height + 100
+        # dummy image just for measuring
+        dummy_img = Image.new('RGB', (1, 1))
+        dummy_draw = ImageDraw.Draw(dummy_img)
+        
+        for line in lines:
+            # textbbox returns (left, top, right, bottom)
+            bbox = dummy_draw.textbbox((0, 0), line, font=font)
+            w_line = bbox[2] - bbox[0]
+            h_line = bbox[3] - bbox[1] + 10 # 10px spacing
+            if h_line < 20: h_line = 38 # Fallback minimum line height for 28px font
+            max_width = max(max_width, w_line)
+            total_height += h_line
+            line_heights.append(h_line)
+            
+        img_width = max_width + 40
+        img_height = total_height + 40
         
         img = Image.new('RGB', (img_width, img_height), color='white')
         draw = ImageDraw.Draw(img)
         
-        def draw_text(txt, x, y_pos, align="left", f=font):
-            # align can be left, center, right
-            bbox = draw.textbbox((0, 0), txt, font=f)
-            w = bbox[2] - bbox[0]
-            if align == "center":
-                x = (img_width - w) / 2
-            elif align == "right":
-                x = img_width - padding - w
-            draw.text((x, y_pos), txt, font=f, fill='black')
+        y_text = 20
+        for i, line in enumerate(lines):
+            draw.text((20, y_text), line, font=font, fill='black')
+            y_text += line_heights[i]
             
-        def draw_line(y_pos):
-            draw.line([(padding, y_pos), (img_width-padding, y_pos)], fill='black', width=2)
-            return y_pos + 20
-            
-        # Header
-        y = draw_line(y)
-        draw_text("ESTIMATION", 0, y, align="center", f=bold_font)
-        y += line_height + 10
-        y = draw_line(y)
-        
-        # Details
-        draw_text(f"ORDER NO: {order_num}", padding, y)
-        y += line_height
-        draw_text(f"DATE: {date_str} | TIME: {time_str}", padding, y)
-        y += line_height
-        draw_text(f"Store: {store_name}", padding, y)
-        y += line_height + 10
-        y = draw_line(y)
-        
-        # Table Header
-        draw_text("#", padding, y)
-        draw_text("ITEM", padding + 50, y)
-        draw_text("QTY", img_width - padding - 150, y, align="right")
-        draw_text("TOTAL", img_width - padding, y, align="right")
-        y += line_height + 10
-        y = draw_line(y)
-        
-        # Items
-        for idx, item in enumerate(order.items.all(), 1):
-            draw_text(f"{idx}.", padding, y)
-            draw_text(item.product.name, padding + 50, y)
-            draw_text(str(item.quantity), img_width - padding - 150, y, align="right")
-            total_val = item.price_at_time * item.quantity
-            draw_text(f"₹{total_val:.2f}", img_width - padding, y, align="right")
-            y += line_height
-            
-        y += 10
-        y = draw_line(y)
-        
-        # Totals
-        draw_text("TOTAL:", padding, y)
-        draw_text(f"₹{order.total_amount:.2f}", img_width - padding, y, align="right")
-        y += line_height
-        
-        if old_bal > 0:
-            draw_text("OLD BALANCE:", padding, y)
-            draw_text(f"₹{old_bal:.2f}", img_width - padding, y, align="right")
-            y += line_height
-            
-        if product_payment > 0:
-            draw_text("CASH:", padding, y)
-            draw_text(f"-₹{product_payment:.2f}", img_width - padding, y, align="right")
-            y += line_height
-            
-        draw_text("NEW BALANCE:", padding, y, f=bold_font)
-        draw_text(f"₹{remaining:.2f}", img_width - padding, y, align="right", f=bold_font)
-        y += line_height * 2
-        
-        draw_text(f"PAYMENT STATUS: {order.payment_status.upper()}", padding, y)
-        y += line_height * 2
-        
-        draw_text("Thank you for your business!", 0, y, align="center")
-        y += line_height
-        y = draw_line(y)
-        
-        # Crop image to actual height
-        img = img.crop((0, 0, img_width, y + 20))
-        
         buffer = BytesIO()
         img.save(buffer, format='PNG')
         buffer.seek(0)
         return HttpResponse(buffer.getvalue(), content_type='image/png')
 
     return JsonResponse({'success': True, 'bill_text': bill_text})
+
 
 # ── Draft Bill Views ─────────────────────────────────────────────────────────
 @login_required

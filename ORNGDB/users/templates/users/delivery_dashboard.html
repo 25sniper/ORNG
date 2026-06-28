@@ -2677,9 +2677,8 @@ function shareOrderBill(orderId, baseUrl) {
                 resetBtn(btn);
             }
         })
-        .catch(err => {
-            console.error(err);
-            showToast('Failed to generate or fetch image: ' + err.message, false);
+        .catch(() => {
+            showToast('Failed to generate or fetch image.', false);
             if(btn) resetBtn(btn);
         });
     }
@@ -2714,6 +2713,7 @@ function resetBtn(btn) {
         btn.disabled = false;
         btn.className = "btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center";
         btn.innerHTML = '<i class="bi bi-share me-1"></i> Share';
+        btn.onclick = null; // Removing executeReadyShare because it's single-click again
     }
 }
 
