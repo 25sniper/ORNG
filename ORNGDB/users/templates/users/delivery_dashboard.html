@@ -434,12 +434,12 @@
 
 <ul class="nav nav-pills mb-4 border-0 mt-2 flex-nowrap w-100 justify-content-between" id="deliveryTabs" role="tablist" style="background-color: #f1f5f9; padding: 4px; border-radius: 50px;">
   <li class="nav-item flex-grow-1" role="presentation">
-    <button class="nav-link rounded-pill fw-bold py-2 px-1 w-100 text-center active" id="pending-tab" data-bs-toggle="pill" data-bs-target="#pending" type="button" role="tab">
+    <button class="nav-link rounded-pill fw-bold py-2 px-1 w-100 text-center" id="pending-tab" data-bs-toggle="pill" data-bs-target="#pending" type="button" role="tab">
       Pending <span class="badge rounded-pill ms-1" id="pending-count">{{ pending_orders|length }}</span>
     </button>
   </li>
   <li class="nav-item flex-grow-1" role="presentation">
-    <button class="nav-link rounded-pill fw-bold py-2 px-1 w-100 text-center" id="received-tab" data-bs-toggle="pill" data-bs-target="#received" type="button" role="tab">
+    <button class="nav-link rounded-pill fw-bold py-2 px-1 w-100 text-center active" id="received-tab" data-bs-toggle="pill" data-bs-target="#received" type="button" role="tab">
       Delivered <span class="badge rounded-pill ms-1" id="received-count">{{ received_orders|length }}</span>
     </button>
   </li>
@@ -448,7 +448,7 @@
 <div class="tab-content" id="deliveryTabsContent">
 
   <!-- PENDING TAB -->
-  <div class="tab-pane fade show active" id="pending" role="tabpanel">
+  <div class="tab-pane fade" id="pending" role="tabpanel">
       {% if not pending_orders %}
           <div class="alert alert-light border-0 shadow-sm rounded-4 py-5 text-center text-muted mt-2" id="pending-empty">
               <h5 class="mb-0">No pending orders.</h5>
@@ -2672,7 +2672,7 @@ function shareOrderBill(orderId, baseUrl) {
                 receiptDiv.textContent = data.bill_text;
                 document.body.appendChild(receiptDiv);
 
-                html2canvas(receiptDiv, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+                html2canvas(receiptDiv, { scale: 1, backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
                     document.body.removeChild(receiptDiv);
                     canvas.toBlob(blob => {
                         if (!blob) {
@@ -2681,9 +2681,19 @@ function shareOrderBill(orderId, baseUrl) {
                             return;
                         }
                         
-                        const file = new File([blob], `receipt_${orderId}.png`, { type: 'image/png' });
-                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                            navigator.share({ files: [file] }).then(() => {
+                        const file = new File([blob], `receipt_${orderId}.png`, { 
+                            type: 'image/png',
+                            lastModified: Date.now()
+                        });
+                        
+                        const shareData = {
+                            title: `Order #${orderId} Receipt`,
+                            text: 'Here is your receipt.',
+                            files: [file]
+                        };
+
+                        if (navigator.canShare && navigator.canShare(shareData)) {
+                            navigator.share(shareData).then(() => {
                                 showToast('Shared successfully!', true);
                                 resetBtn(btn);
                             }).catch(err => {
@@ -3859,6 +3869,22 @@ document.addEventListener('DOMContentLoaded', function() {
     if (sessionStorage.getItem('open_draft_on_load') === 'true') {
         sessionStorage.removeItem('open_draft_on_load');
         continueDraftBill();
+    }
+
+    // Tab Persistence
+    const deliveryTabsEl = document.getElementById('deliveryTabs');
+    if (deliveryTabsEl) {
+        deliveryTabsEl.addEventListener('shown.bs.tab', function (e) {
+            localStorage.setItem('activeDeliveryTab', e.target.id);
+        });
+        const activeTabId = localStorage.getItem('activeDeliveryTab');
+        if (activeTabId) {
+            const targetTab = document.getElementById(activeTabId);
+            if (targetTab) {
+                const tab = new bootstrap.Tab(targetTab);
+                tab.show();
+            }
+        }
     }
 });
 </script>
