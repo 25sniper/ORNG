@@ -515,9 +515,7 @@ def share_order_bill(request, order_id):
         "Thank you for your business!".center(w),
         divider_double
     ]
-    
-    bill_text = "\\n".join(header + details + items_lines + [" " * w, " " * w] + footer)
-    
+    bill_text = "\n".join(header + details + items_lines + [" " * w, " " * w] + footer)
     format_type = request.GET.get('format', 'json')
     if format_type == 'image':
         font_path = os.path.join(str(settings.BASE_DIR), 'static', 'fonts', 'NotoSansTamil-Regular.ttf')
