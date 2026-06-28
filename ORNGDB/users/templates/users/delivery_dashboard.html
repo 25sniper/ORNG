@@ -996,7 +996,6 @@
 </div>
 
 <!-- Dynamic Receipt Modal -->
-
 <div class="modal fade" id="dynamicReceiptModal" tabindex="-1" aria-labelledby="dynamicReceiptModalLabel" aria-hidden="true" style="z-index: 3100;">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow rounded-4">
@@ -2597,6 +2596,17 @@ function submitQuickBill(url, csrfToken) {
 }
 
 // ── Share Bill Logic ──────────────────────────────────────────────────────────
+function loadHtml2Canvas(callback) {
+    if (window.html2canvas) {
+        callback();
+    } else {
+        const script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+        script.onload = callback;
+        document.head.appendChild(script);
+    }
+}
+
 function shareOrderBill(orderId, baseUrl) {
     const btnId = 'share-btn-' + orderId;
     const btn = document.getElementById(btnId);
@@ -2605,25 +2615,28 @@ function shareOrderBill(orderId, baseUrl) {
         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     }
     
+    // Read user preferences
     const format = localStorage.getItem("receipt_format") || "image";
     const size = localStorage.getItem("receipt_size") || "2inch";
     const width = (size === "3inch") ? 48 : 32;
     
-    // Append format to the URL so the server knows what to return!
-    const url = baseUrl + '?width=' + width + '&format=' + format;
+    const url = baseUrl + '?width=' + width;
 
-    if (format === "text") {
-        fetchWithTimeout(url, {
-            method: 'GET',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (!data.success) {
-                showToast('Error getting bill text.', false);
-                if (btn) resetBtn(btn);
-                return;
-            }
+    // Fetch the formatted bill text from the server
+    fetchWithTimeout(url, {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            showToast('Error getting bill text.', false);
+            if (btn) resetBtn(btn);
+            return;
+        }
+
+        if (format === "text") {
+            // Share directly as text
             if (navigator.share && window.isSecureContext) {
                 navigator.share({
                     title: `Order #${orderId} Bill`,
@@ -2639,49 +2652,64 @@ function shareOrderBill(orderId, baseUrl) {
                 fallbackCopyTextToClipboard(data.bill_text);
                 resetBtn(btn);
             }
-        })
-        .catch(() => {
-            showToast('Network error.', false);
-            if(btn) resetBtn(btn);
-        });
-    } else {
-        // Fetch raw image blob directly from server
-        fetchWithTimeout(url, {
-            method: 'GET'
-        })
-        .then(r => {
-            if(!r.ok) throw new Error("Server error");
-            return r.blob();
-        })
-        .then(blob => {
-            const file = new File([blob], `receipt_${orderId}.png`, { type: 'image/png' });
-            
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                navigator.share({ 
-                    files: [file],
-                    title: 'Receipt'
-                }).then(() => {
-                    showToast('Shared successfully!', true);
-                    resetBtn(btn);
+        } else {
+            // Share as Image
+            loadHtml2Canvas(() => {
+                const receiptDiv = document.createElement('div');
+                receiptDiv.style.position = 'absolute';
+                receiptDiv.style.left = '-9999px';
+                receiptDiv.style.top = '-9999px';
+                receiptDiv.style.display = 'inline-block';
+                receiptDiv.style.backgroundColor = '#ffffff';
+                receiptDiv.style.padding = '0px';
+                receiptDiv.style.color = '#000000';
+                receiptDiv.style.fontFamily = 'monospace';
+                receiptDiv.style.fontSize = '28px';
+                receiptDiv.style.fontWeight = 'bold';
+                receiptDiv.style.lineHeight = '1.6';
+                receiptDiv.style.whiteSpace = 'pre';
+                
+                receiptDiv.textContent = data.bill_text;
+                document.body.appendChild(receiptDiv);
+
+                html2canvas(receiptDiv, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+                    document.body.removeChild(receiptDiv);
+                    canvas.toBlob(blob => {
+                        if (!blob) {
+                            showToast('Failed to generate image.', false);
+                            if (btn) resetBtn(btn);
+                            return;
+                        }
+                        
+                        const file = new File([blob], `receipt_${orderId}.png`, { type: 'image/png' });
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            navigator.share({ files: [file] }).then(() => {
+                                showToast('Shared successfully!', true);
+                                resetBtn(btn);
+                            }).catch(err => {
+                                console.log('Share failed, triggering download:', err);
+                                downloadImage(canvas, orderId);
+                                resetBtn(btn);
+                            });
+                        } else {
+                            downloadImage(canvas, orderId);
+                            showToast('Receipt downloaded!', true);
+                            resetBtn(btn);
+                        }
+                    }, 'image/png');
                 }).catch(err => {
-                    alert('Share cancelled or failed: ' + (err.message || err.name || err));
+                    console.error(err);
+                    document.body.removeChild(receiptDiv);
+                    showToast('Failed to create image.', false);
                     resetBtn(btn);
                 });
-            } else {
-                // Fallback for browsers that don't support file sharing
-                const link = document.createElement('a');
-                link.download = `receipt_${orderId}.png`;
-                link.href = URL.createObjectURL(blob);
-                link.click();
-                showToast('Receipt downloaded!', true);
-                resetBtn(btn);
-            }
-        })
-        .catch(() => {
-            showToast('Failed to generate or fetch image.', false);
-            if(btn) resetBtn(btn);
-        });
-    }
+            });
+        }
+    })
+    .catch(() => {
+        showToast('Network error.', false);
+        if(btn) resetBtn(btn);
+    });
 }
 
 function fallbackCopyTextToClipboard(text) {
@@ -2709,12 +2737,15 @@ function fallbackCopyTextToClipboard(text) {
 }
 
 function resetBtn(btn) {
-    if(btn) {
-        btn.disabled = false;
-        btn.className = "btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center";
-        btn.innerHTML = '<i class="bi bi-share me-1"></i> Share';
-        btn.onclick = null; // Removing executeReadyShare because it's single-click again
-    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-share me-1"></i> Share';
+}
+
+function downloadImage(canvas, orderId) {
+    const link = document.createElement('a');
+    link.download = `receipt_${orderId}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
 }
 
 // ── AJAX: Mark Delivered ──────────────────────────────────────────────────────
