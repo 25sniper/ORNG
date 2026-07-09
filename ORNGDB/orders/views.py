@@ -174,6 +174,7 @@ def quick_bill_create(request):
                     status=status,
                     total_amount=total_amount,
                     old_balance=old_balance,
+                    original_old_balance=old_balance,
                     assigned_delivery_user=request.user,
                     received_at=timezone.now()
                 )
@@ -475,26 +476,51 @@ def share_order_bill(request, order_id):
     total_line = f"{total_label}{' ' * spaces_needed}{total_val_str}"
 
     old_bal = order.old_balance
-    grand = order.grand_total
-    remaining = order.remaining_balance if order.remaining_balance is not None else grand
+    remaining = order.remaining_balance if order.remaining_balance is not None else order.grand_total
 
     totals_lines = [total_line]
-    if old_bal > 0:
-        old_bal_label = "OLD BALANCE:"
-        old_bal_str = f"₹{old_bal:.2f}"
-        sp = w - len(old_bal_label) - len(old_bal_str)
-        old_bal_line = f"{old_bal_label}{' ' * max(1, sp)}{old_bal_str}"
-        totals_lines.append(old_bal_line)
+    bill_type = getattr(request.user, 'bill_type', 'type1')
 
-    product_remaining = max(Decimal('0.00'), remaining - old_bal)
-    product_payment = order.total_amount - product_remaining
-
-    if product_payment > 0:
+    if bill_type == 'type2':
+        # Detailed Bill
+        original_old = order.original_old_balance if order.original_old_balance is not None else old_bal
+        grand_total = order.total_amount + original_old
+        
+        if original_old > 0:
+            old_bal_label = "OLD BALANCE:"
+            old_bal_str = f"₹{original_old:.2f}"
+            sp = w - len(old_bal_label) - len(old_bal_str)
+            totals_lines.append(f"{old_bal_label}{' ' * max(1, sp)}{old_bal_str}")
+            
+            grand_label = "GRAND TOTAL:"
+            grand_str = f"₹{grand_total:.2f}"
+            sp_grand = w - len(grand_label) - len(grand_str)
+            totals_lines.append(f"{grand_label}{' ' * max(1, sp_grand)}{grand_str}")
+            
+        cash_paid = grand_total - remaining
+        
         cash_label = "CASH:"
-        cash_str = f"-₹{product_payment:.2f}"
+        cash_str = f"-₹{cash_paid:.2f}"
         sp_cash = w - len(cash_label) - len(cash_str)
-        cash_line = f"{cash_label}{' ' * max(1, sp_cash)}{cash_str}"
-        totals_lines.append(cash_line)
+        totals_lines.append(f"{cash_label}{' ' * max(1, sp_cash)}{cash_str}")
+            
+    else:
+        # Compact Bill (Type 1)
+        if old_bal > 0:
+            old_bal_label = "OLD BALANCE:"
+            old_bal_str = f"₹{old_bal:.2f}"
+            sp = w - len(old_bal_label) - len(old_bal_str)
+            totals_lines.append(f"{old_bal_label}{' ' * max(1, sp)}{old_bal_str}")
+            
+        product_remaining = max(Decimal('0.00'), remaining - old_bal)
+        product_payment = order.total_amount - product_remaining
+        
+        # User requirement: dont show cash with old balance but show cash when there is only item total remaining to pay
+        if old_bal == Decimal('0.00') and product_payment > 0:
+            cash_label = "CASH:"
+            cash_str = f"-₹{product_payment:.2f}"
+            sp_cash = w - len(cash_label) - len(cash_str)
+            totals_lines.append(f"{cash_label}{' ' * max(1, sp_cash)}{cash_str}")
 
     due_label = "NEW BALANCE:"
     due_str = f"₹{remaining:.2f}"
@@ -757,6 +783,7 @@ def customer_quick_bill_create(request):
                 status='pending',
                 total_amount=total_amount,
                 old_balance=old_balance,
+                original_old_balance=old_balance,
                 remaining_balance=total_amount + old_balance,
                 payment_status='unpaid'
             )

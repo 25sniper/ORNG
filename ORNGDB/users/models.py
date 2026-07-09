@@ -16,6 +16,7 @@ class User(AbstractUser):
     objects = UserManager()
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='customer')
+    bill_type = models.CharField(max_length=10, choices=[('type1', 'Type 1'), ('type2', 'Type 2')], default='type1')
     name = models.CharField(max_length=255, blank=True)
     phone = models.CharField(max_length=20, unique=True, null=True, blank=True)
     store_name = models.CharField(max_length=255, blank=True)

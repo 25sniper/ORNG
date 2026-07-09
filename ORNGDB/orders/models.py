@@ -21,6 +21,7 @@ class Order(models.Model):
     )
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     old_balance = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    original_old_balance = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     remaining_balance = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     payment_status = models.CharField(max_length=20, choices=(('paid', 'Paid'), ('unpaid', 'Unpaid')), default='unpaid')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -37,6 +38,18 @@ class Order(models.Model):
     @property
     def cash_paid(self):
         return self.grand_total - self.remaining_due
+
+    @property
+    def get_original_old_balance(self):
+        return self.original_old_balance if self.original_old_balance is not None else self.old_balance
+
+    @property
+    def get_detailed_grand_total(self):
+        return self.total_amount + self.get_original_old_balance
+
+    @property
+    def get_detailed_cash_paid(self):
+        return self.get_detailed_grand_total - self.remaining_due
 
     @property
     def display_customer_name(self):

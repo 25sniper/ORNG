@@ -351,7 +351,7 @@ def delivery_dashboard(request):
     ).select_related('customer').prefetch_related('items__product').order_by('-received_at')
     
     from django.db.models import Sum, F, Max
-    from django.db.models.functions import Lower, Coalesce
+    from django.db.models.functions import Lower, Trim, Coalesce
 
     customers = User.objects.filter(role='customer').order_by('store_name')
     
@@ -360,7 +360,7 @@ def delivery_dashboard(request):
     ).exclude(
         status='cancelled'
     ).annotate(
-        store_name_lower=Lower('store_name')
+        store_name_lower=Lower(Trim('store_name'))
     ).values('store_name_lower').annotate(
         balance=Sum(Coalesce('remaining_balance', F('total_amount') + F('old_balance')))
     )
@@ -369,10 +369,11 @@ def delivery_dashboard(request):
     stores_list = []
     registered_store_names_lower = set()
     
+    from decimal import Decimal
     for c in customers:
         store_name_lower = c.store_name.lower().strip()
         registered_store_names_lower.add(store_name_lower)
-        balance = balance_map.get(store_name_lower, 0.00)
+        balance = balance_map.get(store_name_lower, Decimal('0.00'))
         stores_list.append({
             'id': c.id,
             'name': c.store_name or c.name or c.username,
@@ -400,7 +401,10 @@ def delivery_dashboard(request):
                 'is_registered': False
             })
             
-    stores_list = sorted(stores_list, key=lambda x: x['name'].lower())
+    # Sort stores: stores with a balance first, then alphabetically
+    stores_list.sort(key=lambda x: (0 if x['balance'] > 0 else 1, x['name'].lower()))
+    
+    total_unpaid_sum = sum(item['balance'] for item in stores_list)
 
     has_draft = DraftBill.objects.filter(delivery_user=request.user).exists()
     
@@ -543,6 +547,11 @@ def profile_view(request):
                 user.phone = phone
             if name is not None:
                 user.name = name
+            
+            if request.POST.get('bill_type') == 'type2':
+                user.bill_type = 'type2'
+            else:
+                user.bill_type = 'type1'
                 
         elif role == 'customer':
             name = request.POST.get('name')
