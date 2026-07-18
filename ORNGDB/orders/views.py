@@ -13,7 +13,7 @@ from decimal import Decimal
 import os
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
-
+import time
 
 
 
@@ -39,6 +39,8 @@ def cancel_order(request, order_id):
 @login_required
 @require_POST
 def quick_bill_create(request):
+    start_time = time.time()
+    
     if request.user.role != 'delivery':
         return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
         
@@ -176,7 +178,8 @@ def quick_bill_create(request):
                     old_balance=old_balance,
                     original_old_balance=old_balance,
                     assigned_delivery_user=request.user,
-                    received_at=timezone.now()
+                    received_at=timezone.now(),
+                    processing_time_ms=int((time.time() - start_time) * 1000)
                 )
                     
                 for product, qty, price in items:
@@ -731,6 +734,8 @@ def order_edit_details_api(request, order_id):
 @require_POST
 def customer_quick_bill_create(request):
     """Allow a logged-in customer to place a new order via the popup quick-bill UI."""
+    start_time = time.time()
+    
     if request.user.role != 'customer':
         return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
 
@@ -785,7 +790,8 @@ def customer_quick_bill_create(request):
                 old_balance=old_balance,
                 original_old_balance=old_balance,
                 remaining_balance=total_amount + old_balance,
-                payment_status='unpaid'
+                payment_status='unpaid',
+                processing_time_ms=int((time.time() - start_time) * 1000)
             )
 
             for product, qty, price in items:

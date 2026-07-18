@@ -580,7 +580,13 @@ def profile_view(request):
         messages.success(request, 'Profile updated successfully.')
         return redirect('profile_view')
         
-    return render(request, 'users/profile.html')
+    latest_order = None
+    if request.user.role == 'customer':
+        latest_order = Order.objects.filter(customer=request.user, processing_time_ms__isnull=False).order_by('-created_at').first()
+    elif request.user.role == 'delivery':
+        latest_order = Order.objects.filter(assigned_delivery_user=request.user, processing_time_ms__isnull=False).order_by('-created_at').first()
+        
+    return render(request, 'users/profile.html', {'latest_order': latest_order})
 
 @login_required
 @require_POST

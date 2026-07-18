@@ -10,8 +10,8 @@ class Order(models.Model):
         ('cancelled', 'Cancelled'),
     )
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
-    store_name = models.CharField(max_length=255, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    store_name = models.CharField(max_length=255, blank=True, db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
     assigned_delivery_user = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
@@ -23,9 +23,10 @@ class Order(models.Model):
     old_balance = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     original_old_balance = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     remaining_balance = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    payment_status = models.CharField(max_length=20, choices=(('paid', 'Paid'), ('unpaid', 'Unpaid')), default='unpaid')
+    payment_status = models.CharField(max_length=20, choices=(('paid', 'Paid'), ('unpaid', 'Unpaid')), default='unpaid', db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    received_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    processing_time_ms = models.IntegerField(null=True, blank=True, help_text="Time taken to process the order on the server")
 
     @property
     def grand_total(self):
