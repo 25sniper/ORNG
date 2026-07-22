@@ -69,6 +69,15 @@
                             <input class="form-check-input shadow-none cursor-pointer" type="checkbox" role="switch" name="bill_type" value="type2" id="billTypeSwitch" {% if user.bill_type == 'type2' %}checked{% endif %}>
                         </div>
                     </div>
+                    <div class="mb-4 d-flex align-items-center justify-content-between bg-light p-3 rounded-3 border">
+                        <div>
+                            <label class="form-label mb-0 fw-bold text-dark" for="paginateDashboardSwitch">Dashboard Pagination</label>
+                            <small class="text-muted d-block" style="font-size: 0.75rem;">If enabled, delivered orders load 10 by 10 (saves CPU). Otherwise, all orders load at once.</small>
+                        </div>
+                        <div class="form-check form-switch ms-3 mb-0" style="font-size: 1.25rem;">
+                            <input class="form-check-input shadow-none cursor-pointer" type="checkbox" role="switch" name="paginate_dashboard" id="paginateDashboardSwitch" {% if user.paginate_dashboard %}checked{% endif %}>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label text-muted small fw-bold">Receipt Sharing Format</label>
                         <select id="receipt-format" class="form-select rounded-3">

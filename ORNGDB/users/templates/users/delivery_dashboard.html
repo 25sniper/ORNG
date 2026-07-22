@@ -557,11 +557,18 @@
               {% endfor %}
           </div>
           
-          <!-- Infinite Scroll Trigger -->
-          <div id="load-more-trigger" class="py-4 text-center d-none" data-offset="10">
-              <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
-              <span class="ms-2 text-muted small fw-bold">Loading older orders...</span>
+          {% if not show_all %}
+          <!-- Manual Load More Button -->
+          <div id="load-more-container" class="py-4 text-center" data-offset="10">
+              <button id="load-more-btn" class="btn btn-outline-primary rounded-pill px-4 py-2 fw-bold shadow-sm">
+                  <i class="bi bi-arrow-down-circle me-1"></i> Load Older Orders
+              </button>
+              <div id="load-more-spinner" class="d-none">
+                  <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                  <span class="ms-2 text-muted small fw-bold">Loading...</span>
+              </div>
           </div>
+          {% endif %}
       {% endif %}
   </div>
 
@@ -3766,38 +3773,33 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-    // Infinite scroll for Delivered Orders
+    {% if not show_all %}
+    // Manual Load More for Delivered Orders
     let isLoadingDeliveredOrders = false;
     let noMoreDeliveredOrders = false;
-    const loadMoreTrigger = document.getElementById('load-more-trigger');
+    const loadMoreContainer = document.getElementById('load-more-container');
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const loadMoreSpinner = document.getElementById('load-more-spinner');
     const deliveredContainer = document.getElementById('delivered-orders-container');
 
-    if (loadMoreTrigger && deliveredContainer) {
-        // Initial check to unhide the trigger if we have 10 orders
-        if (deliveredContainer.children.length === 10) {
-            loadMoreTrigger.classList.remove('d-none');
-            const observer = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting && !isLoadingDeliveredOrders && !noMoreDeliveredOrders) {
-                    loadMoreDeliveredOrders();
-                }
-            }, { rootMargin: '100px' });
-            
-            observer.observe(loadMoreTrigger);
-        }
+    if (loadMoreBtn && deliveredContainer) {
+        loadMoreBtn.addEventListener('click', loadMoreDeliveredOrders);
     }
 
     function loadMoreDeliveredOrders() {
         if (isLoadingDeliveredOrders || noMoreDeliveredOrders) return;
         
         isLoadingDeliveredOrders = true;
+        loadMoreBtn.classList.add('d-none');
+        loadMoreSpinner.classList.remove('d-none');
         
-        const offset = parseInt(loadMoreTrigger.getAttribute('data-offset'));
+        const offset = parseInt(loadMoreContainer.getAttribute('data-offset'));
         
         fetch(`/orders/load-more-delivered/?offset=${offset}`)
             .then(response => {
                 if (response.status === 204) {
                     noMoreDeliveredOrders = true;
-                    loadMoreTrigger.classList.add('d-none');
+                    loadMoreContainer.classList.add('d-none');
                     return '';
                 }
                 return response.text();
@@ -3805,19 +3807,23 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(html => {
                 if (html.trim() !== '') {
                     deliveredContainer.insertAdjacentHTML('beforeend', html);
-                    loadMoreTrigger.setAttribute('data-offset', offset + 10);
+                    loadMoreContainer.setAttribute('data-offset', offset + 10);
+                    
+                    isLoadingDeliveredOrders = false;
+                    loadMoreSpinner.classList.add('d-none');
+                    loadMoreBtn.classList.remove('d-none');
                 } else {
                     noMoreDeliveredOrders = true;
-                    loadMoreTrigger.classList.add('d-none');
+                    loadMoreContainer.classList.add('d-none');
                 }
-                isLoadingDeliveredOrders = false;
             })
             .catch(err => {
                 console.error('Error loading more orders:', err);
                 isLoadingDeliveredOrders = false;
-                loadMoreTrigger.classList.add('d-none');
+                loadMoreContainer.classList.add('d-none');
             });
     }
+    {% endif %}
 
 });
 </script>

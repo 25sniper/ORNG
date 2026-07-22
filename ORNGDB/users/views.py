@@ -442,8 +442,13 @@ def delivery_dashboard(request):
         pending_orders = pending_orders.exclude(id=draft_edit_order_id)
         received_orders = received_orders.exclude(id=draft_edit_order_id)
 
+    show_all = not request.user.paginate_dashboard
+    
     received_orders_count = received_orders.count()
-    received_orders_sliced = received_orders[:10]
+    if show_all:
+        received_orders_sliced = received_orders
+    else:
+        received_orders_sliced = received_orders[:10]
 
     context = {
         'pending_orders': pending_orders,
@@ -455,6 +460,7 @@ def delivery_dashboard(request):
         'stores_list': stores_list,
         'has_draft': has_draft,
         'latest_order_ids': latest_order_ids,
+        'show_all': show_all,
     }
     return render(request, 'users/delivery_dashboard.html', context)
 
@@ -571,6 +577,8 @@ def profile_view(request):
                 user.bill_type = 'type2'
             else:
                 user.bill_type = 'type1'
+                
+            user.paginate_dashboard = request.POST.get('paginate_dashboard') == 'on'
                 
         elif role == 'customer':
             name = request.POST.get('name')

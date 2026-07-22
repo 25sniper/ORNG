@@ -22,6 +22,7 @@ class User(AbstractUser):
     store_name = models.CharField(max_length=255, blank=True, db_index=True)
     location = models.CharField(max_length=500, blank=True)
     google_maps_url = models.URLField(max_length=1000, blank=True)
+    paginate_dashboard = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
