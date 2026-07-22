@@ -13,4 +13,5 @@ urlpatterns = [
     path('draft-bill/clear/', views.draft_bill_clear, name='draft_bill_clear'),
     path('order/<int:order_id>/edit-details/', views.order_edit_details_api, name='order_edit_details_api'),
     path('customer-quick-bill/', views.customer_quick_bill_create, name='customer_quick_bill_create'),
+    path('load-more-delivered/', views.load_more_delivered_orders, name='load_more_delivered_orders'),
 ]

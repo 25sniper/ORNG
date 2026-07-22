@@ -10,6 +10,7 @@ from django.conf import settings
 from .models import CartItem, Order, OrderItem, DraftBill
 from products.models import Product
 from decimal import Decimal
+from django.db.models import Q, Max
 import os
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
@@ -818,3 +819,40 @@ def customer_quick_bill_create(request):
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': 'An error occurred while placing the order.'})
 
+@login_required
+def load_more_delivered_orders(request):
+    if request.user.role != 'delivery':
+        return HttpResponse(status=403)
+        
+    try:
+        offset = int(request.GET.get('offset', 10))
+    except ValueError:
+        offset = 10
+        
+    limit = 10
+    
+    received_orders = Order.objects.filter(
+        Q(status='received') | Q(status='cancelled', received_at__isnull=False),
+        assigned_delivery_user=request.user
+    ).select_related('customer').prefetch_related('items__product').order_by('-received_at')[offset:offset+limit]
+    
+    if not received_orders:
+        return HttpResponse(status=204)
+        
+    latest_orders_qs = Order.objects.filter(
+        status__in=['pending', 'received'],
+        assigned_delivery_user=request.user
+    ).values('store_name').annotate(
+        latest_id=Max('id')
+    )
+    latest_order_ids = [item['latest_id'] for item in latest_orders_qs]
+    
+    html = ''
+    for order in received_orders:
+        html += render_to_string('orders/delivered_order_card.html', {
+            'order': order,
+            'latest_order_ids': latest_order_ids,
+            'request': request,
+        })
+        
+    return HttpResponse(html)

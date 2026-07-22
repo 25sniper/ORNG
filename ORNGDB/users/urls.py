@@ -25,6 +25,7 @@ urlpatterns = [
     path('manage/product/add/', views.admin_add_product, name='admin_add_product'),
     path('manage/product/edit/<int:product_id>/', views.admin_edit_product, name='admin_edit_product'),
     path('manage/delete-order-history/', views.admin_delete_order_history, name='admin_delete_order_history'),
+    path('manage/delete-old-paid-orders/', views.admin_delete_old_paid_orders, name='admin_delete_old_paid_orders'),
     path('manage/products/reorder/', views.admin_reorder_products, name='admin_reorder_products'),
     path('manage/products/bulk-import/', views.admin_bulk_import_products, name='admin_bulk_import_products'),
     path('manage/products/bulk-export/', views.admin_bulk_export_products, name='admin_bulk_export_products'),

@@ -385,10 +385,25 @@ def delivery_dashboard(request):
             'is_registered': True
         })
         
+    unregistered_store_names = []
     for item in unpaid_balances:
         s_name_lower = item['store_name_lower']
         if s_name_lower not in registered_store_names_lower and s_name_lower.strip() and s_name_lower != '-':
-            orig_order = Order.objects.filter(store_name__iexact=s_name_lower).first()
+            unregistered_store_names.append(s_name_lower)
+            
+    guest_orders_qs = Order.objects.annotate(
+        sn_lower=Lower(Trim('store_name'))
+    ).filter(sn_lower__in=unregistered_store_names).select_related('customer')
+    
+    guest_orders_map = {}
+    for go in guest_orders_qs:
+        if go.sn_lower not in guest_orders_map:
+            guest_orders_map[go.sn_lower] = go
+            
+    for item in unpaid_balances:
+        s_name_lower = item['store_name_lower']
+        if s_name_lower in unregistered_store_names:
+            orig_order = guest_orders_map.get(s_name_lower)
             orig_name = orig_order.store_name if orig_order else s_name_lower
             stores_list.append({
                 'id': None,
@@ -427,10 +442,14 @@ def delivery_dashboard(request):
         pending_orders = pending_orders.exclude(id=draft_edit_order_id)
         received_orders = received_orders.exclude(id=draft_edit_order_id)
 
+    received_orders_count = received_orders.count()
+    received_orders_sliced = received_orders[:10]
+
     context = {
         'pending_orders': pending_orders,
-        'received_orders': received_orders,
-        'delivery_orders': list(pending_orders) + list(received_orders),
+        'received_orders': received_orders_sliced,
+        'received_orders_count': received_orders_count,
+        'delivery_orders': pending_orders,
         'products': Product.objects.filter(available=True).order_by('position', 'name'),
         'existing_stores': User.objects.filter(role='customer').values_list('store_name', flat=True).distinct().order_by('store_name'),
         'stores_list': stores_list,
@@ -602,6 +621,28 @@ def admin_delete_order_history(request):
         return JsonResponse({'success': True, 'message': 'All orders and balance history have been deleted successfully.'})
         
     messages.success(request, 'All orders and balance history have been deleted successfully.')
+    return redirect('admin_dashboard')
+
+@login_required
+@require_POST
+def admin_delete_old_paid_orders(request):
+    if request.user.role != 'admin':
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+        return redirect('home')
+        
+    from datetime import timedelta
+    two_weeks_ago = timezone.now() - timedelta(days=14)
+    deleted_count, _ = Order.objects.filter(
+        created_at__lte=two_weeks_ago,
+        payment_status='paid'
+    ).delete()
+    
+    msg = f'{deleted_count} old paid orders (older than 2 weeks) have been deleted successfully.'
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({'success': True, 'message': msg})
+        
+    messages.success(request, msg)
     return redirect('admin_dashboard')
 
 @login_required

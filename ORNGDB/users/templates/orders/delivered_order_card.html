@@ -1,0 +1,159 @@
+<div class="col position-relative overflow-hidden">
+    {% if order.status != 'cancelled' %}
+    <div class="d-flex align-items-center justify-content-end position-absolute top-0 end-0 h-100 swipe-actions-container" style="width: 160px; z-index: 0;">
+        <div class="d-flex h-100 align-items-center justify-content-center text-primary fw-bold text-center edit-btn" style="width: 80px; cursor: pointer; border-right: 1px solid #f0f0f0; background-color: #f5f9ff;" onclick="editOrderToDraft(event, {{ order.id }})">
+            <div>
+                <i class="bi bi-pencil-square fs-3 d-block mb-1 text-primary"></i>
+                <span style="font-size: 0.75rem; color: #0d6efd;">Edit</span>
+            </div>
+        </div>
+        <div class="d-flex h-100 align-items-center justify-content-center text-danger fw-bold text-center cancel-btn" style="width: 80px; cursor: pointer; background-color: #fff5f5;" onclick="cancelOrder(event, {{ order.id }})">
+            <div>
+                <i class="bi bi-x-circle fs-3 d-block mb-1 text-danger"></i>
+                <span style="font-size: 0.75rem; color: #dc3545;">Cancel</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <div class="card border-0 shadow-sm rounded-4 border-start border-4 {% if order.status == 'cancelled' %}border-danger{% else %}border-secondary{% endif %} {% if order.id in latest_order_ids and order.status != 'cancelled' %}swipeable-card{% endif %} bg-white" style="position: relative; z-index: 1; transition: transform 0.2s ease-out; {% if order.status == 'cancelled' %}filter: grayscale(1) opacity(0.65);{% endif %}">
+        <div class="card-body px-4 py-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <div class="d-flex align-items-center mb-1">
+                        <h6 class="fw-bold mb-0 text-dark me-2" style="font-family: 'Outfit', sans-serif;">#{{ order.id }}</h6>
+                        <span class="text-dark fw-medium">{{ order.display_store_name }}</span>
+                    </div>
+                    {% if order.status == 'cancelled' %}
+                        <small class="text-danger fw-bold" style="font-size: 0.8rem;"><i class="bi bi-x-circle-fill me-1"></i> Cancelled</small>
+                    {% else %}
+                        <small class="text-success fw-bold" style="font-size: 0.8rem;"><i class="bi bi-check-circle-fill me-1"></i> {{ order.received_at|date:"M d, Y • h:i A" }}</small>
+                    {% endif %}
+                </div>
+                <div class="text-end">
+                    <span class="fw-bold text-dark fs-5">₹{{ order.grand_total|floatformat:0 }}</span>
+                    {% if order.status == 'cancelled' %}
+                        <div class="text-danger small fw-bold mt-1"><i class="bi bi-x-circle-fill"></i> Cancelled</div>
+                    {% elif order.payment_status == 'paid' %}
+                        <div class="text-success small fw-bold mt-1" id="card-balance-status-{{ order.id }}"><i class="bi bi-check-circle-fill"></i> Paid</div>
+                    {% else %}
+                        <div class="text-danger small fw-bold mt-1" id="card-balance-status-{{ order.id }}">
+                            Balance: ₹{% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:0 }}{% else %}{{ order.grand_total|floatformat:0 }}{% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top flex-wrap gap-1">
+                    <button type="button" id="pay-btn-{{ order.id }}" class="btn btn-sm {% if order.status == 'cancelled' %}btn-secondary{% elif order.payment_status == 'paid' %}btn-success{% elif order.id not in latest_order_ids %}btn-secondary{% else %}btn-outline-success{% endif %} fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center" style="font-size: 0.75rem;" {% if order.status == 'cancelled' or order.payment_status == 'paid' or order.id not in latest_order_ids %}disabled{% else %}onclick="openOrderPaymentModal({{ order.id }}, {{ order.total_amount|floatformat:2 }}, {{ order.old_balance|floatformat:2 }}, {{ order.grand_total|floatformat:2 }}, {% if order.remaining_balance is not null %}{{ order.remaining_balance|floatformat:2 }}{% else %}{{ order.grand_total|floatformat:2 }}{% endif %}, '{% url 'toggle_order_payment_status' order.id %}', '{{ csrf_token }}', '{{ order.display_store_name|escapejs }}')"{% endif %}>
+                        <i class="bi bi-cash-coin me-1"></i> Payment
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center" style="font-size: 0.75rem;" {% if order.status == 'cancelled' %}disabled{% else %}onclick="openItemsModal({{ order.id }})"{% endif %}>
+                        <i class="bi bi-receipt me-1"></i> Bill
+                    </button>
+                    <button type="button" id="share-btn-{{ order.id }}"
+                        class="btn btn-sm btn-outline-secondary fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center"
+                        style="font-size: 0.75rem;"
+                        {% if order.status == 'cancelled' %}disabled{% else %}onclick="shareOrderBill({{ order.id }}, '{% url 'share_order_bill' order.id %}')"{% endif %}>
+                        <i class="bi bi-share me-1"></i> Share
+                    </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="itemsModal-{{ order.id }}" tabindex="-1" aria-labelledby="itemsModalLabel-{{ order.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0 px-4 pt-4 text-center d-block position-relative">
+                <button type="button" class="btn-close position-absolute end-0 top-0 mt-4 me-4" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="text-center mb-2">
+                    <i class="bi bi-receipt fs-1 text-secondary opacity-50"></i>
+                </div>
+                <h5 class="modal-title fw-bold mb-1" id="itemsModalLabel-{{ order.id }}" style="font-family: 'Outfit', sans-serif;">Invoice #{{ order.id }}</h5>
+                <p class="text-muted small mb-0">{{ order.display_store_name }}</p>
+                <p class="text-muted" style="font-size: 0.75rem;">{{ order.received_at|date:"M d, Y • h:i A" }}</p>
+            </div>
+            <div class="modal-body px-4 pt-2 pb-2">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-sm mb-0">
+                        <thead class="border-bottom border-2">
+                            <tr>
+                                <th class="text-muted small fw-bold pb-2" style="width:24px;">#</th>
+                                <th class="text-muted small fw-bold pb-2">Item</th>
+                                <th class="text-muted small fw-bold text-center pb-2">Qty</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Unit</th>
+                                <th class="text-muted small fw-bold text-end pb-2">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in order.items.all %}
+                            <tr class="border-bottom">
+                                <td class="py-2 text-muted small">{{ forloop.counter }}</td>
+                                <td class="py-2 text-dark fw-medium">{{ item.product.name }}</td>
+                                <td class="py-2 text-dark text-center">{{ item.quantity }}</td>
+                                <td class="py-2 text-muted text-end" style="font-size:0.82rem;">₹{{ item.price_at_time|floatformat:0 }}</td>
+                                <td class="py-2 text-dark text-end fw-bold">₹{{ item.row_total|floatformat:0 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-0 d-block">
+                <div class="bg-light rounded-4 p-3 mt-2 shadow-sm border border-secondary border-opacity-10">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Items Total:</span>
+                        <span class="text-dark fw-bold small">₹{{ order.total_amount|floatformat:0 }}</span>
+                    </div>
+
+                    {% if request.user.bill_type == 'type2' %}
+                        {% if order.get_original_old_balance > 0 %}
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted small">Old Balance:</span>
+                            <span class="text-warning fw-bold small">₹{{ order.get_original_old_balance|floatformat:0 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted small">Grand Total:</span>
+                            <span class="text-dark fw-bold small">₹{{ order.get_detailed_grand_total|floatformat:0 }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted small">Cash (Paid):</span>
+                            <span class="text-success fw-bold small">-₹{{ order.get_detailed_cash_paid|floatformat:0 }}</span>
+                        </div>
+                    {% else %}
+                        {% if order.old_balance > 0 %}
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted small">Old Balance:</span>
+                            <span class="text-warning fw-bold small">₹{{ order.old_balance|floatformat:0 }}</span>
+                        </div>
+                        {% endif %}
+                        {% if order.old_balance == 0 and order.cash_paid > 0 %}
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted small">Cash (Paid):</span>
+                            <span class="text-success fw-bold small">-₹{{ order.cash_paid|floatformat:0 }}</span>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+
+                    <hr class="my-2 border-secondary opacity-25">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-dark fw-bold">New Balance:</span>
+                        <span class="text-dark fw-bold fs-5">₹{{ order.remaining_due|floatformat:0 }}</span>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    {% if order.payment_status == 'paid' %}
+                    <span class="badge rounded-pill text-bg-success py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                        <i class="bi bi-check-circle-fill me-1"></i> Payment Received
+                    </span>
+                    {% else %}
+                    <span class="badge rounded-pill text-bg-danger py-2 px-4 shadow-sm" style="font-size: 0.85rem;">
+                        <i class="bi bi-clock-history me-1"></i> Balance: ₹{{ order.remaining_due|floatformat:0 }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
