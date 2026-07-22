@@ -2436,6 +2436,24 @@ function submitQuickBill(url, csrfToken) {
             if (data.success) {
                 showToast(data.message, true);
                 
+                if (data.html_card) {
+                    const deliveredContainer = document.getElementById('delivered-orders-container');
+                    if (deliveredContainer) {
+                        // Remove "No delivered orders" message if it exists
+                        const noOrdersMsg = deliveredContainer.parentElement.querySelector('.alert');
+                        if (noOrdersMsg) noOrdersMsg.remove();
+                        
+                        if (data.is_edit) {
+                            const existingCard = document.getElementById('order-card-' + data.order_id);
+                            if (existingCard) {
+                                existingCard.outerHTML = data.html_card;
+                            }
+                        } else {
+                            deliveredContainer.insertAdjacentHTML('afterbegin', data.html_card);
+                        }
+                    }
+                }
+                
                 // Clear draft state so it shows "New Bill" instead of "Continue Bill"
                 _hasDraft = false;
                 fetchWithTimeout(DRAFT_CLEAR_URL, {

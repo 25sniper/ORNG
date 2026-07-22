@@ -1,4 +1,4 @@
-<div class="col position-relative overflow-hidden">
+<div class="col position-relative overflow-hidden" id="order-card-{{ order.id }}">
     {% if order.status != 'cancelled' %}
     <div class="d-flex align-items-center justify-content-end position-absolute top-0 end-0 h-100 swipe-actions-container" style="width: 160px; z-index: 0;">
         <div class="d-flex h-100 align-items-center justify-content-center text-primary fw-bold text-center edit-btn" style="width: 80px; cursor: pointer; border-right: 1px solid #f0f0f0; background-color: #f5f9ff;" onclick="editOrderToDraft(event, {{ order.id }})">

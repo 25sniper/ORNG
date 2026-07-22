@@ -196,11 +196,22 @@ def quick_bill_create(request):
         # Clear the draft bill for this delivery user
         DraftBill.objects.filter(delivery_user=request.user).delete()
         
+        html_card = None
+        if order:
+            from django.template.loader import render_to_string
+            html_card = render_to_string('orders/delivered_order_card.html', {
+                'order': order,
+                'latest_order_ids': [order.id]
+            }, request=request)
+            
         # Determine target tab only for new creations
         return JsonResponse({
             'success': True, 
             'message': msg, 
-            'target_tab': target_tab if not edit_order_id else None
+            'target_tab': target_tab if not edit_order_id else None,
+            'html_card': html_card,
+            'is_edit': bool(edit_order_id),
+            'order_id': order.id if order else None
         })
     except Exception as e:
         import traceback
