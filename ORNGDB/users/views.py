@@ -355,21 +355,37 @@ def delivery_dashboard(request):
 
     customers = User.objects.filter(role='customer').order_by('store_name')
     
-    unpaid_balances = Order.objects.filter(
-        payment_status='unpaid'
-    ).exclude(
-        status='cancelled'
-    ).annotate(
+    # Find the latest order ID for each store to use its balance
+    latest_orders_qs_for_balance = Order.objects.exclude(status='cancelled').annotate(
         store_name_lower=Lower(Trim('store_name'))
-    ).values('store_name_lower').annotate(
-        balance=Sum(Coalesce('remaining_balance', F('total_amount') + F('old_balance')))
-    )
-    balance_map = {item['store_name_lower']: item['balance'] for item in unpaid_balances}
+    ).values('store_name_lower').annotate(latest_id=Max('id'))
+    
+    latest_order_ids_for_balance = [item['latest_id'] for item in latest_orders_qs_for_balance]
+    latest_orders = Order.objects.filter(id__in=latest_order_ids_for_balance)
+    
+    balance_map = {}
+    unregistered_store_names = []
+    guest_orders_map = {}
+    
+    from decimal import Decimal
+    
+    for order in latest_orders:
+        store_name_lower = order.store_name.lower().strip() if order.store_name else ''
+        if not store_name_lower or store_name_lower == '-':
+            continue
+            
+        if order.payment_status == 'unpaid':
+            balance = order.remaining_balance if order.remaining_balance is not None else (order.total_amount + order.old_balance)
+        else:
+            balance = Decimal('0.00')
+            
+        if balance > 0:
+            balance_map[store_name_lower] = balance
+            guest_orders_map[store_name_lower] = order
     
     stores_list = []
     registered_store_names_lower = set()
     
-    from decimal import Decimal
     for c in customers:
         store_name_lower = c.store_name.lower().strip()
         registered_store_names_lower.add(store_name_lower)
@@ -385,24 +401,8 @@ def delivery_dashboard(request):
             'is_registered': True
         })
         
-    unregistered_store_names = []
-    for item in unpaid_balances:
-        s_name_lower = item['store_name_lower']
-        if s_name_lower not in registered_store_names_lower and s_name_lower.strip() and s_name_lower != '-':
-            unregistered_store_names.append(s_name_lower)
-            
-    guest_orders_qs = Order.objects.annotate(
-        sn_lower=Lower(Trim('store_name'))
-    ).filter(sn_lower__in=unregistered_store_names).select_related('customer')
-    
-    guest_orders_map = {}
-    for go in guest_orders_qs:
-        if go.sn_lower not in guest_orders_map:
-            guest_orders_map[go.sn_lower] = go
-            
-    for item in unpaid_balances:
-        s_name_lower = item['store_name_lower']
-        if s_name_lower in unregistered_store_names:
+    for s_name_lower, balance in balance_map.items():
+        if s_name_lower not in registered_store_names_lower:
             orig_order = guest_orders_map.get(s_name_lower)
             orig_name = orig_order.store_name if orig_order else s_name_lower
             stores_list.append({
@@ -412,7 +412,7 @@ def delivery_dashboard(request):
                 'phone': orig_order.customer.phone if (orig_order and orig_order.customer) else None,
                 'location': orig_order.customer.location if (orig_order and orig_order.customer) else None,
                 'google_maps_url': orig_order.customer.google_maps_url if (orig_order and orig_order.customer) else None,
-                'balance': item['balance'],
+                'balance': balance,
                 'is_registered': False
             })
             
@@ -423,12 +423,8 @@ def delivery_dashboard(request):
 
     has_draft = DraftBill.objects.filter(delivery_user=request.user).exists()
     
-    # Find the latest order ID for each store to prevent modifying old orders
-    latest_orders_qs = Order.objects.exclude(status='cancelled').annotate(
-        store_name_lower=Lower('store_name')
-    ).values('store_name_lower').annotate(latest_id=Max('id'))
-    
-    latest_order_ids = [item['latest_id'] for item in latest_orders_qs]
+    # Use the latest_order_ids_for_balance calculated earlier
+    latest_order_ids = latest_order_ids_for_balance
 
     draft_edit_order_id = None
     if has_draft:
@@ -579,6 +575,7 @@ def profile_view(request):
                 user.bill_type = 'type1'
                 
             user.paginate_dashboard = request.POST.get('paginate_dashboard') == 'on'
+            user.auto_settle_old_balance = request.POST.get('auto_settle_old_balance') == 'on'
                 
         elif role == 'customer':
             name = request.POST.get('name')

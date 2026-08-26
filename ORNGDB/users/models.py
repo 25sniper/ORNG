@@ -23,6 +23,7 @@ class User(AbstractUser):
     location = models.CharField(max_length=500, blank=True)
     google_maps_url = models.URLField(max_length=1000, blank=True)
     paginate_dashboard = models.BooleanField(default=True)
+    auto_settle_old_balance = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"

@@ -139,34 +139,13 @@ def quick_bill_create(request):
                         quantity=qty,
                         price_at_time=price
                     )
-                
-                # If old_balance > 0, all previous unpaid orders for this store
-                # are now settled — their balance is carried into this edited bill.
-                if old_balance > 0 and store_name != '-':
-                    prior_unpaid = Order.objects.filter(
-                        store_name__iexact=store_name,
-                        payment_status='unpaid'
-                    ).exclude(status='cancelled').exclude(id=order.id)
-                    prior_unpaid.update(
-                        payment_status='paid',
-                        remaining_balance=Decimal('0.00')
-                    )
+                updated_orders = []
                 
                 msg = f"✓ Order #{order.id} updated successfully!"
                 target_tab = None
                 
             else:
-                # If old_balance > 0, all previous unpaid orders for this store
-                # are now settled — their balance is carried into this new bill.
-                if old_balance > 0 and store_name != '-':
-                    prior_unpaid = Order.objects.filter(
-                        store_name__iexact=store_name,
-                        payment_status='unpaid'
-                    ).exclude(status='cancelled')
-                    prior_unpaid.update(
-                        payment_status='paid',
-                        remaining_balance=Decimal('0.00')
-                    )
+                updated_orders = []
                 
                 status = 'received'
                 target_tab = '#received-tab'
@@ -211,7 +190,8 @@ def quick_bill_create(request):
             'target_tab': target_tab if not edit_order_id else None,
             'html_card': html_card,
             'is_edit': bool(edit_order_id),
-            'order_id': order.id if order else None
+            'order_id': order.id if order else None,
+            'updated_orders': updated_orders
         })
     except Exception as e:
         import traceback
@@ -230,6 +210,8 @@ def toggle_order_payment_status(request, order_id):
     pay_pending_only = request.POST.get('pay_pending_only') == 'true'
     pay_old_balance_only = request.POST.get('pay_old_balance_only') == 'true'
     
+    updated_orders = []
+    
     if pay_old_balance_only:
         paid_amt = order.old_balance
         order.old_balance = Decimal('0.00')
@@ -243,10 +225,17 @@ def toggle_order_payment_status(request, order_id):
         else:
             order.payment_status = 'unpaid'
         order.save()
+        updated_orders.append({
+            'id': order.id,
+            'payment_status': order.payment_status,
+            'remaining_balance': float(order.remaining_balance)
+        })
+        
         return JsonResponse({
             'success': True, 
             'payment_status': order.payment_status,
-            'remaining_balance': float(order.remaining_balance)
+            'remaining_balance': float(order.remaining_balance),
+            'updated_orders': updated_orders
         })
         
     if pay_pending_only:
@@ -257,9 +246,12 @@ def toggle_order_payment_status(request, order_id):
         return JsonResponse({
             'success': True, 
             'payment_status': order.payment_status,
-            'remaining_balance': float(order.remaining_balance)
+            'remaining_balance': float(order.remaining_balance),
+            'updated_orders': [{'id': order.id, 'payment_status': order.payment_status, 'remaining_balance': float(order.remaining_balance)}]
         })
         
+    updated_orders = []
+    
     if amount_paid_str is not None:
         try:
             amount_paid = Decimal(amount_paid_str)
@@ -277,33 +269,6 @@ def toggle_order_payment_status(request, order_id):
         old_bal_payment = min(amount_paid, order.old_balance)
         order.old_balance -= old_bal_payment
         
-        # Synchronize previous unpaid orders
-        if old_bal_payment > 0 and order.store_name:
-            prior_unpaid = Order.objects.filter(
-                store_name__iexact=order.store_name,
-                payment_status='unpaid',
-                created_at__lt=order.created_at
-            ).exclude(status='cancelled').order_by('id')
-            
-            rem_to_dist = old_bal_payment
-            for prior_order in prior_unpaid:
-                if rem_to_dist <= 0:
-                    break
-                prior_bal = prior_order.remaining_balance
-                if prior_bal is None:
-                    prior_bal = prior_order.total_amount + prior_order.old_balance
-                if prior_bal <= 0:
-                    continue
-                if rem_to_dist >= prior_bal:
-                    rem_to_dist -= prior_bal
-                    prior_order.remaining_balance = Decimal('0.00')
-                    prior_order.payment_status = 'paid'
-                else:
-                    prior_order.remaining_balance = prior_bal - rem_to_dist
-                    rem_to_dist = Decimal('0.00')
-                    prior_order.payment_status = 'unpaid'
-                prior_order.save()
-        
         remaining = current_due - amount_paid
         if remaining < 0:
             remaining = Decimal('0.00')
@@ -316,11 +281,17 @@ def toggle_order_payment_status(request, order_id):
             order.payment_status = 'unpaid'
             
         order.save()
+        updated_orders.append({
+            'id': order.id,
+            'payment_status': order.payment_status,
+            'remaining_balance': float(order.remaining_balance)
+        })
         
         return JsonResponse({
             'success': True, 
             'payment_status': order.payment_status,
-            'remaining_balance': float(order.remaining_balance)
+            'remaining_balance': float(order.remaining_balance),
+            'updated_orders': updated_orders
         })
         
     new_status = 'paid' if order.payment_status == 'unpaid' else 'unpaid'
@@ -334,6 +305,14 @@ def toggle_order_payment_status(request, order_id):
                 payment_status='unpaid',
                 created_at__lt=order.created_at
             ).exclude(status='cancelled')
+            
+            for pu in prior_unpaid:
+                updated_orders.append({
+                    'id': pu.id,
+                    'payment_status': 'paid',
+                    'remaining_balance': 0.0
+                })
+                
             prior_unpaid.update(
                 payment_status='paid',
                 remaining_balance=Decimal('0.00')
@@ -343,10 +322,17 @@ def toggle_order_payment_status(request, order_id):
         order.remaining_balance = order.total_amount + order.old_balance
     order.save()
     
+    updated_orders.append({
+        'id': order.id,
+        'payment_status': order.payment_status,
+        'remaining_balance': float(order.remaining_balance)
+    })
+    
     return JsonResponse({
         'success': True, 
         'payment_status': new_status,
-        'remaining_balance': float(order.remaining_balance)
+        'remaining_balance': float(order.remaining_balance),
+        'updated_orders': updated_orders
     })
 
 @login_required
@@ -369,27 +355,23 @@ def pay_store_balance(request):
     if amount_paid <= 0:
         return JsonResponse({'success': False, 'error': 'Amount must be greater than zero'}, status=400)
         
-    unpaid_orders = Order.objects.filter(
-        store_name__iexact=store_name,
-        payment_status='unpaid'
-    ).exclude(
-        status='cancelled'
-    ).order_by('id')
+    # Fetch only the latest order for this store
+    latest_order = Order.objects.filter(
+        store_name__iexact=store_name
+    ).exclude(status='cancelled').order_by('-id').first()
     
-    remaining_to_distribute = amount_paid
+    if not latest_order or latest_order.payment_status == 'paid':
+        return JsonResponse({'success': False, 'error': 'No unpaid latest order found for this store'}, status=400)
+        
     orders_to_update = []
+    remaining_to_distribute = amount_paid
     
-    for order in unpaid_orders:
-        if remaining_to_distribute <= 0:
-            break
-            
-        order_balance = order.remaining_balance
-        if order_balance is None:
-            order_balance = order.total_amount + order.old_balance
-            
-        if order_balance <= 0:
-            continue
-            
+    order = latest_order
+    order_balance = order.remaining_balance
+    if order_balance is None:
+        order_balance = order.total_amount + order.old_balance
+        
+    if order_balance > 0:
         if remaining_to_distribute >= order_balance:
             paid_amount_on_order = order_balance
             remaining_to_distribute -= order_balance
@@ -406,12 +388,21 @@ def pay_store_balance(request):
             
         orders_to_update.append(order)
         
+    updated_orders_data = []
+    for order in orders_to_update:
+        updated_orders_data.append({
+            'id': order.id,
+            'payment_status': order.payment_status,
+            'remaining_balance': float(order.remaining_balance)
+        })
+        
     if orders_to_update:
         Order.objects.bulk_update(orders_to_update, ['remaining_balance', 'payment_status', 'old_balance'])
         
     return JsonResponse({
         'success': True,
-        'message': f'Successfully paid ₹{amount_paid:.2f} towards store balance.'
+        'message': f'Successfully paid ₹{amount_paid:.2f} towards store balance.',
+        'updated_orders': updated_orders_data
     })
 
 @login_required
@@ -514,10 +505,11 @@ def share_order_bill(request, order_id):
             
         cash_paid = grand_total - remaining
         
-        cash_label = "CASH:"
-        cash_str = f"-₹{cash_paid:.2f}"
-        sp_cash = w - len(cash_label) - len(cash_str)
-        totals_lines.append(f"{cash_label}{' ' * max(1, sp_cash)}{cash_str}")
+        if cash_paid > 0:
+            cash_label = "CASH:"
+            cash_str = f"-₹{cash_paid:.2f}"
+            sp_cash = w - len(cash_label) - len(cash_str)
+            totals_lines.append(f"{cash_label}{' ' * max(1, sp_cash)}{cash_str}")
             
     else:
         # Compact Bill (Type 1)
@@ -537,7 +529,7 @@ def share_order_bill(request, order_id):
             sp_cash = w - len(cash_label) - len(cash_str)
             totals_lines.append(f"{cash_label}{' ' * max(1, sp_cash)}{cash_str}")
 
-    due_label = "NEW BALANCE:"
+    due_label = "NEW BALANCE:" if old_bal > 0 else "BALANCE:"
     due_str = f"₹{remaining:.2f}"
     sp_due = w - len(due_label) - len(due_str)
     due_line = f"{due_label}{' ' * max(1, sp_due)}{due_str}"
@@ -840,12 +832,18 @@ def load_more_delivered_orders(request):
     except ValueError:
         offset = 10
         
-    limit = 10
+    load_all = request.GET.get('load_all') == 'true'
     
-    received_orders = Order.objects.filter(
+    orders_query = Order.objects.filter(
         Q(status='received') | Q(status='cancelled', received_at__isnull=False),
         assigned_delivery_user=request.user
-    ).select_related('customer').prefetch_related('items__product').order_by('-received_at')[offset:offset+limit]
+    ).select_related('customer').prefetch_related('items__product').order_by('-received_at')
+    
+    if load_all:
+        received_orders = orders_query[offset:]
+    else:
+        limit = 10
+        received_orders = orders_query[offset:offset+limit]
     
     if not received_orders:
         return HttpResponse(status=204)

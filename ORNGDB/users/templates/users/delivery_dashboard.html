@@ -561,7 +561,7 @@
           <!-- Manual Load More Button -->
           <div id="load-more-container" class="py-4 text-center" data-offset="10">
               <button id="load-more-btn" class="btn btn-outline-primary rounded-pill px-4 py-2 fw-bold shadow-sm">
-                  <i class="bi bi-arrow-down-circle me-1"></i> Load Older Orders
+                  <i class="bi bi-arrow-down-circle me-1"></i> Load others
               </button>
               <div id="load-more-spinner" class="d-none">
                   <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
@@ -2482,6 +2482,41 @@ function submitQuickBill(url, csrfToken) {
                 btn.disabled = false;
                 btn.innerHTML = 'Place Order';
                 
+                // Manually update the DOM for any affected orders in the list
+                if (data.updated_orders && Array.isArray(data.updated_orders)) {
+                    data.updated_orders.forEach(upd => {
+                        const statusEl = document.getElementById('card-balance-status-' + upd.id);
+                        if (statusEl) {
+                            if (upd.payment_status === 'paid') {
+                                statusEl.innerHTML = '<i class="bi bi-check-circle-fill"></i> Paid';
+                                statusEl.className = 'text-success small fw-bold mt-1';
+                            } else {
+                                statusEl.innerHTML = 'Balance: ₹' + Math.round(upd.remaining_balance);
+                                statusEl.className = 'text-danger small fw-bold mt-1';
+                            }
+                        }
+                        
+                        const btnEl = document.getElementById('pay-btn-' + upd.id);
+                        if (btnEl) {
+                            if (upd.payment_status === 'paid') {
+                                btnEl.className = 'btn btn-sm btn-success fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center';
+                                btnEl.disabled = true;
+                            } else {
+                                btnEl.className = 'btn btn-sm btn-outline-success fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center';
+                                btnEl.disabled = false;
+                                
+                                // Update the onclick arguments
+                                const currOnClick = btnEl.getAttribute('onclick');
+                                if (currOnClick) {
+                                    const newOnClick = currOnClick.replace(/openOrderPaymentModal\((\d+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)/, 
+                                        `openOrderPaymentModal($1, $2, $3, $4, ${upd.remaining_balance}`);
+                                    btnEl.setAttribute('onclick', newOnClick);
+                                }
+                            }
+                        }
+                    });
+                }
+                
                 silentReloadDashboard();
             } else {
                 showToast(data.error, false);
@@ -2850,6 +2885,44 @@ function saveOrderPayment() {
                 if (modal) modal.hide();
             }
             if (btn) btn.disabled = false;
+            
+            // Manually update the DOM for any affected orders in the list
+            if (data.updated_orders && Array.isArray(data.updated_orders)) {
+                data.updated_orders.forEach(upd => {
+                    const statusEl = document.getElementById('card-balance-status-' + upd.id);
+                    if (statusEl) {
+                        if (upd.payment_status === 'paid') {
+                            statusEl.innerHTML = '<i class="bi bi-check-circle-fill"></i> Paid';
+                            statusEl.className = 'text-success small fw-bold mt-1';
+                        } else {
+                            statusEl.innerHTML = 'Balance: ₹' + Math.round(upd.remaining_balance);
+                            statusEl.className = 'text-danger small fw-bold mt-1';
+                        }
+                    }
+                    
+                    const btnEl = document.getElementById('pay-btn-' + upd.id);
+                    if (btnEl) {
+                        if (upd.payment_status === 'paid') {
+                            btnEl.className = 'btn btn-sm btn-success fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center';
+                            btnEl.disabled = true;
+                        } else {
+                            btnEl.className = 'btn btn-sm btn-outline-success fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center';
+                            btnEl.disabled = false;
+                            
+                            // Update the onclick arguments
+                            // The arguments are: orderId, totalAmount, oldBalance, grandTotal, remainingBalance, url, csrfToken, storeName
+                            const currOnClick = btnEl.getAttribute('onclick');
+                            if (currOnClick) {
+                                // Simple regex to replace the 5th argument (remaining_balance)
+                                const newOnClick = currOnClick.replace(/openOrderPaymentModal\((\d+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)/, 
+                                    `openOrderPaymentModal($1, $2, $3, $4, ${upd.remaining_balance}`);
+                                btnEl.setAttribute('onclick', newOnClick);
+                            }
+                        }
+                    }
+                });
+            }
+            
             silentReloadDashboard();
         } else {
             showToast(data.error || 'Failed to save payment.', false);
@@ -2963,6 +3036,42 @@ function saveStorePayment() {
             showToast('Store payment updated successfully!', true);
             closeStorePaymentModal();
             if (btn) btn.disabled = false;
+            
+            // Manually update the DOM for any affected orders in the list
+            if (data.updated_orders && Array.isArray(data.updated_orders)) {
+                data.updated_orders.forEach(upd => {
+                    const statusEl = document.getElementById('card-balance-status-' + upd.id);
+                    if (statusEl) {
+                        if (upd.payment_status === 'paid') {
+                            statusEl.innerHTML = '<i class="bi bi-check-circle-fill"></i> Paid';
+                            statusEl.className = 'text-success small fw-bold mt-1';
+                        } else {
+                            statusEl.innerHTML = 'Balance: ₹' + Math.round(upd.remaining_balance);
+                            statusEl.className = 'text-danger small fw-bold mt-1';
+                        }
+                    }
+                    
+                    const btnEl = document.getElementById('pay-btn-' + upd.id);
+                    if (btnEl) {
+                        if (upd.payment_status === 'paid') {
+                            btnEl.className = 'btn btn-sm btn-success fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center';
+                            btnEl.disabled = true;
+                        } else {
+                            btnEl.className = 'btn btn-sm btn-outline-success fw-bold px-3 rounded-pill shadow-sm d-inline-flex align-items-center';
+                            btnEl.disabled = false;
+                            
+                            // Update the onclick arguments
+                            const currOnClick = btnEl.getAttribute('onclick');
+                            if (currOnClick) {
+                                const newOnClick = currOnClick.replace(/openOrderPaymentModal\((\d+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)/, 
+                                    `openOrderPaymentModal($1, $2, $3, $4, ${upd.remaining_balance}`);
+                                btnEl.setAttribute('onclick', newOnClick);
+                            }
+                        }
+                    }
+                });
+            }
+            
             silentReloadDashboard();
         } else {
             showToast(data.error || 'Failed to save payment.', false);
@@ -3813,7 +3922,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const offset = parseInt(loadMoreContainer.getAttribute('data-offset'));
         
-        fetch(`/orders/load-more-delivered/?offset=${offset}`)
+        fetch(`/orders/load-more-delivered/?offset=${offset}&load_all=true`)
             .then(response => {
                 if (response.status === 204) {
                     noMoreDeliveredOrders = true;
@@ -3825,11 +3934,12 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(html => {
                 if (html.trim() !== '') {
                     deliveredContainer.insertAdjacentHTML('beforeend', html);
-                    loadMoreContainer.setAttribute('data-offset', offset + 10);
+                    
+                    // Hide the button permanently since we loaded all remaining
+                    noMoreDeliveredOrders = true;
+                    loadMoreContainer.classList.add('d-none');
                     
                     isLoadingDeliveredOrders = false;
-                    loadMoreSpinner.classList.add('d-none');
-                    loadMoreBtn.classList.remove('d-none');
                 } else {
                     noMoreDeliveredOrders = true;
                     loadMoreContainer.classList.add('d-none');
