@@ -3776,15 +3776,24 @@ function openStoreOrdersModal(storeName) {
                         </div>
                         <div class="d-flex justify-content-between align-items-center">
                             <small class="text-muted" style="font-size:0.75rem;">${order.created_at}</small>
-                            <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 py-1 rounded-pill shadow-sm view-bill-btn" style="font-size:0.75rem;">
-                                <i class="bi bi-receipt me-1"></i> Bill
-                            </button>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 py-1 rounded-pill shadow-sm view-bill-btn me-1" style="font-size:0.75rem;">
+                                    <i class="bi bi-receipt me-1"></i> Bill
+                                </button>
+                                <button type="button" id="share-btn-${order.id}" class="btn btn-sm btn-outline-secondary fw-bold px-3 py-1 rounded-pill shadow-sm share-bill-btn" style="font-size:0.75rem;">
+                                    <i class="bi bi-share me-1"></i> Share
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `;
                 
                 card.querySelector('.view-bill-btn').addEventListener('click', () => {
                     openDynamicReceiptModal(order);
+                });
+                
+                card.querySelector('.share-bill-btn').addEventListener('click', () => {
+                    shareOrderBill(order.id, `/orders/order/${order.id}/share/`);
                 });
                 
                 listContainer.appendChild(card);
