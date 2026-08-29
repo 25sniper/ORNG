@@ -1940,6 +1940,7 @@ function startNewBill() {
         method: 'POST',
         headers: { 'X-CSRFToken': QB_CSRF }
     }).catch(() => {});
+    localStorage.removeItem('offline_draft_bill');
     _hasDraft = false;
     // Update button appearance
     const btn = document.getElementById('qb-main-btn');
@@ -1956,90 +1957,130 @@ function continueDraftBill() {
     fetchWithTimeout(DRAFT_GET_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(r => r.json())
     .then(data => {
-        openQuickBillModal();  // opens fresh, then we load draft on top
-        if (data.has_draft) {
-            const items = data.items || {};
-            
-            // Check if this draft is editing an existing order
-            const editOrderId = items['_edit_order_id'];
-            if (editOrderId) {
-                isEditingOrder = true;
-                editingOrderUnpaidBalance = data.editing_order_unpaid_balance || 0;
-                editingOrderOldBalance = data.editing_order_old_balance || 0;
-                editingOrderStoreName = data.editing_order_store_name || '';
-                
-                document.getElementById('quickBillModalLabel').textContent = 'Edit Order #' + editOrderId;
-                const submitBtn = document.getElementById('submitQuickBillBtn');
-                if (submitBtn) {
-                    submitBtn.textContent = 'Update Order';
-                    submitBtn.style.backgroundColor = '#0d6efd'; // Change to primary color
-                }
-                
-                // Populate Hidden Input
-                let orderInput = document.getElementById('qb-edit-order-id');
-                if (!orderInput) {
-                    orderInput = document.createElement('input');
-                    orderInput.type = 'hidden';
-                    orderInput.id = 'qb-edit-order-id';
-                    orderInput.name = 'order_id';
-                    const qbForm = document.getElementById('quickBillForm');
-                    if (qbForm) qbForm.appendChild(orderInput);
-                }
-                orderInput.value = editOrderId;
-            }
-
-            // Restore items
-            Object.entries(items).forEach(([pid, qty]) => {
-                if (pid === '_edit_order_id' || pid === '_custom_prices') return;
-                qty = parseInt(qty) || 0;
-                if (qty <= 0) return;
-                const inp = document.getElementById('qb-qty-' + pid);
-                if (!inp) return;
-                inp.value = qty;
-                const container = inp.closest('.qb-qty-container');
-                if (container) {
-                    container.querySelector('.qb-add-btn')?.classList.add('d-none');
-                    const ctrl = container.querySelector('.qb-qty-controls');
-                    if (ctrl) { ctrl.classList.remove('d-none'); ctrl.style.display = 'inline-flex'; }
-                }
-                if (!qbCartOrder.includes(pid.toString())) {
-                    qbCartOrder.push(pid.toString());
-                }
-            });
-
-            // Restore custom prices
-            const customPrices = items['_custom_prices'] || {};
-            Object.entries(customPrices).forEach(([pid, price]) => {
-                const item = document.querySelector(`.qb-product-item[data-product-id="${pid}"]`);
-                if (item) {
-                    item.dataset.price = price;
-                }
-                const display = document.getElementById('qb-price-display-' + pid);
-                if (display) display.textContent = '₹' + parseFloat(price).toFixed(0);
-                
-                let hiddenInput = document.getElementById('qb-custom-price-' + pid);
-                if (!hiddenInput) {
-                    hiddenInput = document.createElement('input');
-                    hiddenInput.type = 'hidden';
-                    hiddenInput.id = 'qb-custom-price-' + pid;
-                    hiddenInput.name = 'price_' + pid;
-                    document.getElementById('quickBillForm').appendChild(hiddenInput);
-                }
-                hiddenInput.value = price;
-                hiddenInput.disabled = false;
-            });
-            // Restore store name
-            const storeInp = document.getElementById('qb-store-name');
-            if (storeInp && data.store_name) { storeInp.value = data.store_name; checkStoreBalance(); }
-            // Restore old balance
-            const oldBalInp = document.getElementById('qb-old-balance');
-            if (oldBalInp && parseFloat(data.old_balance) > 0) {
-                oldBalInp.value = parseFloat(data.old_balance).toFixed(2);
-            }
-            updateQBCartTotals();
+        const localDraft = localStorage.getItem('offline_draft_bill');
+        if (localDraft) {
+            try {
+                const parsed = JSON.parse(localDraft);
+                _applyDraftData({ 
+                    has_draft: true, 
+                    items: parsed.items, 
+                    store_name: parsed.store_name, 
+                    old_balance: parsed.old_balance, 
+                    editing_order_unpaid_balance: parsed.editing_order_unpaid_balance, 
+                    editing_order_old_balance: parsed.editing_order_old_balance, 
+                    editing_order_store_name: parsed.editing_order_store_name 
+                });
+                return;
+            } catch(e) {}
         }
+        _applyDraftData(data);
     })
-    .catch(() => { openQuickBillModal(); });
+    .catch(() => { 
+        const localDraft = localStorage.getItem('offline_draft_bill');
+        if (localDraft) {
+            try {
+                const parsed = JSON.parse(localDraft);
+                _applyDraftData({ 
+                    has_draft: true, 
+                    items: parsed.items, 
+                    store_name: parsed.store_name, 
+                    old_balance: parsed.old_balance, 
+                    editing_order_unpaid_balance: parsed.editing_order_unpaid_balance, 
+                    editing_order_old_balance: parsed.editing_order_old_balance, 
+                    editing_order_store_name: parsed.editing_order_store_name 
+                });
+            } catch(e) {
+                openQuickBillModal();
+            }
+        } else {
+            openQuickBillModal(); 
+        }
+    });
+}
+
+function _applyDraftData(data) {
+    openQuickBillModal();  // opens fresh, then we load draft on top
+    if (data.has_draft) {
+        const items = data.items || {};
+        
+        // Check if this draft is editing an existing order
+        const editOrderId = items['_edit_order_id'];
+        if (editOrderId) {
+            isEditingOrder = true;
+            editingOrderUnpaidBalance = data.editing_order_unpaid_balance || 0;
+            editingOrderOldBalance = data.editing_order_old_balance || 0;
+            editingOrderStoreName = data.editing_order_store_name || '';
+            
+            document.getElementById('quickBillModalLabel').textContent = 'Edit Order #' + editOrderId;
+            const submitBtn = document.getElementById('submitQuickBillBtn');
+            if (submitBtn) {
+                submitBtn.textContent = 'Update Order';
+                submitBtn.style.backgroundColor = '#0d6efd'; // Change to primary color
+            }
+            
+            // Populate Hidden Input
+            let orderInput = document.getElementById('qb-edit-order-id');
+            if (!orderInput) {
+                orderInput = document.createElement('input');
+                orderInput.type = 'hidden';
+                orderInput.id = 'qb-edit-order-id';
+                orderInput.name = 'order_id';
+                const qbForm = document.getElementById('quickBillForm');
+                if (qbForm) qbForm.appendChild(orderInput);
+            }
+            orderInput.value = editOrderId;
+        }
+
+        // Restore items
+        Object.entries(items).forEach(([pid, qty]) => {
+            if (pid === '_edit_order_id' || pid === '_custom_prices') return;
+            qty = parseInt(qty) || 0;
+            if (qty <= 0) return;
+            const inp = document.getElementById('qb-qty-' + pid);
+            if (!inp) return;
+            inp.value = qty;
+            const container = inp.closest('.qb-qty-container');
+            if (container) {
+                container.querySelector('.qb-add-btn')?.classList.add('d-none');
+                const ctrl = container.querySelector('.qb-qty-controls');
+                if (ctrl) { ctrl.classList.remove('d-none'); ctrl.style.display = 'inline-flex'; }
+            }
+            if (!qbCartOrder.includes(pid.toString())) {
+                qbCartOrder.push(pid.toString());
+            }
+        });
+
+        // Restore custom prices
+        const customPrices = items['_custom_prices'] || {};
+        Object.entries(customPrices).forEach(([pid, price]) => {
+            const item = document.querySelector(`.qb-product-item[data-product-id="${pid}"]`);
+            if (item) {
+                item.dataset.price = price;
+            }
+            const display = document.getElementById('qb-price-display-' + pid);
+            if (display) display.textContent = '₹' + parseFloat(price).toFixed(0);
+            
+            let hiddenInput = document.getElementById('qb-custom-price-' + pid);
+            if (!hiddenInput) {
+                hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.id = 'qb-custom-price-' + pid;
+                hiddenInput.name = 'price_' + pid;
+                document.getElementById('quickBillForm').appendChild(hiddenInput);
+            }
+            hiddenInput.value = price;
+            hiddenInput.disabled = false;
+        });
+        // Restore store name
+        const storeInp = document.getElementById('qb-store-name');
+        if (storeInp && data.store_name) { storeInp.value = data.store_name; checkStoreBalance(); }
+        // Restore old balance
+        const oldBalInp = document.getElementById('qb-old-balance');
+        if (oldBalInp && parseFloat(data.old_balance) > 0) {
+            oldBalInp.value = parseFloat(data.old_balance).toFixed(2);
+        }
+        updateQBCartTotals();
+    }
 }
 
 // ── Quick Bill Logic ──────────────────────────────────────────────────────────
@@ -2436,6 +2477,9 @@ function submitQuickBill(url, csrfToken) {
             if (data.success) {
                 showToast(data.message, true);
                 
+                // Clear any offline draft we might have saved
+                localStorage.removeItem('offline_draft_bill');
+                
                 if (data.html_card) {
                     const deliveredContainer = document.getElementById('delivered-orders-container');
                     if (deliveredContainer) {
@@ -2525,9 +2569,15 @@ function submitQuickBill(url, csrfToken) {
             }
         })
         .catch(() => {
-            showToast('Network error.', false);
+            const dataToSave = collectDraftData();
+            localStorage.setItem('offline_draft_bill', JSON.stringify(dataToSave));
+            
+            showToast('Network slow, saved to draft.', false);
             btn.disabled = false;
             btn.innerHTML = 'Place Order';
+            closeQuickBillModal();
+            _hasDraft = true;
+            updateQuickBillMainButton();
         });
     } catch (e) {
         showToast('Execution error: ' + e.message, false);
